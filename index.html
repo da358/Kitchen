@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Kitchen — Cooperative Cooking Game</title>
+<style>
+  /* ── DESIGN TOKENS ─────────────────────────────────────────── */
+  :root {
+    --bg:          #F7F5F2;
+    --surface:     #FFFFFF;
+    --surface-2:   #F0EDE8;
+    --border:      #E2DDD7;
+    --text:        #1A1814;
+    --text-2:      #6B6560;
+    --text-3:      #9E9890;
+    --accent:      #5C6E5B;       /* muted sage green */
+    --accent-2:    #8B7355;       /* warm walnut */
+    --danger:      #B85450;
+    --ready:       #5C6E5B;
+    --spice-bg:    #F5ECD7;       /* warm amber */
+    --spice-bd:    #D4A853;
+    --protein-bg:  #E8EFF5;       /* cool blue */
+    --protein-bd:  #6B9BB8;
+    --grain-bg:    #EDF2E8;       /* soft green */
+    --grain-bd:    #7A9E6E;
+    --dairy-bg:    #F5EFF8;       /* pale lavender */
+    --dairy-bd:    #9E7FB8;
+    --tool-bg:     #E8E8E8;       /* neutral grey */
+    --tool-bd:     #888888;
+    --radius:      8px;
+    --radius-lg:   14px;
+    --shadow:      0 1px 4px rgba(0,0,0,0.08);
+    --shadow-lg:   0 4px 20px rgba(0,0,0,0.12);
+    --font:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display:'Georgia', 'Times New Roman', serif;
+  }
+
+  /* ── RESET & BASE ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Prevent browser text-selection highlight during tile drags (Safari, DDG) */
+  body { -webkit-user-select: none; user-select: none; }
+  input { -webkit-user-select: text; user-select: text; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── SCREENS ───────────────────────────────────────────────── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ── LANDING ───────────────────────────────────────────────── */
+  #screen-landing {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 40px;
+  }
+  .landing-logo {
+    text-align: center;
+  }
+  .landing-logo h1 {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: normal;
+    letter-spacing: -1px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .landing-logo p {
+    margin-top: 8px;
+    color: var(--text-2);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+  .landing-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 700px;
+  }
+  .landing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    width: 300px;
+    box-shadow: var(--shadow);
+  }
+  .landing-card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 16px;
+  }
+  .input-group { display: flex; flex-direction: column; gap: 10px; }
+  .input-group input {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 15px;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-group input:focus { border-color: var(--accent); }
+  .input-group input::placeholder { color: var(--text-3); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .error-msg {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+
+  /* ── LOBBY ─────────────────────────────────────────────────── */
+  #screen-lobby {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+  .lobby-header { text-align: center; }
+  .lobby-header h2 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: normal;
+  }
+  .lobby-header p { color: var(--text-2); margin-top: 6px; }
+  .game-code-display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 40px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .game-code-display .label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .game-code-display .code {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-family: var(--font);
+  }
+  .players-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    min-width: 320px;
+    box-shadow: var(--shadow);
+  }
+  .players-list h3 {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 14px;
+  }
+  .player-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .player-row:last-child { border-bottom: none; }
+  .player-row .name { font-weight: 500; }
+  .player-row .ready-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-3);
+  }
+  .player-row .ready-badge.is-ready {
+    background: #EAF2EA;
+    color: var(--ready);
+  }
+  .lobby-actions { display: flex; gap: 12px; flex-direction: column; align-items: center; }
+  .lobby-waiting { font-size: 13px; color: var(--text-2); text-align: center; }
+
+  /* ── GAME DASHBOARD ────────────────────────────────────────── */
+  #screen-game {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .game-header-left { display: flex; align-items: center; gap: 16px; }
+  .game-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: normal;
+  }
+  .timer-display {
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .timer-display.urgent { color: var(--danger); }
+  .score-display {
+    font-size: 13px;
+    color: var(--text-2);
+    font-weight: 500;
+  }
+  .game-header-right { display: flex; gap: 10px; align-items: center; }
+
+  .game-body {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Task zone */
+  .task-panel {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .task-panel-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .task-panel-header h3 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .task-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .task-description {
+    font-size: 13px;
+    color: var(--text-2);
+    margin-bottom: 12px;
+  }
+  .task-requirements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .req-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1.5px dashed var(--border);
+    color: var(--text-2);
+    transition: all 0.2s;
+  }
+  .req-item.satisfied {
+    border-style: solid;
+    color: var(--text);
+  }
+  .req-item.satisfied.spice { background: var(--spice-bg); border-color: var(--spice-bd); }
+  .req-item.satisfied.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
+  .req-item.satisfied.grain { background: var(--grain-bg); border-color: var(--grain-bd); }
+  .req-item.satisfied.dairy { background: var(--dairy-bg); border-color: var(--dairy-bd); }
+  .req-item.satisfied.tool { background: var(--tool-bg); border-color: var(--tool-bd); }
+
+  .task-drop-zone {
+    min-height: 72px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    align-items: center;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg);
+  }
+  .task-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #EEF2EE;
+  }
+  .task-drop-zone.complete {
+    border-color: var(--accent);
+    background: #EEF2EE;
+  }
+  .drop-hint {
+    color: var(--text-3);
+    font-size: 13px;
+    pointer-events: none;
+  }
+  .complete-btn {
+    margin-top: 10px;
+    transition: background 0.2s, opacity 0.2s, transform 0.1s;
+  }
+  .complete-btn:not(:disabled) {
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(92,110,91,0.35);
+  }
+  .complete-btn:disabled {
+    background: var(--surface-2);
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    cursor: default;
+    opacity: 1; /* override default btn disabled opacity so we control it */
+  }
+
+  /* Inventory panel */
+  .inventory-panel {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 16px 20px;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+  .inventory-section { margin-bottom: 20px; }
+  .inventory-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .inventory-section h4::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .tiles-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Resource tiles */
+  .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius);
+    border: 1.5px solid;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    position: relative;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    padding: 4px;
+    gap: 4px;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .tile:active { cursor: grabbing; transform: scale(0.97); }
+  .tile.dragging { opacity: 0.35; }
+  .tile .tile-emoji { font-size: 24px; line-height: 1; }
+  .tile .tile-label { font-size: 10px; line-height: 1.2; color: var(--text-2); }
+  .tile .type-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Prevent child elements from intercepting pointer events on tiles */
+  .tile * { pointer-events: none; }
+
+  /* In-task tiles (for glow effect) */
+  .tile.in-task { cursor: pointer; }
+  .tile.in-task:hover { transform: translateY(-1px); }
+  .tile.glowing {
+    box-shadow: 0 0 0 3px var(--accent), 0 0 14px rgba(92,110,91,0.4);
+    transform: scale(1.05);
+  }
+
+  .tile.spice   { background: var(--spice-bg);   border-color: var(--spice-bd); }
+  .tile.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
+  .tile.grain   { background: var(--grain-bg);   border-color: var(--grain-bd); }
+  .tile.dairy   { background: var(--dairy-bg);   border-color: var(--dairy-bd); }
+  .tile.tool    { background: var(--tool-bg);    border-color: var(--tool-bd); }
+
+  .tile.spice   .type-badge { background: var(--spice-bd);   color: #fff; }
+  .tile.protein .type-badge { background: var(--protein-bd); color: #fff; }
+  .tile.grain   .type-badge { background: var(--grain-bd);   color: #fff; }
+  .tile.dairy   .type-badge { background: var(--dairy-bd);   color: #fff; }
+  .tile.tool    .type-badge { background: var(--tool-bd);    color: #fff; }
+
+  /* Teammates panel */
+  .teammates-panel {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .teammates-panel h3 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 14px;
+  }
+  .teammate-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--bg);
+  }
+  .teammate-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .teammate-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .teammate-score {
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .teammate-drop {
+    min-height: 52px;
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text-3);
+    transition: border-color 0.2s, background 0.2s;
+    padding: 6px;
+  }
+  .teammate-drop.drag-over {
+    border-color: var(--accent-2);
+    background: #F5EFE7;
+    color: var(--accent-2);
+  }
+
+  /* Notification toast */
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--text);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    animation: toastIn 0.25s ease, toastOut 0.3s ease 2.2s forwards;
+    white-space: nowrap;
+  }
+  .toast.good { background: var(--accent); }
+  .toast.bad  { background: var(--danger); }
+  @keyframes toastIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(8px); } }
+
+  /* Incoming resource animation */
+  .incoming-flash {
+    animation: flashGreen 0.6s ease;
+  }
+  @keyframes flashGreen {
+    0%   { background: #c4e8c4; }
+    100% { background: transparent; }
+  }
+
+  /* ── SUMMARY SCREEN ────────────────────────────────────────── */
+  #screen-summary {
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 32px;
+    overflow-y: auto;
+  }
+  .summary-header { text-align: center; }
+  .summary-header h2 {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: normal;
+    margin-bottom: 6px;
+  }
+  .summary-header p { color: var(--text-2); font-size: 15px; }
+  .summary-grid {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 900px;
+    width: 100%;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    flex: 1;
+    min-width: 260px;
+  }
+  .summary-card h3 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 16px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-value { font-weight: 700; font-size: 18px; color: var(--accent); }
+
+  /* Network diagram */
+  #network-svg-container {
+    width: 100%;
+    max-width: 500px;
+  }
+  #network-svg { width: 100%; height: auto; }
+
+  /* Transfer log */
+  .transfer-log {
+    max-height: 240px;
+    overflow-y: auto;
+    font-size: 13px;
+  }
+  .transfer-entry {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+    line-height: 1.4;
+  }
+  .transfer-entry:last-child { border-bottom: none; }
+  .transfer-entry strong { color: var(--text); }
+
+  /* Duration selector */
+  .duration-opt {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .duration-opt:has(input:checked) {
+    border-color: var(--accent);
+    background: #EEF2EE;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .duration-opt input[type="radio"] {
+    display: none;
+  }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    font-size: 15px;
+    color: var(--text-2);
+    gap: 10px;
+    transition: opacity 0.3s;
+  }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Completed task flash */
+  @keyframes completePulse {
+    0%   { background: var(--surface); }
+    30%  { background: #d4edda; }
+    100% { background: var(--surface); }
+  }
+  .task-complete-anim { animation: completePulse 0.8s ease; }
+
+  /* ── RESPONSIVE: iPad ──────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .game-body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+    }
+    .teammates-panel {
+      grid-column: 1;
+      grid-row: 3;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 12px;
+    }
+    .teammates-panel h3 { display: none; }
+    .teammate-card { min-width: 160px; margin-bottom: 0; flex-shrink: 0; }
+    .tile { width: 64px; height: 64px; }
+    .tile .tile-emoji { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <span>Connecting…</span>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ══ SCREEN: LANDING ══════════════════════════════════════════ -->
+<div id="screen-landing" class="screen">
+  <div class="landing-logo">
+    <h1>The Kitchen</h1>
+    <p>A cooperative cooking game</p>
+  </div>
+  <div class="landing-cards">
+    <div class="landing-card">
+      <h2>Create a game</h2>
+      <div class="input-group">
+        <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3);">Round duration</label>
+          <div style="display:flex; gap:8px;">
+            <label class="duration-opt"><input type="radio" name="duration" value="60"> 1 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="120" checked> 2 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-create">Create game →</button>
+        <div class="error-msg" id="create-error"></div>
+      </div>
+    </div>
+    <div class="landing-card">
+      <h2>Join a game</h2>
+      <div class="input-group">
+        <input id="join-code" type="text" placeholder="Game code (e.g. MOUSE19)" maxlength="8" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
+        <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
+        <button class="btn btn-secondary" id="btn-join">Join game →</button>
+        <div class="error-msg" id="join-error"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-header">
+    <h2>Waiting for players</h2>
+    <p>Share the code with your team</p>
+  </div>
+  <div class="game-code-display">
+    <div class="label">Game code</div>
+    <div class="code" id="lobby-code">———</div>
+  </div>
+  <div class="players-list">
+    <h3>Players</h3>
+    <div id="lobby-players-list"></div>
+  </div>
+  <div class="lobby-actions">
+    <button class="btn btn-primary" id="btn-ready" style="min-width:180px;">I'm ready ✓</button>
+    <div class="lobby-waiting" id="lobby-status">Waiting for everyone to be ready…</div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: GAME ══════════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div class="game-header-left">
+      <span class="game-title">The Kitchen</span>
+      <span class="timer-display" id="timer">2:00</span>
+      <span class="score-display" id="team-score">Team: 0 tasks</span>
+    </div>
+    <div class="game-header-right">
+      <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
+      <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
+    </div>
+  </div>
+
+  <div class="game-body">
+    <!-- Task panel -->
+    <div class="task-panel" id="task-panel">
+      <div class="task-panel-header">
+        <h3>Current task</h3>
+        <span class="task-name" id="task-name">—</span>
+      </div>
+      <div class="task-description" id="task-description"></div>
+      <div class="task-requirements" id="task-requirements"></div>
+      <div class="task-drop-zone" id="task-drop-zone">
+        <span class="drop-hint">Drag ingredients &amp; tools here</span>
+      </div>
+      <button class="btn btn-primary complete-btn" id="btn-complete" disabled>Complete task</button>
+    </div>
+
+    <!-- Inventory panel -->
+    <div class="inventory-panel" id="inventory-panel">
+      <div class="inventory-section">
+        <h4>Ingredients</h4>
+        <div class="tiles-grid" id="ingredients-grid"></div>
+      </div>
+      <div class="inventory-section">
+        <h4>Tools</h4>
+        <div class="tiles-grid" id="tools-grid"></div>
+      </div>
+    </div>
+
+    <!-- Teammates panel -->
+    <div class="teammates-panel" id="teammates-panel">
+      <h3>Teammates</h3>
+      <div id="teammates-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: SUMMARY ══════════════════════════════════════════ -->
+<div id="screen-summary" class="screen">
+  <div class="summary-header">
+    <h2>Round complete</h2>
+    <p id="summary-subtitle">Here's how your team did</p>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>Tasks completed</h3>
+      <div id="summary-tasks"></div>
+    </div>
+    <div class="summary-card">
+      <h3>Resource transfers</h3>
+      <div id="summary-transfers"></div>
+    </div>
+    <div class="summary-card" style="min-width:320px;">
+      <h3>Team network</h3>
+      <div id="network-svg-container">
+        <svg id="network-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+    <div class="summary-card" style="flex-basis:100%; max-width:900px;">
+      <h3>Transfer log</h3>
+      <div class="transfer-log" id="transfer-log"></div>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-new-game" style="margin-bottom:40px;">Start a new game</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     FIREBASE SDK
+════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }                    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, push, onValue, off, remove }
+                                            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ─── FIREBASE CONFIG ──────────────────────────────────────────
+   Replace this object with your own Firebase project config.
+   Steps:
+   1. Go to https://console.firebase.google.com
+   2. Create a project (free Spark plan is fine)
+   3. Add a Web App, copy the firebaseConfig object here
+   4. In Firebase console → Realtime Database → Create database
+      (choose "Start in test mode" for now)
+─────────────────────────────────────────────────────────────── */
+
+
+const firebaseConfig = {
+
+  apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
+
+  authDomain: "kitchen-5cb9a.firebaseapp.com",
+
+  databaseURL: "https://kitchen-5cb9a-default-rtdb.firebaseio.com",
+
+  projectId: "kitchen-5cb9a",
+
+  storageBucket: "kitchen-5cb9a.firebasestorage.app",
+
+  messagingSenderId: "297004284280",
+
+  appId: "1:297004284280:web:095912fd748d7dcccb308d"
+
+};
+
+
+
+/* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
+const RESOURCES = {
+  // Ingredients
+  "Black Pepper":   { type:"ingredient", category:"spice",   emoji:"🌶️",  label:"Black Pepper" },
+  "Chili Flakes":   { type:"ingredient", category:"spice",   emoji:"🌶️",  label:"Chili Flakes" },
+  "Cumin":          { type:"ingredient", category:"spice",   emoji:"🫚",  label:"Cumin" },
+  "Oregano":        { type:"ingredient", category:"spice",   emoji:"🌿",  label:"Oregano" },
+  "Chicken":        { type:"ingredient", category:"protein", emoji:"🍗",  label:"Chicken" },
+  "Fish":           { type:"ingredient", category:"protein", emoji:"🐟",  label:"Fish" },
+  "Tofu":           { type:"ingredient", category:"protein", emoji:"🧆",  label:"Tofu" },
+  "Beans":          { type:"ingredient", category:"protein", emoji:"🫘",  label:"Beans" },
+  "Flour":          { type:"ingredient", category:"grain",   emoji:"🌾",  label:"Flour" },
+  "Rice":           { type:"ingredient", category:"grain",   emoji:"🍚",  label:"Rice" },
+  "Oats":           { type:"ingredient", category:"grain",   emoji:"🥣",  label:"Oats" },
+  "Butter":         { type:"ingredient", category:"dairy",   emoji:"🧈",  label:"Butter" },
+  "Cream":          { type:"ingredient", category:"dairy",   emoji:"🥛",  label:"Cream" },
+  "Milk":           { type:"ingredient", category:"dairy",   emoji:"🥛",  label:"Milk" },
+  // Tools
+  "Blender":        { type:"tool", category:"mixer",    emoji:"🫙",  label:"Blender" },
+  "Whisk":          { type:"tool", category:"mixer",    emoji:"🥄",  label:"Whisk" },
+  "Food Processor": { type:"tool", category:"mixer",    emoji:"⚙️",  label:"Food Processor" },
+  "Chef's Knife":   { type:"tool", category:"cutter",   emoji:"🔪",  label:"Chef's Knife" },
+  "Serrated Knife": { type:"tool", category:"cutter",   emoji:"🔪",  label:"Serrated Knife" },
+  "Mandolin":       { type:"tool", category:"cutter",   emoji:"🗡️", label:"Mandolin" },
+  "Bowl":           { type:"tool", category:"container",emoji:"🥣",  label:"Bowl" },
+  "Pan":            { type:"tool", category:"container",emoji:"🍳",  label:"Pan" },
+  "Tray":           { type:"tool", category:"container",emoji:"🫙",  label:"Tray" },
+};
+
+/* ─── TASKS ────────────────────────────────────────────────── */
+const TASKS = [
+  {
+    id: "t1", name: "Spiced Rice Bowl",
+    description: "A warming bowl with whole grains and aromatic spice.",
+    requirements: [ {resource:"Rice",qty:1}, {resource:"Cumin",qty:1}, {resource:"Bowl",qty:1} ]
+  },
+  {
+    id: "t2", name: "Creamy Oat Porridge",
+    description: "Slow-cooked oats finished with a splash of cream.",
+    requirements: [ {resource:"Oats",qty:1}, {resource:"Cream",qty:1}, {resource:"Pan",qty:1} ]
+  },
+  {
+    id: "t3", name: "Herb Fish Fillet",
+    description: "Fresh fish, simply seasoned and precisely cut.",
+    requirements: [ {resource:"Fish",qty:1}, {resource:"Oregano",qty:1}, {resource:"Chef's Knife",qty:1} ]
+  },
+  {
+    id: "t4", name: "Chili Tofu Stir-fry",
+    description: "Firm tofu tossed with heat in a well-seasoned pan.",
+    requirements: [ {resource:"Tofu",qty:1}, {resource:"Chili Flakes",qty:1}, {resource:"Pan",qty:1} ]
+  },
+  {
+    id: "t5", name: "Butter Flour Roux",
+    description: "The base of many great sauces — patience required.",
+    requirements: [ {resource:"Flour",qty:1}, {resource:"Butter",qty:1}, {resource:"Whisk",qty:1} ]
+  },
+  {
+    id: "t6", name: "Pepper Chicken Breast",
+    description: "A classic — bold seasoning on well-handled protein.",
+    requirements: [ {resource:"Chicken",qty:1}, {resource:"Black Pepper",qty:1}, {resource:"Tray",qty:1} ]
+  },
+  {
+    id: "t7", name: "Milk Rice Pudding",
+    description: "Comforting and simple — milk, rice, and time.",
+    requirements: [ {resource:"Rice",qty:1}, {resource:"Milk",qty:1}, {resource:"Bowl",qty:1} ]
+  },
+  {
+    id: "t8", name: "Bean and Spice Stew",
+    description: "Hearty legumes, aromatic heat, and slow cooking.",
+    requirements: [ {resource:"Beans",qty:1}, {resource:"Cumin",qty:1}, {resource:"Pan",qty:1} ]
+  },
+];
+
+/* ─── STARTING INVENTORIES ──────────────────────────────────
+   Each config ensures:
+   - Every required resource for first-round tasks exists 2x across team
+   - No player can solo their first task
+   - Tools are intentionally mismatched (you don't hold your own tool)
+─────────────────────────────────────────────────────────────── */
+const STARTING_INVENTORIES = {
+  4: [
+    // Player 0 → Task t1 needs: Rice(has), Cumin(no→P2), Bowl(no→P3)
+    { ingredients: ["Rice","Chili Flakes","Chicken","Oregano"], tools: ["Serrated Knife","Tray"] },
+    // Player 1 → Task t2 needs: Oats(no→P3), Cream(has), Pan(no→P0 missing… P3 has)
+    { ingredients: ["Cream","Black Pepper","Fish","Butter"],   tools: ["Pan","Food Processor"] },
+    // Player 2 → Task t3 needs: Fish(no→P1), Oregano(no→P0), Chef's Knife(has)
+    { ingredients: ["Cumin","Tofu","Rice","Flour"],            tools: ["Chef's Knife","Blender"] },
+    // Player 3 → Task t4 needs: Tofu(no→P2), Chili Flakes(no→P0), Pan(no→P1)
+    { ingredients: ["Oats","Beans","Milk","Cream"],            tools: ["Bowl","Whisk"] },
+  ],
+  5: [
+    { ingredients: ["Rice","Chili Flakes","Chicken"],          tools: ["Serrated Knife","Tray"] },
+    { ingredients: ["Cream","Black Pepper","Fish"],            tools: ["Pan","Food Processor"] },
+    { ingredients: ["Cumin","Tofu","Rice"],                    tools: ["Chef's Knife","Blender"] },
+    { ingredients: ["Oats","Beans","Milk"],                    tools: ["Bowl","Whisk"] },
+    { ingredients: ["Flour","Butter","Oregano","Beans"],       tools: ["Pan","Tray"] },
+  ],
+  6: [
+    { ingredients: ["Rice","Chili Flakes","Chicken"],          tools: ["Serrated Knife"] },
+    { ingredients: ["Cream","Black Pepper","Fish"],            tools: ["Pan","Food Processor"] },
+    { ingredients: ["Cumin","Tofu","Rice"],                    tools: ["Chef's Knife","Blender"] },
+    { ingredients: ["Oats","Beans","Milk"],                    tools: ["Bowl","Whisk"] },
+    { ingredients: ["Flour","Butter","Oregano"],               tools: ["Pan","Tray"] },
+    { ingredients: ["Beans","Cumin","Cream","Chicken"],        tools: ["Chef's Knife","Bowl"] },
+  ],
+};
+
+const TASK_SEQUENCE = ["t1","t2","t3","t4","t5","t6","t7","t8"];
+const ROUND_DURATION = 120; // seconds
+const INGREDIENT_NAMES = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "ingredient");
+
+/* ─── GAME STATE ────────────────────────────────────────────── */
+let app, db;
+let myPlayerId   = null;
+let myPlayerName = null;
+let gameCode     = null;
+let gameRef      = null;
+let playersRef   = null;
+let timerInterval= null;
+let gameState    = {};         // mirror of Firebase state
+let localInventory = {};       // { resourceName: count } — kept in sync with Firebase
+let taskZoneItems  = [];       // resources dragged into task zone
+let transferLog    = [];       // for summary
+let unsubscribers  = [];       // Firebase listeners to detach
+let inGameEntered  = false;    // guard: prevent enterGame() firing twice
+
+/* ─── UTILITIES ─────────────────────────────────────────────── */
+function genCode() {
+  const words = ["APPLE","BASIN","CEDAR","DELTA","EMBER","FORGE","GROVE","HAVEN",
+                 "IVORY","JUMBO","KARMA","LEMON","MAPLE","NOBLE","OCEAN","PEARL",
+                 "QUILL","RIVER","STORM","TORCH","ULTRA","VAPOR","WHEAT","XENON","YEAST","ZESTY"];
+  const w = words[Math.floor(Math.random()*words.length)];
+  const n = String(Math.floor(Math.random()*90)+10);
+  return w+n;
+}
+
+function genPlayerId() {
+  return "p_" + Math.random().toString(36).slice(2,10);
+}
+
+function toast(msg, type="") {
+  const el = document.createElement("div");
+  el.className = "toast" + (type ? " "+type : "");
+  el.textContent = msg;
+  document.getElementById("toast-container").appendChild(el);
+  setTimeout(() => el.remove(), 2700);
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-"+id).classList.add("active");
+}
+
+function hideLoading() {
+  const el = document.getElementById("loading-overlay");
+  el.style.opacity = "0";
+  setTimeout(() => el.style.display="none", 300);
+}
+
+/* ─── RESOURCE & TILE HELPERS ───────────────────────────────── */
+function categoryClass(name) {
+  const cat = RESOURCES[name]?.category || "tool";
+  if (cat === "spice")     return "spice";
+  if (cat === "protein")   return "protein";
+  if (cat === "grain")     return "grain";
+  if (cat === "dairy")     return "dairy";
+  return "tool";
+}
+
+function typeBadgeLabel(name) {
+  return RESOURCES[name]?.type === "tool" ? "TOOL" : "ING";
+}
+
+function makeTile(name, instanceId, context="inventory") {
+  const res = RESOURCES[name] || { emoji:"❓", label:name };
+  const cls = categoryClass(name);
+  const div = document.createElement("div");
+  div.className = `tile ${cls}`;
+  div.dataset.resource = name;
+  div.dataset.instanceId = instanceId;
+  div.dataset.context = context;
+  div.innerHTML = `
+    <span class="tile-emoji">${res.emoji}</span>
+    <span class="tile-label">${res.label}</span>
+    <span class="type-badge">${typeBadgeLabel(name)}</span>
+  `;
+  return div;
+}
+
+/* ─── INVENTORY MANAGEMENT ──────────────────────────────────── */
+function addToLocalInventory(name, qty=1) {
+  localInventory[name] = (localInventory[name] || 0) + qty;
+}
+function removeFromLocalInventory(name, qty=1) {
+  localInventory[name] = Math.max(0, (localInventory[name] || 0) - qty);
+  if (localInventory[name] === 0) delete localInventory[name];
+}
+
+function renderInventory() {
+  const ingGrid  = document.getElementById("ingredients-grid");
+  const toolGrid = document.getElementById("tools-grid");
+  ingGrid.innerHTML  = "";
+  toolGrid.innerHTML = "";
+
+  Object.entries(localInventory).forEach(([name, count]) => {
+    const res = RESOURCES[name];
+    if (!res) return;
+    for (let i=0; i<count; i++) {
+      const instanceId = `${name}_${i}`;
+      const tile = makeTile(name, instanceId, "inventory");
+      setupTileDrag(tile);
+      if (res.type === "tool") {
+        toolGrid.appendChild(tile);
+      } else {
+        ingGrid.appendChild(tile);
+      }
+    }
+  });
+}
+
+/* ─── DRAG AND DROP ─────────────────────────────────────────── */
+// Click vs drag is distinguished by movement threshold (DRAG_THRESHOLD px).
+// Below threshold → treat as click (for task-zone tile glow toggle).
+// Above threshold → treat as drag (move tile to new location).
+
+const DRAG_THRESHOLD = 6; // pixels of movement before we commit to a drag
+
+let draggedTile    = null;
+let draggedName    = null;
+let draggedSource  = null;
+let dragStartX     = 0;
+let dragStartY     = 0;
+let dragCommitted  = false; // true once movement exceeds threshold
+let ghost          = null;
+let offsetX        = 0;
+let offsetY        = 0;
+
+function setupTileDrag(tile) {
+  tile.addEventListener("mousedown",  onTileMouseDown);
+  tile.addEventListener("touchstart", onTileTouchStart, { passive: false });
+}
+
+function onTileMouseDown(e) {
+  if (e.button !== 0) return;
+  e.preventDefault(); // stop browser text-selection on mousedown
+  initPointer(e.currentTarget, e.clientX, e.clientY);
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup",   onMouseUp);
+}
+
+function onTileTouchStart(e) {
+  const touch = e.touches[0];
+  e.preventDefault();
+  initPointer(e.currentTarget, touch.clientX, touch.clientY);
+  document.addEventListener("touchmove", onTouchMove, { passive: false });
+  document.addEventListener("touchend",  onTouchEnd);
+}
+
+function initPointer(tile, cx, cy) {
+  draggedTile   = tile;
+  draggedName   = tile.dataset.resource;
+  draggedSource = tile.dataset.context;
+  dragStartX    = cx;
+  dragStartY    = cy;
+  dragCommitted = false;
+  ghost         = null;
+
+  const rect = tile.getBoundingClientRect();
+  offsetX = cx - rect.left;
+  offsetY = cy - rect.top;
+}
+
+function onMouseMove(e)  { movePointer(e.clientX, e.clientY); }
+function onTouchMove(e)  { movePointer(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
+
+function movePointer(cx, cy) {
+  if (!draggedTile) return;
+  const dx = cx - dragStartX, dy = cy - dragStartY;
+
+  if (!dragCommitted) {
+    if (Math.sqrt(dx*dx + dy*dy) < DRAG_THRESHOLD) return; // not yet
+    // Commit to drag — create ghost
+    dragCommitted = true;
+    const rect = draggedTile.getBoundingClientRect();
+    ghost = draggedTile.cloneNode(true);
+    ghost.style.cssText = `
+      position:fixed; pointer-events:none; z-index:9000;
+      width:${rect.width}px; height:${rect.height}px;
+      opacity:0.85; transform:scale(1.08); transition:none;
+      left:${dragStartX - offsetX}px; top:${dragStartY - offsetY}px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.18);
+    `;
+    document.body.appendChild(ghost);
+    draggedTile.classList.add("dragging");
+  }
+
+  // Move ghost
+  ghost.style.left = (cx - offsetX) + "px";
+  ghost.style.top  = (cy - offsetY) + "px";
+
+  // Highlight drop targets
+  document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
+  const el = document.elementFromPoint(cx, cy);
+  const zone = el?.closest(".task-drop-zone, .teammate-drop");
+  if (zone) zone.classList.add("drag-over");
+}
+
+function onMouseUp(e) {
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("mouseup",   onMouseUp);
+  endPointer(e.clientX, e.clientY);
+}
+function onTouchEnd(e) {
+  document.removeEventListener("touchmove", onTouchMove);
+  document.removeEventListener("touchend",  onTouchEnd);
+  endPointer(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+}
+
+function endPointer(cx, cy) {
+  if (!draggedTile) return;
+
+  document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
+
+  if (!dragCommitted) {
+    // ── CLICK behaviour ──
+    if (draggedSource === "task") {
+      // Use the instanceId captured at pointer-down time (from draggedTile).
+      // We pass draggedTile only for legacy compat; onTaskTileClick re-renders anyway.
+      const instanceId = draggedTile.dataset.instanceId;
+      const name       = draggedTile.dataset.resource;
+      onTaskTileClick(draggedTile, instanceId, name);
+    }
+    // Clicks on inventory tiles: no action
+  } else {
+    // ── DRAG behaviour ──
+    if (ghost) { ghost.remove(); ghost = null; }
+    draggedTile.classList.remove("dragging");
+
+    const el = document.elementFromPoint(cx, cy);
+    const taskZone = el?.closest(".task-drop-zone");
+    const tmZone   = el?.closest(".teammate-drop");
+
+    if (taskZone && draggedSource === "inventory") {
+      dropIntoTask(draggedName);
+    } else if (tmZone && draggedSource === "inventory") {
+      sendResource(draggedName, tmZone.dataset.playerId);
+    } else if (draggedSource === "task") {
+      // Dragged out of task zone → return to inventory
+      returnFromTask(draggedName);
+    }
+    // Dropped nowhere useful → do nothing (tile stays put)
+  }
+
+  if (ghost) { ghost.remove(); ghost = null; }
+  draggedTile.classList.remove("dragging");
+  draggedTile  = null;
+  draggedName  = null;
+  draggedSource = null;
+  dragCommitted = false;
+}
+
+/* ─── TASK ZONE ─────────────────────────────────────────────── */
+let currentTask  = null;
+let taskZoneMap  = {}; // { resourceName: count } in task zone
+let clickedTiles = new Set(); // instanceIds that have been clicked
+
+function loadTask(taskId) {
+  currentTask   = TASKS.find(t => t.id === taskId) || TASKS[0];
+  taskZoneMap   = {};
+  clickedTiles  = new Set();
+  renderTask();
+  renderTaskZone();
+  checkTaskComplete();
+}
+
+function renderTask() {
+  if (!currentTask) return;
+  document.getElementById("task-name").textContent = currentTask.name;
+  document.getElementById("task-description").textContent = currentTask.description;
+
+  const reqEl = document.getElementById("task-requirements");
+  reqEl.innerHTML = "";
+  currentTask.requirements.forEach(req => {
+    const have = (taskZoneMap[req.resource] || 0) >= req.qty;
+    const cls  = have ? `req-item satisfied ${categoryClass(req.resource)}` : "req-item";
+    const res  = RESOURCES[req.resource] || { emoji:"❓" };
+    reqEl.innerHTML += `
+      <div class="${cls}">
+        ${res.emoji} ${req.qty > 1 ? req.qty+"× " : ""}${req.resource}
+        ${have ? "✓" : ""}
+      </div>`;
+  });
+}
+
+function renderTaskZone() {
+  const zone = document.getElementById("task-drop-zone");
+  zone.innerHTML = "";
+  let hasItems = false;
+  Object.entries(taskZoneMap).forEach(([name, count]) => {
+    for (let i = 0; i < count; i++) {
+      hasItems = true;
+      const instanceId = `task_${name}_${i}`;
+      const tile = makeTile(name, instanceId, "task");
+      tile.classList.add("in-task");
+      if (clickedTiles.has(instanceId)) tile.classList.add("glowing");
+      // Pointer handling (click-to-glow, drag-to-return) is done via
+      // setupTileDrag → endPointer. No separate click listener needed.
+      setupTileDrag(tile);
+      zone.appendChild(tile);
+    }
+  });
+  if (!hasItems) {
+    zone.innerHTML = '<span class="drop-hint">Drag ingredients &amp; tools here to begin</span>';
+  } else {
+    // Add a small instruction line below the tiles
+    const hint = document.createElement("div");
+    hint.style.cssText = "width:100%; font-size:11px; color:var(--text-3); margin-top:4px; pointer-events:none;";
+    hint.textContent = "Click each tile to activate it, then press Complete Task";
+    zone.appendChild(hint);
+  }
+}
+
+function onTaskTileClick(tile, instanceId, name) {
+  // Toggle the clicked state
+  if (clickedTiles.has(instanceId)) {
+    clickedTiles.delete(instanceId);
+  } else {
+    clickedTiles.add(instanceId);
+  }
+  // Re-render the task zone so the live DOM reflects the new glow state.
+  // (We can't rely on the tile reference — it may be a detached element
+  // if renderTaskZone already rebuilt the DOM since the pointer went down.)
+  renderTaskZone();
+  checkTaskComplete();
+}
+
+function dropIntoTask(name) {
+  if (!localInventory[name]) {
+    toast("You don't have that resource", "bad");
+    return;
+  }
+  // Check if this resource is needed
+  const needed = currentTask?.requirements || [];
+  const neededNames = needed.map(r => r.resource);
+  // Allow any resource to be placed; let the player sort it out visually
+  removeFromLocalInventory(name);
+  taskZoneMap[name] = (taskZoneMap[name] || 0) + 1;
+  renderInventory();
+  renderTask();
+  renderTaskZone();
+  checkTaskComplete();
+}
+
+function returnFromTask(name) {
+  if (!taskZoneMap[name]) return;
+  taskZoneMap[name]--;
+  if (taskZoneMap[name] <= 0) delete taskZoneMap[name];
+  // Remove any clicked state for this resource
+  // (simplified: clear clicked tiles for this resource type)
+  const keysToRemove = [...clickedTiles].filter(k => k.startsWith(`task_${name}`));
+  keysToRemove.forEach(k => clickedTiles.delete(k));
+  addToLocalInventory(name);
+  renderInventory();
+  renderTask();
+  renderTaskZone();
+  checkTaskComplete();
+}
+
+function checkTaskComplete() {
+  if (!currentTask) return;
+  const reqs = currentTask.requirements;
+
+  // All required resources must be present in the task zone
+  const allSatisfied = reqs.every(r => (taskZoneMap[r.resource] || 0) >= r.qty);
+
+  // Each required resource slot must have a glowing (clicked) tile.
+  // We count how many required tiles need to be glowing.
+  // Extra/non-required tiles in the zone don't need to be clicked.
+  let requiredGlowCount = 0;
+  reqs.forEach(r => { requiredGlowCount += r.qty; });
+
+  // Count glowing tiles that correspond to required resources
+  let glowingRequired = 0;
+  reqs.forEach(req => {
+    for (let i = 0; i < req.qty; i++) {
+      const instanceId = `task_${req.resource}_${i}`;
+      if (clickedTiles.has(instanceId)) glowingRequired++;
+    }
+  });
+
+  const allGlowing = allSatisfied && (glowingRequired >= requiredGlowCount);
+
+  const btn = document.getElementById("btn-complete");
+  btn.disabled = !allGlowing;
+  document.getElementById("task-drop-zone").classList.toggle("complete", allSatisfied);
+}
+
+async function completeTask() {
+  if (!currentTask) return;
+  const taskName = currentTask.name;
+  const playerRef = ref(db, `games/${gameCode}/players/${myPlayerId}`);
+
+  // ── Build the inventory changes to write to Firebase ──────────
+  // Required ingredients: consumed (already removed from localInventory when dragged in)
+  // Required tools: return to inventory
+  // Extra items in task zone that weren't required: return to inventory
+  // New random ingredients: spawn to replace consumed ingredients
+
+  const requiredIngredients = currentTask.requirements
+    .filter(r => RESOURCES[r.resource]?.type === "ingredient")
+    .reduce((sum, r) => sum + r.qty, 0);
+
+  // Return any items in task zone that exceed requirements (or aren't required at all)
+  const reqMap = {};
+  currentTask.requirements.forEach(r => { reqMap[r.resource] = r.qty; });
+
+  Object.entries(taskZoneMap).forEach(([name, count]) => {
+    const required = reqMap[name] || 0;
+    const excess   = count - required;
+    const isRequired = required > 0;
+    const res = RESOURCES[name];
+
+    if (res?.type === "tool") {
+      // All tools in task zone return to inventory (required ones complete the task)
+      addToLocalInventory(name, count);
+    } else if (excess > 0) {
+      // Return extra ingredients that weren't needed
+      addToLocalInventory(name, excess);
+    }
+    // Required ingredients are consumed — already removed from inventory when dragged in
+  });
+
+  // Spawn new random ingredients equal to number consumed
+  for (let i = 0; i < requiredIngredients; i++) {
+    const randIng = INGREDIENT_NAMES[Math.floor(Math.random() * INGREDIENT_NAMES.length)];
+    addToLocalInventory(randIng);
+  }
+
+  // Clear task zone
+  taskZoneMap  = {};
+  clickedTiles = new Set();
+
+  // ── Write updated inventory to Firebase ───────────────────────
+  // Rebuild ingredient and tool maps from current localInventory
+  const ingMap  = {};
+  const toolMap = {};
+  Object.entries(localInventory).forEach(([k, v]) => {
+    if (RESOURCES[k]?.type === "ingredient") ingMap[k]  = v;
+    else                                     toolMap[k] = v;
+  });
+
+  // Determine next task
+  const nextIdx = (TASK_SEQUENCE.indexOf(currentTask.id) + 1) % TASK_SEQUENCE.length;
+
+  // Write everything in one update
+  const snap = await get(playerRef);
+  const data  = snap.val() || {};
+  await update(playerRef, {
+    ingredients:    ingMap,
+    tools:          toolMap,
+    tasksCompleted: (data.tasksCompleted || 0) + 1,
+    currentTaskId:  TASK_SEQUENCE[nextIdx]
+  });
+
+  // Flash animation
+  document.getElementById("task-panel").classList.add("task-complete-anim");
+  setTimeout(() => document.getElementById("task-panel").classList.remove("task-complete-anim"), 800);
+
+  toast(`✓ "${taskName}" complete!`, "good");
+
+  // Move to next task
+  loadTask(TASK_SEQUENCE[nextIdx]);
+  renderInventory();
+}
+
+/* ─── TRANSFERS ─────────────────────────────────────────────── */
+// Transfers work by directly modifying both players' Firebase inventory nodes.
+// The sender's localInventory is updated immediately for responsiveness.
+// The receiver's inventory listener sees the Firebase change and re-renders.
+async function sendResource(name, targetPlayerId) {
+  if (!localInventory[name]) {
+    toast("You don't have that resource anymore", "bad");
+    return;
+  }
+
+  const res      = RESOURCES[name];
+  const isIngr   = res?.type === "ingredient";
+  const field    = isIngr ? "ingredients" : "tools";
+  const senderPath   = `games/${gameCode}/players/${myPlayerId}/${field}/${name}`;
+  const receiverPath = `games/${gameCode}/players/${targetPlayerId}/${field}/${name}`;
+
+  // 1. Optimistically update local display right away
+  removeFromLocalInventory(name);
+  renderInventory();
+
+  try {
+    // 2. Decrement sender's count in Firebase (remove key if zero)
+    const senderSnap = await get(ref(db, senderPath));
+    const senderCount = (senderSnap.val() || 1) - 1;
+    if (senderCount <= 0) {
+      await remove(ref(db, senderPath));
+    } else {
+      await set(ref(db, senderPath), senderCount);
+    }
+
+    // 3. Increment receiver's count in Firebase
+    const receiverSnap = await get(ref(db, receiverPath));
+    const receiverCount = (receiverSnap.val() || 0) + 1;
+    await set(ref(db, receiverPath), receiverCount);
+
+    // 4. Log the transfer for summary
+    const transfersRef = ref(db, `games/${gameCode}/transfers`);
+    await push(transfersRef, {
+      from:      myPlayerId,
+      fromName:  myPlayerName,
+      to:        targetPlayerId,
+      toName:    gameState.players?.[targetPlayerId]?.name || "?",
+      resource:  name,
+      emoji:     res?.emoji || "❓",
+      timestamp: Date.now()
+    });
+
+    // 5. Notify receiver via a single-fire notification node
+    const notifKey = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    await set(ref(db, `games/${gameCode}/notifications/${targetPlayerId}/${notifKey}`), {
+      resource: name,
+      fromName: myPlayerName,
+      ts:       Date.now()
+    });
+
+    const targetName = gameState.players?.[targetPlayerId]?.name || "teammate";
+    toast(`Sent ${res?.emoji || ""} ${name} → ${targetName}`, "good");
+
+  } catch (err) {
+    // Rollback optimistic update on failure
+    addToLocalInventory(name);
+    renderInventory();
+    toast("Transfer failed — please try again", "bad");
+    console.error("Transfer error:", err);
+  }
+}
+
+/* ─── TIMER ─────────────────────────────────────────────────── */
+function startTimer(endTime) {
+  if (timerInterval) clearInterval(timerInterval);
+  const timerEl = document.getElementById("timer");
+
+  timerInterval = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    timerEl.textContent = `${m}:${s.toString().padStart(2,"0")}`;
+    timerEl.classList.toggle("urgent", remaining <= 20);
+
+    if (remaining === 0) {
+      clearInterval(timerInterval);
+      endGame();
+    }
+  }, 500);
+}
+
+/* ─── GAME FLOW ─────────────────────────────────────────────── */
+async function createGame() {
+  myPlayerName = document.getElementById("create-name").value.trim();
+  if (!myPlayerName) {
+    document.getElementById("create-error").textContent = "Please enter your name.";
+    return;
+  }
+  gameCode   = genCode();
+  myPlayerId = genPlayerId();
+
+  // Read selected duration (seconds) from radio buttons; default 120
+  const durationEl = document.querySelector('input[name="duration"]:checked');
+  const roundDuration = durationEl ? parseInt(durationEl.value) : 120;
+
+  const gameData = {
+    code:         gameCode,
+    status:       "lobby",
+    created:      Date.now(),
+    roundDuration: roundDuration,
+    players: {
+      [myPlayerId]: { name:myPlayerName, ready:false, tasksCompleted:0, currentTaskId:"t1" }
+    }
+  };
+
+  await set(ref(db, `games/${gameCode}`), gameData);
+  enterLobby();
+}
+
+async function joinGame() {
+  const code = document.getElementById("join-code").value.trim().toUpperCase();
+  myPlayerName = document.getElementById("join-name").value.trim();
+
+  if (!code) {
+    document.getElementById("join-error").textContent = "Please enter a game code.";
+    return;
+  }
+  if (!myPlayerName) {
+    document.getElementById("join-error").textContent = "Please enter your name.";
+    return;
+  }
+
+  const snap = await get(ref(db, `games/${code}`));
+  if (!snap.exists()) {
+    document.getElementById("join-error").textContent = "Game not found. Check the code.";
+    return;
+  }
+  const data = snap.val();
+  if (data.status !== "lobby") {
+    document.getElementById("join-error").textContent = "That game has already started.";
+    return;
+  }
+  const playerCount = Object.keys(data.players || {}).length;
+  if (playerCount >= 6) {
+    document.getElementById("join-error").textContent = "Game is full (max 6 players).";
+    return;
+  }
+
+  gameCode   = code;
+  myPlayerId = genPlayerId();
+
+  await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+    name: myPlayerName, ready: false, tasksCompleted: 0, currentTaskId: "t1"
+  });
+  enterLobby();
+}
+
+function enterLobby() {
+  document.getElementById("lobby-code").textContent = gameCode;
+  showScreen("lobby");
+
+  // Listen to lobby state
+  const lobbyUnsub = onValue(ref(db, `games/${gameCode}`), snap => {
+    gameState = snap.val() || {};
+    if (!gameState.players) return;
+
+    const players = gameState.players;
+    const listEl  = document.getElementById("lobby-players-list");
+    listEl.innerHTML = Object.values(players).map(p => `
+      <div class="player-row">
+        <span class="name">${p.name}${p.name===myPlayerName?" (you)":""}</span>
+        <span class="ready-badge ${p.ready?"is-ready":""}">${p.ready?"Ready ✓":"Waiting…"}</span>
+      </div>`).join("");
+
+    const all = Object.values(players);
+    const allReady = all.length >= 2 && all.every(p => p.ready);
+    document.getElementById("lobby-status").textContent =
+      allReady ? "All ready! Starting…" :
+      `${all.filter(p=>p.ready).length} of ${all.length} ready`;
+
+    if (allReady && gameState.status === "lobby") {
+      // First player to notice kicks off game
+      const myIdx = Object.keys(players).indexOf(myPlayerId);
+      if (myIdx === 0) {
+        startGameInFirebase(players);
+      }
+    }
+
+    if (gameState.status === "playing") {
+      off(ref(db, `games/${gameCode}`), "value", lobbyUnsub);
+      if (!inGameEntered) enterGame();
+    }
+  });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}`), "value", lobbyUnsub));
+}
+
+async function startGameInFirebase(players) {
+  const playerIds   = Object.keys(players);
+  const count       = Math.min(Math.max(playerIds.length, 4), 6);
+  const inventorySet = STARTING_INVENTORIES[count] || STARTING_INVENTORIES[4];
+  // Use roundDuration stored by the creator; fall back to constant default
+  const snap2 = await get(ref(db, `games/${gameCode}/roundDuration`));
+  const duration = snap2.val() || ROUND_DURATION;
+  const endTime  = Date.now() + duration * 1000;
+
+  // Assign inventories
+  const updates = {};
+  playerIds.forEach((pid, idx) => {
+    const inv = inventorySet[idx % inventorySet.length];
+    const ingMap  = {};
+    inv.ingredients.forEach(name => { ingMap[name] = (ingMap[name]||0)+1; });
+    const toolMap = {};
+    inv.tools.forEach(name => { toolMap[name] = (toolMap[name]||0)+1; });
+    updates[`games/${gameCode}/players/${pid}/ingredients`] = ingMap;
+    updates[`games/${gameCode}/players/${pid}/tools`]       = toolMap;
+    updates[`games/${gameCode}/players/${pid}/currentTaskId`] = TASK_SEQUENCE[idx % TASK_SEQUENCE.length];
+  });
+  updates[`games/${gameCode}/status`]  = "playing";
+  updates[`games/${gameCode}/endTime`] = endTime;
+  await update(ref(db), updates);
+}
+
+function enterGame() {
+  if (inGameEntered) return;   // guard against double-fire from lobby listener
+  inGameEntered = true;
+
+  showScreen("game");
+  document.getElementById("player-name-display").textContent = myPlayerName;
+
+  // ── 1. Load initial task assignment ──────────────────────────
+  get(ref(db, `games/${gameCode}/players/${myPlayerId}/currentTaskId`)).then(snap => {
+    loadTask(snap.val() || "t1");
+  });
+
+  // ── 2. Watch MY inventory in Firebase — re-render whenever it changes ──
+  // This is what makes received resources appear automatically.
+  const ingUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), snap => {
+    // Rebuild localInventory ingredients from Firebase truth
+    const incoming = snap.val() || {};
+    // Remove all ingredient keys from localInventory, replace with Firebase values
+    Object.keys(localInventory).forEach(k => {
+      if (RESOURCES[k]?.type === "ingredient") delete localInventory[k];
+    });
+    Object.entries(incoming).forEach(([k,v]) => {
+      if (v > 0) localInventory[k] = v;
+    });
+    renderInventory();
+  });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), "value", ingUnsub));
+
+  const toolUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), snap => {
+    const incoming = snap.val() || {};
+    Object.keys(localInventory).forEach(k => {
+      if (RESOURCES[k]?.type === "tool") delete localInventory[k];
+    });
+    Object.entries(incoming).forEach(([k,v]) => {
+      if (v > 0) localInventory[k] = v;
+    });
+    renderInventory();
+  });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), "value", toolUnsub));
+
+  // ── 3. Watch notifications — show toast when a resource arrives ──
+  // We track which notification keys we've already processed to avoid duplicates.
+  const seenNotifs = new Set();
+  const notifUnsub = onValue(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), snap => {
+    if (!snap.exists()) return;
+    snap.forEach(child => {
+      if (seenNotifs.has(child.key)) return;  // already handled
+      seenNotifs.add(child.key);
+      const item = child.val();
+      const res  = RESOURCES[item.resource];
+      toast(`${res?.emoji || ""} ${item.resource} received from ${item.fromName}`, "good");
+      // Flash inventory panel
+      const panel = document.getElementById("inventory-panel");
+      panel.classList.add("incoming-flash");
+      setTimeout(() => panel.classList.remove("incoming-flash"), 600);
+      // Clean up notification node
+      remove(ref(db, `games/${gameCode}/notifications/${myPlayerId}/${child.key}`));
+    });
+  });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), "value", notifUnsub));
+
+  // ── 4. Watch game-level state: teammates, score, timer, end ──
+  const gameUnsub = onValue(ref(db, `games/${gameCode}`), snap => {
+    gameState = snap.val() || {};
+    if (!gameState.players) return;
+
+    renderTeammates();
+
+    const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
+    document.getElementById("team-score").textContent =
+      `Team: ${totalTasks} task${totalTasks !== 1 ? "s" : ""}`;
+
+    if (gameState.endTime && !timerInterval) {
+      startTimer(gameState.endTime);
+    }
+
+    if (gameState.status === "ended") {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      showSummary();
+    }
+  });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}`), "value", gameUnsub));
+}
+
+function renderTeammates() {
+  const listEl = document.getElementById("teammates-list");
+  listEl.innerHTML = "";
+  if (!gameState.players) return;
+  Object.entries(gameState.players).forEach(([pid, p]) => {
+    if (pid === myPlayerId) return;
+    const div = document.createElement("div");
+    div.className = "teammate-card";
+    div.innerHTML = `
+      <div class="teammate-card-header">
+        <span class="teammate-name">${p.name}</span>
+        <span class="teammate-score">${p.tasksCompleted||0} tasks</span>
+      </div>
+      <div class="teammate-drop" data-player-id="${pid}">
+        Drop to send
+      </div>`;
+    listEl.appendChild(div);
+  });
+}
+
+function endGame() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  update(ref(db, `games/${gameCode}`), { status: "ended" });
+  showSummary();
+}
+
+async function showSummary() {
+  showScreen("summary");
+
+  const snap = await get(ref(db, `games/${gameCode}`));
+  const data = snap.val() || {};
+  const players   = data.players   || {};
+  const transfers = data.transfers || {};
+
+  // Tasks per player
+  const taskEl = document.getElementById("summary-tasks");
+  taskEl.innerHTML = Object.values(players).map(p => `
+    <div class="stat-row">
+      <span>${p.name}</span>
+      <span class="stat-value">${p.tasksCompleted||0}</span>
+    </div>`).join("");
+
+  const total = Object.values(players).reduce((s,p)=>s+(p.tasksCompleted||0),0);
+  taskEl.innerHTML += `<div class="stat-row" style="border-top:2px solid var(--border); margin-top:4px;">
+    <span style="font-weight:600;">Team total</span>
+    <span class="stat-value">${total}</span>
+  </div>`;
+
+  // Transfer counts per pair
+  const transferArr = Object.values(transfers);
+  const pairCounts  = {};
+  transferArr.forEach(t => {
+    const key = `${t.from}→${t.to}`;
+    pairCounts[key] = (pairCounts[key]||0)+1;
+  });
+
+  const transferEl = document.getElementById("summary-transfers");
+  if (transferArr.length === 0) {
+    transferEl.innerHTML = '<p style="color:var(--text-3); font-size:13px;">No transfers recorded.</p>';
+  } else {
+    const grouped = {};
+    transferArr.forEach(t => {
+      const key = t.fromName + "→" + t.toName;
+      grouped[key] = (grouped[key]||0)+1;
+    });
+    transferEl.innerHTML = Object.entries(grouped).map(([pair,cnt]) => {
+      const [from,to] = pair.split("→");
+      return `<div class="stat-row">
+        <span>${from} → ${to}</span>
+        <span class="stat-value">${cnt}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // Transfer log
+  const logEl = document.getElementById("transfer-log");
+  if (transferArr.length === 0) {
+    logEl.innerHTML = '<div class="transfer-entry" style="color:var(--text-3);">No transfers recorded.</div>';
+  } else {
+    const sorted = [...transferArr].sort((a,b) => a.timestamp - b.timestamp);
+    logEl.innerHTML = sorted.map(t => {
+      const time = new Date(t.timestamp);
+      const roundDur = data.roundDuration || ROUND_DURATION;
+        const elapsed = Math.round((t.timestamp - (data.endTime - roundDur*1000)) / 1000);
+      const ts = `${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}`;
+      return `<div class="transfer-entry">
+        <strong>${t.fromName}</strong> sent ${t.emoji} <strong>${t.resource}</strong>
+        to <strong>${t.toName}</strong>
+        <span style="color:var(--text-3); font-size:11px; margin-left:6px;">[${ts}]</span>
+      </div>`;
+    }).join("");
+  }
+
+  // Network diagram
+  drawNetwork(players, transferArr);
+}
+
+function drawNetwork(players, transfers) {
+  const svg = document.getElementById("network-svg");
+  svg.innerHTML = "";
+  const W = 400, H = 400, cx = 200, cy = 200, R = 140;
+
+  const playerArr = Object.entries(players);
+  const n = playerArr.length;
+  if (n < 2) return;
+
+  // ── Node positions arranged in a circle ───────────────────────
+  const positions = playerArr.map(([pid, p], i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    return { pid, name: p.name, x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+  });
+
+  // ── Count directed transfers ───────────────────────────────────
+  const edgeCounts = {};
+  let maxCount = 0;
+  transfers.forEach(t => {
+    const key = `${t.from}|||${t.to}`;
+    edgeCounts[key] = (edgeCounts[key] || 0) + 1;
+    maxCount = Math.max(maxCount, edgeCounts[key]);
+  });
+
+  // ── Arrowhead marker (insert into defs first) ─────────────────
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#5C6E5B" opacity="0.8"/>
+  </marker>`;
+  svg.appendChild(defs);
+
+  // ── Helper: point on quadratic bezier at parameter t ─────────
+  // Q(t) = (1-t)²·P0 + 2(1-t)t·P1 + t²·P2
+  function bezierPoint(p0, p1, p2, t) {
+    const mt = 1 - t;
+    return {
+      x: mt*mt*p0.x + 2*mt*t*p1.x + t*t*p2.x,
+      y: mt*mt*p0.y + 2*mt*t*p1.y + t*t*p2.y
+    };
+  }
+
+  // ── Draw edges ────────────────────────────────────────────────
+  Object.entries(edgeCounts).forEach(([key, count]) => {
+    const [fromId, toId] = key.split("|||");
+    const from = positions.find(p => p.pid === fromId);
+    const to   = positions.find(p => p.pid === toId);
+    if (!from || !to) return;
+
+    const strokeW = 1.5 + (count / maxCount) * 4;
+    const opacity = 0.5 + (count / maxCount) * 0.4;
+
+    const reverseExists = edgeCounts[`${toId}|||${fromId}`] > 0;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    // Arc control point: if bidirectional, bow outward; if one-way, go straight
+    const arcOffset = reverseExists ? 30 : 0;
+    const nx = -dy / len * arcOffset, ny = dx / len * arcOffset;
+    const midX = (from.x + to.x) / 2 + nx;
+    const midY = (from.y + to.y) / 2 + ny;
+
+    // Shorten endpoints so arrows don't overlap node circles
+    const nr = 24;
+    const p0 = { x: from.x + (dx / len) * nr, y: from.y + (dy / len) * nr };
+    const p2 = { x: to.x   - (dx / len) * nr, y: to.y   - (dy / len) * nr };
+    const p1 = { x: midX, y: midY }; // bezier control point
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M${p0.x},${p0.y} Q${p1.x},${p1.y} ${p2.x},${p2.y}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#5C6E5B");
+    path.setAttribute("stroke-width", strokeW);
+    path.setAttribute("stroke-opacity", opacity);
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // ── Label positioning ───────────────────────────────────────
+    // Strategy:
+    // • For arced (bidirectional) edges: place label at t=0.72 (near the
+    //   arrowhead end) so it sits on the arc away from centre crossings.
+    // • For straight (one-way) edges: place at midpoint but offset
+    //   perpendicularly away from the line so it doesn't sit on top of it.
+
+    let lx, ly;
+    if (reverseExists) {
+      // On the arc, 72% of the way toward the destination
+      const pt = bezierPoint(p0, p1, p2, 0.72);
+      lx = pt.x;
+      ly = pt.y;
+    } else {
+      // Midpoint of straight line, offset perpendicularly by 10px
+      const perpOffset = 11;
+      const px = -dy / len * perpOffset;
+      const py =  dx / len * perpOffset;
+      lx = (p0.x + p2.x) / 2 + px;
+      ly = (p0.y + p2.y) / 2 + py;
+    }
+
+    // White halo behind label for legibility over crossing lines
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    halo.setAttribute("x", lx);
+    halo.setAttribute("y", ly);
+    halo.setAttribute("text-anchor", "middle");
+    halo.setAttribute("dominant-baseline", "middle");
+    halo.setAttribute("font-size", "12");
+    halo.setAttribute("font-weight", "700");
+    halo.setAttribute("fill", "none");
+    halo.setAttribute("stroke", "#F7F5F2");
+    halo.setAttribute("stroke-width", "4");
+    halo.setAttribute("stroke-linejoin", "round");
+    halo.textContent = count;
+    svg.appendChild(halo);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", lx);
+    label.setAttribute("y", ly);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("dominant-baseline", "middle");
+    label.setAttribute("font-size", "12");
+    label.setAttribute("font-weight", "700");
+    label.setAttribute("fill", "#3a4f39");
+    label.textContent = count;
+    svg.appendChild(label);
+  });
+
+  // ── Draw nodes on top of edges ────────────────────────────────
+  positions.forEach(pos => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", pos.x);
+    circle.setAttribute("cy", pos.y);
+    circle.setAttribute("r", 24);
+    circle.setAttribute("fill", pos.pid === myPlayerId ? "#5C6E5B" : "#F7F5F2");
+    circle.setAttribute("stroke", "#5C6E5B");
+    circle.setAttribute("stroke-width", "2");
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", pos.x);
+    text.setAttribute("y", pos.y);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "middle");
+    text.setAttribute("font-size", "9");
+    text.setAttribute("font-weight", "600");
+    text.setAttribute("fill", pos.pid === myPlayerId ? "#fff" : "#1A1814");
+    text.textContent = pos.name.length > 7 ? pos.name.slice(0, 7) + "…" : pos.name;
+
+    g.appendChild(circle);
+    g.appendChild(text);
+    svg.appendChild(g);
+  });
+}
+
+/* ─── INIT ──────────────────────────────────────────────────── */
+async function init() {
+  try {
+    app = initializeApp(firebaseConfig);
+    db  = getDatabase(app);
+    hideLoading();
+    showScreen("landing");
+  } catch (e) {
+    document.getElementById("loading-overlay").innerHTML = `
+      <div style="text-align:center; padding:40px; max-width:480px;">
+        <div style="font-size:24px; margin-bottom:12px;">⚠️</div>
+        <div style="font-size:15px; color:var(--text); font-weight:600; margin-bottom:8px;">Firebase not configured</div>
+        <div style="font-size:13px; color:var(--text-2); line-height:1.6;">
+          To run this game, you need to set up a free Firebase project and replace
+          the <code style="background:#eee; padding:2px 6px; border-radius:4px;">firebaseConfig</code>
+          values in the source code.<br><br>
+          See the setup instructions provided with this file.
+        </div>
+      </div>`;
+  }
+}
+
+/* ─── EVENT LISTENERS ───────────────────────────────────────── */
+document.getElementById("btn-create").addEventListener("click", createGame);
+document.getElementById("btn-join").addEventListener("click", joinGame);
+document.getElementById("create-name").addEventListener("keydown", e => { if(e.key==="Enter") createGame(); });
+document.getElementById("join-name").addEventListener("keydown",   e => { if(e.key==="Enter") joinGame(); });
+
+document.getElementById("btn-ready").addEventListener("click", () => {
+  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { ready: true });
+  document.getElementById("btn-ready").disabled = true;
+  document.getElementById("btn-ready").textContent = "Waiting for team…";
+});
+
+document.getElementById("btn-complete").addEventListener("click", completeTask);
+document.getElementById("btn-end-game").addEventListener("click", endGame);
+document.getElementById("btn-new-game").addEventListener("click", () => {
+  // Clean up
+  unsubscribers.forEach(fn => fn());
+  unsubscribers = [];
+  clearInterval(timerInterval);
+  timerInterval = null;
+  localInventory = {};
+  taskZoneMap    = {};
+  clickedTiles   = new Set();
+  gameState      = {};
+  gameCode       = null;
+  myPlayerId     = null;
+  inGameEntered  = false;
+  // Reset UI
+  document.getElementById("create-name").value = "";
+  document.getElementById("join-code").value   = "";
+  document.getElementById("join-name").value   = "";
+  document.getElementById("create-error").textContent = "";
+  document.getElementById("join-error").textContent   = "";
+  document.getElementById("btn-ready").disabled = false;
+  document.getElementById("btn-ready").textContent = "I'm ready ✓";
+  showScreen("landing");
+});
+
+
+init();
+</script>
+</body>
+</html>
