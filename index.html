@@ -252,9 +252,16 @@
   }
   .timer-display.urgent { color: var(--danger); }
   .score-display {
-    font-size: 13px;
-    color: var(--text-2);
-    font-weight: 500;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .header-divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+    margin: 0 4px;
   }
   .game-header-right { display: flex; gap: 10px; align-items: center; }
 
@@ -681,6 +688,18 @@
   }
   .task-complete-anim { animation: completePulse 0.8s ease; }
 
+  /* Spring-in animation for newly received tiles */
+  @keyframes springIn {
+    0%   { transform: scale(0);    opacity: 0; }
+    55%  { transform: scale(1.18); opacity: 1; }
+    75%  { transform: scale(0.92); }
+    90%  { transform: scale(1.05); }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+  .tile-spring-in {
+    animation: springIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
   /* ── RESPONSIVE: iPad ──────────────────────────────────────── */
   @media (max-width: 900px) {
     .game-body {
@@ -756,6 +775,7 @@
   <div class="lobby-header">
     <h2>Waiting for players</h2>
     <p>Share the code with your team</p>
+    <p id="lobby-event-name" style="font-size:13px; color:var(--accent); font-style:italic; min-height:20px; margin-top:4px;"></p>
   </div>
   <div class="game-code-display">
     <div class="label">Game code</div>
@@ -775,9 +795,17 @@
 <div id="screen-game" class="screen">
   <div class="game-header">
     <div class="game-header-left">
-      <span class="game-title">The Kitchen</span>
+      <div style="display:flex; flex-direction:column; gap:1px;">
+        <span class="game-title">The Kitchen</span>
+        <span id="event-name-display" style="font-size:11px; color:var(--text-3); letter-spacing:0.02em;"></span>
+      </div>
+      <div class="header-divider"></div>
       <span class="timer-display" id="timer">2:00</span>
-      <span class="score-display" id="team-score">Team: 0 tasks</span>
+      <div class="header-divider"></div>
+      <div style="display:flex; flex-direction:column; gap:1px; align-items:center;">
+        <span class="score-display" id="team-score">0 / 0 tasks</span>
+        <span style="font-size:10px; color:var(--text-3); letter-spacing:0.05em; text-transform:uppercase;">Team goal</span>
+      </div>
     </div>
     <div class="game-header-right">
       <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
@@ -824,6 +852,7 @@
 <div id="screen-summary" class="screen">
   <div class="summary-header">
     <h2>Round complete</h2>
+    <p id="summary-event-name" style="font-size:16px; color:var(--accent); font-style:italic; margin-bottom:4px;"></p>
     <p id="summary-subtitle">Here's how your team did</p>
   </div>
   <div class="summary-grid">
@@ -867,7 +896,6 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
 
-
 const firebaseConfig = {
 
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
@@ -887,132 +915,245 @@ const firebaseConfig = {
 };
 
 
-
 /* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
 const RESOURCES = {
-  // Ingredients
-  "Black Pepper":   { type:"ingredient", category:"spice",   emoji:"🌶️",  label:"Black Pepper" },
-  "Chili Flakes":   { type:"ingredient", category:"spice",   emoji:"🌶️",  label:"Chili Flakes" },
-  "Cumin":          { type:"ingredient", category:"spice",   emoji:"🫚",  label:"Cumin" },
+  // Ingredients — Spices
+  "Black Pepper":   { type:"ingredient", category:"spice",   emoji:"🫙",  label:"Black Pepper" },
+  "Chili Flakes":   { type:"ingredient", category:"spice",   emoji:"🌶️", label:"Chili Flakes" },
+  "Cumin":          { type:"ingredient", category:"spice",   emoji:"🟤",  label:"Cumin" },
   "Oregano":        { type:"ingredient", category:"spice",   emoji:"🌿",  label:"Oregano" },
+  "Paprika":        { type:"ingredient", category:"spice",   emoji:"🔴",  label:"Paprika" },
+  "Thyme":          { type:"ingredient", category:"spice",   emoji:"🌱",  label:"Thyme" },
+  // Ingredients — Proteins
   "Chicken":        { type:"ingredient", category:"protein", emoji:"🍗",  label:"Chicken" },
   "Fish":           { type:"ingredient", category:"protein", emoji:"🐟",  label:"Fish" },
-  "Tofu":           { type:"ingredient", category:"protein", emoji:"🧆",  label:"Tofu" },
+  "Tofu":           { type:"ingredient", category:"protein", emoji:"🟨",  label:"Tofu" },
   "Beans":          { type:"ingredient", category:"protein", emoji:"🫘",  label:"Beans" },
+  "Eggs":           { type:"ingredient", category:"protein", emoji:"🥚",  label:"Eggs" },
+  "Lamb":           { type:"ingredient", category:"protein", emoji:"🥩",  label:"Lamb" },
+  // Ingredients — Grains
   "Flour":          { type:"ingredient", category:"grain",   emoji:"🌾",  label:"Flour" },
   "Rice":           { type:"ingredient", category:"grain",   emoji:"🍚",  label:"Rice" },
-  "Oats":           { type:"ingredient", category:"grain",   emoji:"🥣",  label:"Oats" },
+  "Oats":           { type:"ingredient", category:"grain",   emoji:"🌰",  label:"Oats" },
+  "Pasta":          { type:"ingredient", category:"grain",   emoji:"🍝",  label:"Pasta" },
+  // Ingredients — Dairy
   "Butter":         { type:"ingredient", category:"dairy",   emoji:"🧈",  label:"Butter" },
   "Cream":          { type:"ingredient", category:"dairy",   emoji:"🥛",  label:"Cream" },
-  "Milk":           { type:"ingredient", category:"dairy",   emoji:"🥛",  label:"Milk" },
+  "Milk":           { type:"ingredient", category:"dairy",   emoji:"🍼",  label:"Milk" },
+  "Cheese":         { type:"ingredient", category:"dairy",   emoji:"🧀",  label:"Cheese" },
   // Tools
-  "Blender":        { type:"tool", category:"mixer",    emoji:"🫙",  label:"Blender" },
-  "Whisk":          { type:"tool", category:"mixer",    emoji:"🥄",  label:"Whisk" },
-  "Food Processor": { type:"tool", category:"mixer",    emoji:"⚙️",  label:"Food Processor" },
-  "Chef's Knife":   { type:"tool", category:"cutter",   emoji:"🔪",  label:"Chef's Knife" },
-  "Serrated Knife": { type:"tool", category:"cutter",   emoji:"🔪",  label:"Serrated Knife" },
-  "Mandolin":       { type:"tool", category:"cutter",   emoji:"🗡️", label:"Mandolin" },
-  "Bowl":           { type:"tool", category:"container",emoji:"🥣",  label:"Bowl" },
-  "Pan":            { type:"tool", category:"container",emoji:"🍳",  label:"Pan" },
-  "Tray":           { type:"tool", category:"container",emoji:"🫙",  label:"Tray" },
+  "Blender":        { type:"tool", category:"mixer",     emoji:"🌀",  label:"Blender" },
+  "Whisk":          { type:"tool", category:"mixer",     emoji:"🥄",  label:"Whisk" },
+  "Food Processor": { type:"tool", category:"mixer",     emoji:"⚙️",  label:"Food Processor" },
+  "Chef's Knife":  { type:"tool", category:"cutter",    emoji:"🔪",  label:"Chef's Knife" },
+  "Serrated Knife": { type:"tool", category:"cutter",    emoji:"🗡️", label:"Serrated Knife" },
+  "Mandolin":       { type:"tool", category:"cutter",    emoji:"📐",  label:"Mandolin" },
+  "Bowl":           { type:"tool", category:"container", emoji:"🥣",  label:"Bowl" },
+  "Pan":            { type:"tool", category:"container", emoji:"🍳",  label:"Pan" },
+  "Tray":           { type:"tool", category:"container", emoji:"▭",   label:"Tray" },
+  "Pot":            { type:"tool", category:"container", emoji:"🫕",  label:"Pot" },
 };
 
-/* ─── TASKS ────────────────────────────────────────────────── */
-const TASKS = [
-  {
-    id: "t1", name: "Spiced Rice Bowl",
-    description: "A warming bowl with whole grains and aromatic spice.",
-    requirements: [ {resource:"Rice",qty:1}, {resource:"Cumin",qty:1}, {resource:"Bowl",qty:1} ]
-  },
-  {
-    id: "t2", name: "Creamy Oat Porridge",
-    description: "Slow-cooked oats finished with a splash of cream.",
-    requirements: [ {resource:"Oats",qty:1}, {resource:"Cream",qty:1}, {resource:"Pan",qty:1} ]
-  },
-  {
-    id: "t3", name: "Herb Fish Fillet",
-    description: "Fresh fish, simply seasoned and precisely cut.",
-    requirements: [ {resource:"Fish",qty:1}, {resource:"Oregano",qty:1}, {resource:"Chef's Knife",qty:1} ]
-  },
-  {
-    id: "t4", name: "Chili Tofu Stir-fry",
-    description: "Firm tofu tossed with heat in a well-seasoned pan.",
-    requirements: [ {resource:"Tofu",qty:1}, {resource:"Chili Flakes",qty:1}, {resource:"Pan",qty:1} ]
-  },
-  {
-    id: "t5", name: "Butter Flour Roux",
-    description: "The base of many great sauces — patience required.",
-    requirements: [ {resource:"Flour",qty:1}, {resource:"Butter",qty:1}, {resource:"Whisk",qty:1} ]
-  },
-  {
-    id: "t6", name: "Pepper Chicken Breast",
-    description: "A classic — bold seasoning on well-handled protein.",
-    requirements: [ {resource:"Chicken",qty:1}, {resource:"Black Pepper",qty:1}, {resource:"Tray",qty:1} ]
-  },
-  {
-    id: "t7", name: "Milk Rice Pudding",
-    description: "Comforting and simple — milk, rice, and time.",
-    requirements: [ {resource:"Rice",qty:1}, {resource:"Milk",qty:1}, {resource:"Bowl",qty:1} ]
-  },
-  {
-    id: "t8", name: "Bean and Spice Stew",
-    description: "Hearty legumes, aromatic heat, and slow cooking.",
-    requirements: [ {resource:"Beans",qty:1}, {resource:"Cumin",qty:1}, {resource:"Pan",qty:1} ]
-  },
+/* ─── TASK POOL (16 tasks — supports up to 6-player games with headroom) ── */
+const ALL_TASKS = [
+  { id:"t01", name:"Spiced Rice Bowl",       description:"A warming bowl with whole grains and aromatic spice.",
+    requirements:[{resource:"Rice",qty:1},{resource:"Cumin",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t02", name:"Creamy Oat Porridge",    description:"Slow-cooked oats finished with a splash of cream.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Cream",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t03", name:"Herb Fish Fillet",       description:"Fresh fish, simply seasoned and precisely cut.",
+    requirements:[{resource:"Fish",qty:1},{resource:"Oregano",qty:1},{resource:"Chef's Knife",qty:1}] },
+  { id:"t04", name:"Chili Tofu Stir-fry",   description:"Firm tofu tossed with heat in a well-seasoned pan.",
+    requirements:[{resource:"Tofu",qty:1},{resource:"Chili Flakes",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t05", name:"Butter Flour Roux",      description:"The base of many great sauces — patience required.",
+    requirements:[{resource:"Flour",qty:1},{resource:"Butter",qty:1},{resource:"Whisk",qty:1}] },
+  { id:"t06", name:"Pepper Chicken Breast",  description:"A classic — bold seasoning on well-handled protein.",
+    requirements:[{resource:"Chicken",qty:1},{resource:"Black Pepper",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t07", name:"Milk Rice Pudding",      description:"Comforting and simple — milk, rice, and gentle heat.",
+    requirements:[{resource:"Rice",qty:1},{resource:"Milk",qty:1},{resource:"Pot",qty:1}] },
+  { id:"t08", name:"Bean and Spice Stew",    description:"Hearty legumes, aromatic heat, and slow cooking.",
+    requirements:[{resource:"Beans",qty:1},{resource:"Cumin",qty:1},{resource:"Pot",qty:1}] },
+  { id:"t09", name:"Paprika Lamb Chop",      description:"Rich meat with smoky depth and a steady hand.",
+    requirements:[{resource:"Lamb",qty:1},{resource:"Paprika",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t10", name:"Thyme Egg Scramble",     description:"Simple technique, careful seasoning, and timing.",
+    requirements:[{resource:"Eggs",qty:1},{resource:"Thyme",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t11", name:"Cheese Pasta Bake",      description:"Layered pasta, sharp cheese, baked until golden.",
+    requirements:[{resource:"Pasta",qty:1},{resource:"Cheese",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t12", name:"Blended Cream Soup",     description:"Velvety and smooth — requires the right tools.",
+    requirements:[{resource:"Cream",qty:1},{resource:"Thyme",qty:1},{resource:"Blender",qty:1}] },
+  { id:"t13", name:"Spiced Lamb Stew",       description:"Slow-braised lamb with layers of warm spice.",
+    requirements:[{resource:"Lamb",qty:1},{resource:"Paprika",qty:1},{resource:"Pot",qty:1}] },
+  { id:"t14", name:"Egg and Cheese Frittata",description:"A classic Italian egg dish, sliced to serve.",
+    requirements:[{resource:"Eggs",qty:1},{resource:"Cheese",qty:1},{resource:"Chef's Knife",qty:1}] },
+  { id:"t15", name:"Buttered Pasta",         description:"Rich, simple, and ready in minutes.",
+    requirements:[{resource:"Pasta",qty:1},{resource:"Butter",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t16", name:"Oat and Milk Smoothie",  description:"Blended, chilled, and surprisingly filling.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Milk",qty:1},{resource:"Blender",qty:1}] },
 ];
 
-/* ─── STARTING INVENTORIES ──────────────────────────────────
-   Each config ensures:
-   - Every required resource for first-round tasks exists 2x across team
-   - No player can solo their first task
-   - Tools are intentionally mismatched (you don't hold your own tool)
-─────────────────────────────────────────────────────────────── */
-const STARTING_INVENTORIES = {
-  4: [
-    // Player 0 → Task t1 needs: Rice(has), Cumin(no→P2), Bowl(no→P3)
-    { ingredients: ["Rice","Chili Flakes","Chicken","Oregano"], tools: ["Serrated Knife","Tray"] },
-    // Player 1 → Task t2 needs: Oats(no→P3), Cream(has), Pan(no→P0 missing… P3 has)
-    { ingredients: ["Cream","Black Pepper","Fish","Butter"],   tools: ["Pan","Food Processor"] },
-    // Player 2 → Task t3 needs: Fish(no→P1), Oregano(no→P0), Chef's Knife(has)
-    { ingredients: ["Cumin","Tofu","Rice","Flour"],            tools: ["Chef's Knife","Blender"] },
-    // Player 3 → Task t4 needs: Tofu(no→P2), Chili Flakes(no→P0), Pan(no→P1)
-    { ingredients: ["Oats","Beans","Milk","Cream"],            tools: ["Bowl","Whisk"] },
-  ],
-  5: [
-    { ingredients: ["Rice","Chili Flakes","Chicken"],          tools: ["Serrated Knife","Tray"] },
-    { ingredients: ["Cream","Black Pepper","Fish"],            tools: ["Pan","Food Processor"] },
-    { ingredients: ["Cumin","Tofu","Rice"],                    tools: ["Chef's Knife","Blender"] },
-    { ingredients: ["Oats","Beans","Milk"],                    tools: ["Bowl","Whisk"] },
-    { ingredients: ["Flour","Butter","Oregano","Beans"],       tools: ["Pan","Tray"] },
-  ],
-  6: [
-    { ingredients: ["Rice","Chili Flakes","Chicken"],          tools: ["Serrated Knife"] },
-    { ingredients: ["Cream","Black Pepper","Fish"],            tools: ["Pan","Food Processor"] },
-    { ingredients: ["Cumin","Tofu","Rice"],                    tools: ["Chef's Knife","Blender"] },
-    { ingredients: ["Oats","Beans","Milk"],                    tools: ["Bowl","Whisk"] },
-    { ingredients: ["Flour","Butter","Oregano"],               tools: ["Pan","Tray"] },
-    { ingredients: ["Beans","Cumin","Cream","Chicken"],        tools: ["Chef's Knife","Bowl"] },
-  ],
-};
+/* ─── EVENT NAME GENERATOR ──────────────────────────────────── */
+const EVENT_TITLES = [
+  "Ambassador","Professor","Commander","Duchess","Admiral","Reverend",
+  "Chancellor","Brigadier","Countess","Inspector","Magistrate","Sergeant"
+];
+const EVENT_SURNAMES = [
+  "Huffington","Plimpton","Worthington","Featherbottom","Crumblewick",
+  "Snodgrass","Pendleton","Bumblebee","Crankshaw","Foxworthy","Pumpernickel","Flimflam"
+];
+const EVENT_TYPES = [
+  "Birthday","Wedding","Graduation","Anniversary","Retirement","Garden Party","Farewell Dinner"
+];
+function genEventName() {
+  const title   = EVENT_TITLES[Math.floor(Math.random()*EVENT_TITLES.length)];
+  const surname = EVENT_SURNAMES[Math.floor(Math.random()*EVENT_SURNAMES.length)];
+  const type    = EVENT_TYPES[Math.floor(Math.random()*EVENT_TYPES.length)];
+  return `${title} ${surname}'s ${type}`;
+}
 
-const TASK_SEQUENCE = ["t1","t2","t3","t4","t5","t6","t7","t8"];
-const ROUND_DURATION = 120; // seconds
+/* ─── CONSTANTS ─────────────────────────────────────────────── */
+const ROUND_DURATION   = 120; // seconds (default, overridden by creator choice)
+const TASKS_PER_PLAYER = 2;   // win condition: team must complete playerCount × this
 const INGREDIENT_NAMES = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "ingredient");
+const TOOL_NAMES       = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "tool");
+
+/* ─── GAME SETUP: guaranteed-solvability distribution ───────────
+   Algorithm:
+   1. Shuffle ALL_TASKS, take playerCount × TASKS_PER_PLAYER tasks
+   2. Assign tasks round-robin to players (player 0 gets tasks 0,P; player 1 gets 1,P+1 etc.)
+   3. Collect every required ingredient and tool across all tasks into a pool
+   4. Add a ~25% buffer of extra ingredients (random from needed ones)
+   5. Distribute pool across players using deliberate mismatch:
+      each player receives resources needed by OTHER players, not themselves
+   6. Also ensure tools are distributed — each player gets 1-2 tools,
+      never the tool needed by their own first task
+─────────────────────────────────────────────────────────────── */
+function generateGameSetup(playerIds) {
+  const n = playerIds.length;
+  const taskCount = n * TASKS_PER_PLAYER;
+
+  // ── 1. Select and shuffle tasks ──────────────────────────────
+  const shuffled = [...ALL_TASKS].sort(() => Math.random() - 0.5);
+  const selectedTasks = shuffled.slice(0, taskCount);
+
+  // ── 2. Assign tasks to players ───────────────────────────────
+  // playerTasks[pid] = [taskId, taskId, ...]
+  const playerTasks = {};
+  playerIds.forEach(pid => { playerTasks[pid] = []; });
+  selectedTasks.forEach((task, i) => {
+    playerTasks[playerIds[i % n]].push(task.id);
+  });
+
+  // ── 3. Build ingredient and tool pools per task ──────────────
+  // neededIngr: { ingredientName: totalNeeded }
+  // neededTools: Set of tool names needed
+  const taskById = {};
+  selectedTasks.forEach(t => { taskById[t.id] = t; });
+
+  // Per-player ingredient needs (for mismatch distribution)
+  const playerIngrNeeds = {}; // pid → { name: qty }
+  const playerToolNeeds = {}; // pid → Set of tool names
+  playerIds.forEach(pid => {
+    playerIngrNeeds[pid] = {};
+    playerToolNeeds[pid] = new Set();
+    playerTasks[pid].forEach(tid => {
+      const task = taskById[tid];
+      task.requirements.forEach(req => {
+        const res = RESOURCES[req.resource];
+        if (res.type === "ingredient") {
+          playerIngrNeeds[pid][req.resource] = (playerIngrNeeds[pid][req.resource]||0) + req.qty;
+        } else {
+          playerToolNeeds[pid].add(req.resource);
+        }
+      });
+    });
+  });
+
+  // ── 4. Total ingredient pool with 25% buffer ─────────────────
+  const totalIngrPool = {}; // name → count
+  playerIds.forEach(pid => {
+    Object.entries(playerIngrNeeds[pid]).forEach(([name, qty]) => {
+      totalIngrPool[name] = (totalIngrPool[name]||0) + qty;
+    });
+  });
+  // Add buffer: 25% more ingredients, choosing from already-needed ones
+  const neededIngrNames = Object.keys(totalIngrPool);
+  const bufferCount = Math.max(1, Math.round(Object.values(totalIngrPool).reduce((a,b)=>a+b,0) * 0.25));
+  for (let i = 0; i < bufferCount; i++) {
+    const pick = neededIngrNames[Math.floor(Math.random()*neededIngrNames.length)];
+    totalIngrPool[pick] = (totalIngrPool[pick]||0) + 1;
+  }
+
+  // ── 5. Distribute ingredients with deliberate mismatch ───────
+  // For each ingredient, assign copies to players who do NOT need it for their OWN tasks.
+  // If all players need it, fall back to random other player.
+  const playerIngrInventory = {}; // pid → { name: count }
+  playerIds.forEach(pid => { playerIngrInventory[pid] = {}; });
+
+  Object.entries(totalIngrPool).forEach(([name, totalQty]) => {
+    // Prefer giving to players who don't need this ingredient themselves
+    const preferredReceivers = playerIds.filter(pid => !playerIngrNeeds[pid][name]);
+    const fallbackReceivers  = playerIds;
+
+    for (let i = 0; i < totalQty; i++) {
+      const pool = preferredReceivers.length > 0 ? preferredReceivers : fallbackReceivers;
+      const recipient = pool[Math.floor(Math.random()*pool.length)];
+      playerIngrInventory[recipient][name] = (playerIngrInventory[recipient][name]||0) + 1;
+    }
+  });
+
+  // ── 6. Distribute tools with deliberate mismatch ─────────────
+  // Each needed tool appears twice in the pool (so there's slack).
+  // Give each copy to a player who doesn't need it for their first task.
+  const allNeededTools = new Set();
+  playerIds.forEach(pid => playerToolNeeds[pid].forEach(t => allNeededTools.add(t)));
+
+  const playerToolInventory = {}; // pid → { name: count }
+  playerIds.forEach(pid => { playerToolInventory[pid] = {}; });
+
+  allNeededTools.forEach(toolName => {
+    // Put 2 copies in the pool
+    for (let copy = 0; copy < 2; copy++) {
+      // Give to a player who doesn't need this tool for their FIRST task
+      const firstTaskTool = (tid => {
+        const task = taskById[tid];
+        return task ? task.requirements.filter(r=>RESOURCES[r.resource]?.type==="tool").map(r=>r.resource) : [];
+      })(playerTasks[playerIds[0]]?.[0]); // not quite right — check per-player below
+
+      const preferredReceivers = playerIds.filter(pid => {
+        const firstTid = playerTasks[pid][0];
+        if (!firstTid) return true;
+        const firstTask = taskById[firstTid];
+        const firstTaskTools = firstTask.requirements
+          .filter(r => RESOURCES[r.resource]?.type === "tool")
+          .map(r => r.resource);
+        return !firstTaskTools.includes(toolName);
+      });
+      const pool = preferredReceivers.length > 0 ? preferredReceivers : playerIds;
+      const recipient = pool[Math.floor(Math.random()*pool.length)];
+      playerToolInventory[recipient][toolName] = (playerToolInventory[recipient][toolName]||0) + 1;
+    }
+  });
+
+  return { playerTasks, playerIngrInventory, playerToolInventory, taskById, taskCount };
+}
 
 /* ─── GAME STATE ────────────────────────────────────────────── */
 let app, db;
-let myPlayerId   = null;
-let myPlayerName = null;
-let gameCode     = null;
-let gameRef      = null;
-let playersRef   = null;
-let timerInterval= null;
-let gameState    = {};         // mirror of Firebase state
-let localInventory = {};       // { resourceName: count } — kept in sync with Firebase
-let taskZoneItems  = [];       // resources dragged into task zone
-let transferLog    = [];       // for summary
-let unsubscribers  = [];       // Firebase listeners to detach
-let inGameEntered  = false;    // guard: prevent enterGame() firing twice
+let myPlayerId     = null;
+let myPlayerName   = null;
+let gameCode       = null;
+let gameRef        = null;
+let playersRef     = null;
+let timerInterval  = null;
+let gameState      = {};    // mirror of Firebase state
+let localInventory = {};    // { resourceName: count } — kept in sync with Firebase
+let taskZoneItems  = [];    // resources dragged into task zone
+let transferLog    = [];    // for summary
+let unsubscribers  = [];    // Firebase listeners to detach
+let inGameEntered  = false; // guard: prevent enterGame() firing twice
+let myTaskQueue    = [];    // ordered list of task IDs assigned to me
+let taskTarget     = 0;     // team win condition: total tasks needed
+let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
+let inventoryOrder = [];    // ordered list of resource names for stable display
 
 /* ─── UTILITIES ─────────────────────────────────────────────── */
 function genCode() {
@@ -1086,24 +1227,58 @@ function removeFromLocalInventory(name, qty=1) {
   if (localInventory[name] === 0) delete localInventory[name];
 }
 
-function renderInventory() {
+// Track which tiles are already rendered to detect new arrivals
+let renderedInventorySnapshot = {}; // name → count at last render
+
+function renderInventory(newlyAdded = []) {
   const ingGrid  = document.getElementById("ingredients-grid");
   const toolGrid = document.getElementById("tools-grid");
+
+  // Build a set of instanceIds that exist in inventoryOrder
+  // inventoryOrder preserves display order; new items are appended
+  // First: prune inventoryOrder of items no longer in localInventory
+  const expandedOrder = [];
+  const nameCountSeen = {};
+  inventoryOrder.forEach(name => {
+    const totalHave = localInventory[name] || 0;
+    const seen      = nameCountSeen[name] || 0;
+    if (seen < totalHave) {
+      expandedOrder.push(name);
+      nameCountSeen[name] = seen + 1;
+    }
+  });
+  // Append any new items not yet in order
+  Object.entries(localInventory).forEach(([name, count]) => {
+    const alreadyIn = expandedOrder.filter(n => n === name).length;
+    for (let i = alreadyIn; i < count; i++) {
+      expandedOrder.push(name);
+    }
+  });
+  inventoryOrder = expandedOrder;
+
   ingGrid.innerHTML  = "";
   toolGrid.innerHTML = "";
 
-  Object.entries(localInventory).forEach(([name, count]) => {
+  const nameCounts = {};
+  inventoryOrder.forEach(name => {
     const res = RESOURCES[name];
     if (!res) return;
-    for (let i=0; i<count; i++) {
-      const instanceId = `${name}_${i}`;
-      const tile = makeTile(name, instanceId, "inventory");
-      setupTileDrag(tile);
-      if (res.type === "tool") {
-        toolGrid.appendChild(tile);
-      } else {
-        ingGrid.appendChild(tile);
-      }
+    const i = nameCounts[name] || 0;
+    nameCounts[name] = i + 1;
+    const instanceId = `${name}_${i}`;
+    const tile = makeTile(name, instanceId, "inventory");
+    setupTileDrag(tile);
+
+    // Spring-in animation for newly received tiles
+    if (newlyAdded.includes(name)) {
+      tile.classList.add("tile-spring-in");
+      setTimeout(() => tile.classList.remove("tile-spring-in"), 600);
+    }
+
+    if (res.type === "tool") {
+      toolGrid.appendChild(tile);
+    } else {
+      ingGrid.appendChild(tile);
     }
   });
 }
@@ -1254,10 +1429,14 @@ let currentTask  = null;
 let taskZoneMap  = {}; // { resourceName: count } in task zone
 let clickedTiles = new Set(); // instanceIds that have been clicked
 
+// Local cache of task definitions received from Firebase
+const localTaskDefs = {};
+
 function loadTask(taskId) {
-  currentTask   = TASKS.find(t => t.id === taskId) || TASKS[0];
-  taskZoneMap   = {};
-  clickedTiles  = new Set();
+  // Look up from localTaskDefs (populated from Firebase) or ALL_TASKS fallback
+  currentTask = localTaskDefs[taskId] || ALL_TASKS.find(t => t.id === taskId) || null;
+  taskZoneMap  = {};
+  clickedTiles = new Set();
   renderTask();
   renderTaskZone();
   checkTaskComplete();
@@ -1390,48 +1569,70 @@ async function completeTask() {
   const taskName = currentTask.name;
   const playerRef = ref(db, `games/${gameCode}/players/${myPlayerId}`);
 
-  // ── Build the inventory changes to write to Firebase ──────────
-  // Required ingredients: consumed (already removed from localInventory when dragged in)
-  // Required tools: return to inventory
-  // Extra items in task zone that weren't required: return to inventory
-  // New random ingredients: spawn to replace consumed ingredients
-
-  const requiredIngredients = currentTask.requirements
-    .filter(r => RESOURCES[r.resource]?.type === "ingredient")
-    .reduce((sum, r) => sum + r.qty, 0);
-
-  // Return any items in task zone that exceed requirements (or aren't required at all)
+  // ── Identify required vs excess items in task zone ────────────
   const reqMap = {};
   currentTask.requirements.forEach(r => { reqMap[r.resource] = r.qty; });
 
+  const requiredIngrCount = currentTask.requirements
+    .filter(r => RESOURCES[r.resource]?.type === "ingredient")
+    .reduce((sum, r) => sum + r.qty, 0);
+
+  // Return tools and excess ingredients to local inventory
   Object.entries(taskZoneMap).forEach(([name, count]) => {
+    const res     = RESOURCES[name];
     const required = reqMap[name] || 0;
     const excess   = count - required;
-    const isRequired = required > 0;
-    const res = RESOURCES[name];
-
     if (res?.type === "tool") {
-      // All tools in task zone return to inventory (required ones complete the task)
       addToLocalInventory(name, count);
     } else if (excess > 0) {
-      // Return extra ingredients that weren't needed
       addToLocalInventory(name, excess);
     }
-    // Required ingredients are consumed — already removed from inventory when dragged in
   });
 
-  // Spawn new random ingredients equal to number consumed
-  for (let i = 0; i < requiredIngredients; i++) {
-    const randIng = INGREDIENT_NAMES[Math.floor(Math.random() * INGREDIENT_NAMES.length)];
-    addToLocalInventory(randIng);
-  }
-
-  // Clear task zone
   taskZoneMap  = {};
   clickedTiles = new Set();
 
-  // ── Write updated inventory to Firebase ───────────────────────
-  // Rebuild ingredient and tool maps from current localInventory
+  // ── Spawn new ingredients into OTHER players' inventories ─────
+  // Get next task's ingredient needs so we can target useful resources
+  const snap       = await get(playerRef);
+  const myData     = snap.val() || {};
+  const currentIdx = myData.currentTaskIdx || 0;
+  const nextIdx    = currentIdx + 1;
+  const nextTaskId = myTaskQueue[nextIdx];
+  const nextTask   = nextTaskId ? localTaskDefs[nextTaskId] : null;
+  const nextNeeded = nextTask
+    ? nextTask.requirements.filter(r => RESOURCES[r.resource]?.type === "ingredient").map(r => r.resource)
+    : [];
+
+  // Get list of other players
+  const allPlayerIds = Object.keys(gameState.players || {});
+  const otherPlayers = allPlayerIds.filter(pid => pid !== myPlayerId);
+
+  const spawnUpdates = {};
+  for (let i = 0; i < requiredIngrCount; i++) {
+    // Pick a resource: prefer something needed for the completer's next task
+    // so it can end up with a teammate (deliberate mismatch)
+    const candidates = nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES;
+    const resName = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Distribute to a random other player (or self if no others)
+    const targetPid = otherPlayers.length > 0
+      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+      : myPlayerId;
+
+    const path = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
+    spawnUpdates[path] = (spawnUpdates[path] || 0) + 1;
+
+    // Also notify that player
+    const notifKey = `${Date.now()}_spawn_${i}`;
+    spawnUpdates[`games/${gameCode}/notifications/${targetPid}/${notifKey}`] = {
+      resource: resName,
+      fromName: "the kitchen",
+      ts: Date.now()
+    };
+  }
+
+  // ── Write my updated inventory + progress ────────────────────
   const ingMap  = {};
   const toolMap = {};
   Object.entries(localInventory).forEach(([k, v]) => {
@@ -1439,18 +1640,26 @@ async function completeTask() {
     else                                     toolMap[k] = v;
   });
 
-  // Determine next task
-  const nextIdx = (TASK_SEQUENCE.indexOf(currentTask.id) + 1) % TASK_SEQUENCE.length;
+  const newCompleted = (myData.tasksCompleted || 0) + 1;
+  const updates = {
+    [`games/${gameCode}/players/${myPlayerId}/ingredients`]:    ingMap,
+    [`games/${gameCode}/players/${myPlayerId}/tools`]:          toolMap,
+    [`games/${gameCode}/players/${myPlayerId}/tasksCompleted`]: newCompleted,
+    [`games/${gameCode}/players/${myPlayerId}/currentTaskIdx`]: nextIdx,
+    ...spawnUpdates
+  };
 
-  // Write everything in one update
-  const snap = await get(playerRef);
-  const data  = snap.val() || {};
-  await update(playerRef, {
-    ingredients:    ingMap,
-    tools:          toolMap,
-    tasksCompleted: (data.tasksCompleted || 0) + 1,
-    currentTaskId:  TASK_SEQUENCE[nextIdx]
-  });
+  // If we need to read current Firebase values for spawn targets, we do a transaction-like merge
+  // For spawned ingredients we need to ADD to existing counts, not overwrite
+  // So fetch current values for each spawn target path first
+  const spawnPaths = Object.keys(spawnUpdates).filter(p => p.includes("/ingredients/"));
+  for (const path of spawnPaths) {
+    const existSnap = await get(ref(db, path));
+    const existing  = existSnap.val() || 0;
+    updates[path]   = existing + spawnUpdates[path];
+  }
+
+  await update(ref(db), updates);
 
   // Flash animation
   document.getElementById("task-panel").classList.add("task-complete-anim");
@@ -1458,8 +1667,18 @@ async function completeTask() {
 
   toast(`✓ "${taskName}" complete!`, "good");
 
-  // Move to next task
-  loadTask(TASK_SEQUENCE[nextIdx]);
+  // ── Advance to next task or show done state ───────────────────
+  if (nextTaskId) {
+    loadTask(nextTaskId);
+  } else {
+    // Player finished their personal queue — show waiting state
+    document.getElementById("task-name").textContent = "All done!";
+    document.getElementById("task-description").textContent = "You've completed all your tasks. Help your teammates!";
+    document.getElementById("task-requirements").innerHTML = "";
+    document.getElementById("task-drop-zone").innerHTML = "";
+    document.getElementById("btn-complete").disabled = true;
+    currentTask = null;
+  }
   renderInventory();
 }
 
@@ -1527,6 +1746,21 @@ async function sendResource(name, targetPlayerId) {
     renderInventory();
     toast("Transfer failed — please try again", "bad");
     console.error("Transfer error:", err);
+  }
+}
+
+/* ─── SCORE DISPLAY ─────────────────────────────────────────── */
+function updateScoreDisplay(players) {
+  if (!players) return;
+  const total  = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
+  const target = taskTarget || 0;
+  const el     = document.getElementById("team-score");
+  if (target > 0) {
+    el.textContent = `${total} / ${target} tasks`;
+    // Turn green when complete
+    el.style.color = total >= target ? "var(--accent)" : "";
+  } else {
+    el.textContent = `Team: ${total} task${total!==1?"s":""}`;
   }
 }
 
@@ -1646,6 +1880,10 @@ function enterLobby() {
       }
     }
 
+    if (gameState.eventName) {
+      document.getElementById("lobby-event-name").textContent = gameState.eventName;
+    }
+
     if (gameState.status === "playing") {
       off(ref(db, `games/${gameCode}`), "value", lobbyUnsub);
       if (!inGameEntered) enterGame();
@@ -1655,28 +1893,34 @@ function enterLobby() {
 }
 
 async function startGameInFirebase(players) {
-  const playerIds   = Object.keys(players);
-  const count       = Math.min(Math.max(playerIds.length, 4), 6);
-  const inventorySet = STARTING_INVENTORIES[count] || STARTING_INVENTORIES[4];
-  // Use roundDuration stored by the creator; fall back to constant default
-  const snap2 = await get(ref(db, `games/${gameCode}/roundDuration`));
-  const duration = snap2.val() || ROUND_DURATION;
+  const playerIds = Object.keys(players);
+
+  // Read round duration chosen by creator
+  const durSnap  = await get(ref(db, `games/${gameCode}/roundDuration`));
+  const duration = durSnap.val() || ROUND_DURATION;
   const endTime  = Date.now() + duration * 1000;
 
-  // Assign inventories
+  // Generate event name and task/inventory setup
+  const evtName   = genEventName();
+  const setup     = generateGameSetup(playerIds);
+  const tgt       = playerIds.length * TASKS_PER_PLAYER;
+
   const updates = {};
-  playerIds.forEach((pid, idx) => {
-    const inv = inventorySet[idx % inventorySet.length];
-    const ingMap  = {};
-    inv.ingredients.forEach(name => { ingMap[name] = (ingMap[name]||0)+1; });
-    const toolMap = {};
-    inv.tools.forEach(name => { toolMap[name] = (toolMap[name]||0)+1; });
-    updates[`games/${gameCode}/players/${pid}/ingredients`] = ingMap;
-    updates[`games/${gameCode}/players/${pid}/tools`]       = toolMap;
-    updates[`games/${gameCode}/players/${pid}/currentTaskId`] = TASK_SEQUENCE[idx % TASK_SEQUENCE.length];
+  updates[`games/${gameCode}/status`]     = "playing";
+  updates[`games/${gameCode}/endTime`]    = endTime;
+  updates[`games/${gameCode}/eventName`]  = evtName;
+  updates[`games/${gameCode}/taskTarget`] = tgt;
+  // Store full task definitions so all clients can resolve task IDs
+  updates[`games/${gameCode}/taskDefs`]   = setup.taskById;
+
+  playerIds.forEach(pid => {
+    updates[`games/${gameCode}/players/${pid}/ingredients`]  = setup.playerIngrInventory[pid] || {};
+    updates[`games/${gameCode}/players/${pid}/tools`]        = setup.playerToolInventory[pid] || {};
+    updates[`games/${gameCode}/players/${pid}/taskQueue`]    = setup.playerTasks[pid] || [];
+    updates[`games/${gameCode}/players/${pid}/currentTaskIdx`] = 0;
+    updates[`games/${gameCode}/players/${pid}/tasksCompleted`] = 0;
   });
-  updates[`games/${gameCode}/status`]  = "playing";
-  updates[`games/${gameCode}/endTime`] = endTime;
+
   await update(ref(db), updates);
 }
 
@@ -1687,36 +1931,69 @@ function enterGame() {
   showScreen("game");
   document.getElementById("player-name-display").textContent = myPlayerName;
 
-  // ── 1. Load initial task assignment ──────────────────────────
-  get(ref(db, `games/${gameCode}/players/${myPlayerId}/currentTaskId`)).then(snap => {
-    loadTask(snap.val() || "t1");
+  // ── 1. Load event name, task target, task queue ──────────────
+  get(ref(db, `games/${gameCode}`)).then(snap => {
+    const data = snap.val() || {};
+    eventName  = data.eventName  || "";
+    taskTarget = data.taskTarget || 0;
+
+    // Store task definitions locally
+    if (data.taskDefs) {
+      Object.assign(localTaskDefs, data.taskDefs);
+    }
+
+    // Update header event name
+    document.getElementById("event-name-display").textContent = eventName;
+
+    // Load my task queue
+    const myData = data.players?.[myPlayerId] || {};
+    myTaskQueue  = myData.taskQueue || [];
+    const idx    = myData.currentTaskIdx || 0;
+    if (myTaskQueue.length > 0) {
+      loadTask(myTaskQueue[idx] || myTaskQueue[0]);
+    }
+    updateScoreDisplay(data.players);
   });
 
   // ── 2. Watch MY inventory in Firebase — re-render whenever it changes ──
   // This is what makes received resources appear automatically.
   const ingUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), snap => {
-    // Rebuild localInventory ingredients from Firebase truth
     const incoming = snap.val() || {};
-    // Remove all ingredient keys from localInventory, replace with Firebase values
+    // Detect newly added ingredients for spring animation
+    const newlyAdded = [];
+    Object.entries(incoming).forEach(([k,v]) => {
+      const prev = localInventory[k] || 0;
+      if (v > prev) {
+        for (let i = prev; i < v; i++) newlyAdded.push(k);
+      }
+    });
+    // Rebuild from Firebase
     Object.keys(localInventory).forEach(k => {
       if (RESOURCES[k]?.type === "ingredient") delete localInventory[k];
     });
     Object.entries(incoming).forEach(([k,v]) => {
       if (v > 0) localInventory[k] = v;
     });
-    renderInventory();
+    renderInventory(newlyAdded);
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), "value", ingUnsub));
 
   const toolUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), snap => {
     const incoming = snap.val() || {};
+    const newlyAdded = [];
+    Object.entries(incoming).forEach(([k,v]) => {
+      const prev = localInventory[k] || 0;
+      if (v > prev) {
+        for (let i = prev; i < v; i++) newlyAdded.push(k);
+      }
+    });
     Object.keys(localInventory).forEach(k => {
       if (RESOURCES[k]?.type === "tool") delete localInventory[k];
     });
     Object.entries(incoming).forEach(([k,v]) => {
       if (v > 0) localInventory[k] = v;
     });
-    renderInventory();
+    renderInventory(newlyAdded);
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), "value", toolUnsub));
 
@@ -1747,13 +2024,32 @@ function enterGame() {
     if (!gameState.players) return;
 
     renderTeammates();
+    updateScoreDisplay(gameState.players);
 
-    const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
-    document.getElementById("team-score").textContent =
-      `Team: ${totalTasks} task${totalTasks !== 1 ? "s" : ""}`;
+    // Sync event name and task target if not yet loaded
+    if (!eventName && gameState.eventName) {
+      eventName  = gameState.eventName;
+      taskTarget = gameState.taskTarget || 0;
+      document.getElementById("event-name-display").textContent = eventName;
+    }
+
+    // Sync local task defs
+    if (gameState.taskDefs) {
+      Object.assign(localTaskDefs, gameState.taskDefs);
+    }
 
     if (gameState.endTime && !timerInterval) {
       startTimer(gameState.endTime);
+    }
+
+    // Auto-end when task target is reached
+    const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
+    if (taskTarget > 0 && totalTasks >= taskTarget && gameState.status === "playing") {
+      // First player to notice ends the game
+      const myIdx = Object.keys(gameState.players).indexOf(myPlayerId);
+      if (myIdx === 0) {
+        update(ref(db, `games/${gameCode}`), { status: "ended" });
+      }
     }
 
     if (gameState.status === "ended") {
@@ -1799,6 +2095,11 @@ async function showSummary() {
   const data = snap.val() || {};
   const players   = data.players   || {};
   const transfers = data.transfers || {};
+  const tgt       = data.taskTarget || 0;
+  const evtName   = data.eventName  || "";
+
+  // Show event name
+  document.getElementById("summary-event-name").textContent = evtName;
 
   // Tasks per player
   const taskEl = document.getElementById("summary-tasks");
@@ -1808,11 +2109,21 @@ async function showSummary() {
       <span class="stat-value">${p.tasksCompleted||0}</span>
     </div>`).join("");
 
-  const total = Object.values(players).reduce((s,p)=>s+(p.tasksCompleted||0),0);
+  const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
+  const won   = tgt > 0 && total >= tgt;
   taskEl.innerHTML += `<div class="stat-row" style="border-top:2px solid var(--border); margin-top:4px;">
     <span style="font-weight:600;">Team total</span>
-    <span class="stat-value">${total}</span>
+    <span class="stat-value">${total}${tgt > 0 ? " / "+tgt : ""}</span>
   </div>`;
+  if (tgt > 0) {
+    const resultEl = document.createElement("div");
+    resultEl.style.cssText = `margin-top:12px; padding:10px 14px; border-radius:8px; font-weight:600; font-size:14px; text-align:center;
+      background:${won?"#EAF2EA":"#FAEAEA"}; color:${won?"var(--accent)":"var(--danger)"};`;
+    resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
+    taskEl.appendChild(resultEl);
+  }
+  document.getElementById("summary-subtitle").textContent =
+    tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
 
   // Transfer counts per pair
   const transferArr = Object.values(transfers);
@@ -2059,12 +2370,18 @@ document.getElementById("btn-new-game").addEventListener("click", () => {
   clearInterval(timerInterval);
   timerInterval = null;
   localInventory = {};
+  inventoryOrder = [];
   taskZoneMap    = {};
   clickedTiles   = new Set();
   gameState      = {};
   gameCode       = null;
   myPlayerId     = null;
   inGameEntered  = false;
+  myTaskQueue    = [];
+  taskTarget     = 0;
+  eventName      = "";
+  currentTask    = null;
+  Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
   // Reset UI
   document.getElementById("create-name").value = "";
   document.getElementById("join-code").value   = "";
