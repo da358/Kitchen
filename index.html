@@ -747,11 +747,12 @@
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
         <div style="display:flex; flex-direction:column; gap:6px;">
           <label style="font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3);">Round duration</label>
-          <div style="display:flex; gap:8px;">
-            <label class="duration-opt"><input type="radio" name="duration" value="60"> 1 min</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <label class="duration-opt"><input type="radio" name="duration" value="120" checked> 2 min</label>
             <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
             <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="300"> 5 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="360"> 6 min</label>
           </div>
         </div>
         <button class="btn btn-primary" id="btn-create">Create game →</button>
@@ -773,9 +774,9 @@
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
 <div id="screen-lobby" class="screen">
   <div class="lobby-header">
-    <h2>Waiting for players</h2>
+    <p id="lobby-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
+    <h2 style="margin-top:6px;">Waiting for players</h2>
     <p>Share the code with your team</p>
-    <p id="lobby-event-name" style="font-size:13px; color:var(--accent); font-style:italic; min-height:20px; margin-top:4px;"></p>
   </div>
   <div class="game-code-display">
     <div class="label">Game code</div>
@@ -895,6 +896,7 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
    4. In Firebase console → Realtime Database → Create database
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
+
 
 const firebaseConfig = {
 
@@ -1608,31 +1610,8 @@ async function completeTask() {
   const allPlayerIds = Object.keys(gameState.players || {});
   const otherPlayers = allPlayerIds.filter(pid => pid !== myPlayerId);
 
-  const spawnUpdates = {};
-  for (let i = 0; i < requiredIngrCount; i++) {
-    // Pick a resource: prefer something needed for the completer's next task
-    // so it can end up with a teammate (deliberate mismatch)
-    const candidates = nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES;
-    const resName = candidates[Math.floor(Math.random() * candidates.length)];
-
-    // Distribute to a random other player (or self if no others)
-    const targetPid = otherPlayers.length > 0
-      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
-      : myPlayerId;
-
-    const path = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
-    spawnUpdates[path] = (spawnUpdates[path] || 0) + 1;
-
-    // Also notify that player
-    const notifKey = `${Date.now()}_spawn_${i}`;
-    spawnUpdates[`games/${gameCode}/notifications/${targetPid}/${notifKey}`] = {
-      resource: resName,
-      fromName: "the kitchen",
-      ts: Date.now()
-    };
-  }
-
-  // ── Write my updated inventory + progress ────────────────────
+  // ── Step 1: Write MY inventory + progress first ─────────────
+  // Done separately from spawns to avoid any path collisions.
   const ingMap  = {};
   const toolMap = {};
   Object.entries(localInventory).forEach(([k, v]) => {
@@ -1641,25 +1620,40 @@ async function completeTask() {
   });
 
   const newCompleted = (myData.tasksCompleted || 0) + 1;
-  const updates = {
+  await update(ref(db), {
     [`games/${gameCode}/players/${myPlayerId}/ingredients`]:    ingMap,
     [`games/${gameCode}/players/${myPlayerId}/tools`]:          toolMap,
     [`games/${gameCode}/players/${myPlayerId}/tasksCompleted`]: newCompleted,
     [`games/${gameCode}/players/${myPlayerId}/currentTaskIdx`]: nextIdx,
-    ...spawnUpdates
-  };
+  });
 
-  // If we need to read current Firebase values for spawn targets, we do a transaction-like merge
-  // For spawned ingredients we need to ADD to existing counts, not overwrite
-  // So fetch current values for each spawn target path first
-  const spawnPaths = Object.keys(spawnUpdates).filter(p => p.includes("/ingredients/"));
-  for (const path of spawnPaths) {
-    const existSnap = await get(ref(db, path));
+  // ── Step 2: Spawn ingredients into other players one at a time ──
+  // Each spawn is a separate fetch-then-write on the specific ingredient key.
+  // Doing them sequentially (not batched) avoids the race where two spawns
+  // to the same player/ingredient collide and one overwrites the other.
+  // Notifications are written separately so they never share a path with
+  // ingredient counts.
+  for (let i = 0; i < requiredIngrCount; i++) {
+    const candidates = nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES;
+    const resName    = candidates[Math.floor(Math.random() * candidates.length)];
+    const targetPid  = otherPlayers.length > 0
+      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+      : myPlayerId;
+
+    // Atomically increment: read current value, write current+1
+    const ingrPath  = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
+    const existSnap = await get(ref(db, ingrPath));
     const existing  = existSnap.val() || 0;
-    updates[path]   = existing + spawnUpdates[path];
-  }
+    await set(ref(db, ingrPath), existing + 1);
 
-  await update(ref(db), updates);
+    // Write notification as a completely separate path — no collision risk
+    const notifKey = `${Date.now()}_s${i}_${Math.random().toString(36).slice(2,5)}`;
+    await set(ref(db, `games/${gameCode}/notifications/${targetPid}/${notifKey}`), {
+      resource: resName,
+      fromName: "the kitchen",
+      ts: Date.now()
+    });
+  }
 
   // Flash animation
   document.getElementById("task-panel").classList.add("task-complete-anim");
