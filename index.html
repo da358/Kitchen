@@ -1791,11 +1791,15 @@ async function createGame() {
   const durationEl = document.querySelector('input[name="duration"]:checked');
   const roundDuration = durationEl ? parseInt(durationEl.value) : 120;
 
+  // Generate event name at creation time so it's visible in the lobby
+  const lobbyEventName = genEventName();
+
   const gameData = {
-    code:         gameCode,
-    status:       "lobby",
-    created:      Date.now(),
+    code:          gameCode,
+    status:        "lobby",
+    created:       Date.now(),
     roundDuration: roundDuration,
+    eventName:     lobbyEventName,
     players: {
       [myPlayerId]: { name:myPlayerName, ready:false, tasksCompleted:0, currentTaskId:"t1" }
     }
@@ -1894,8 +1898,8 @@ async function startGameInFirebase(players) {
   const duration = durSnap.val() || ROUND_DURATION;
   const endTime  = Date.now() + duration * 1000;
 
-  // Generate event name and task/inventory setup
-  const evtName   = genEventName();
+  // Reuse the event name already written at game creation; generate setup
+  const evtName   = gameState.eventName || genEventName();
   const setup     = generateGameSetup(playerIds);
   const tgt       = playerIds.length * TASKS_PER_PLAYER;
 
