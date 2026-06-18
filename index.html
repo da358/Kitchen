@@ -769,6 +769,7 @@
       </div>
     </div>
   </div>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 617.5</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -896,6 +897,7 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
    4. In Firebase console → Realtime Database → Create database
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
@@ -1147,6 +1149,10 @@ let myTaskQueue    = [];    // ordered list of task IDs assigned to me
 let taskTarget     = 0;     // team win condition: total tasks needed
 let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
 let inventoryOrder = [];    // ordered list of resource names for stable display
+// Stable snapshot of last-seen Firebase inventory counts.
+// Exposed at module scope so sendResource can update it to prevent
+// the sender's own listener from re-adding an in-flight item.
+const lastKnownInventoryRef = { ingredients: {}, tools: {} };
 
 /* ─── UTILITIES ─────────────────────────────────────────────── */
 function genCode() {
@@ -1691,28 +1697,36 @@ async function completeTask() {
 }
 
 /* ─── TRANSFERS ─────────────────────────────────────────────── */
-// Transfers work by directly modifying both players' Firebase inventory nodes.
-// The sender's localInventory is updated immediately for responsiveness.
-// The receiver's inventory listener sees the Firebase change and re-renders.
+// All inventory changes go through Firebase — no optimistic local updates.
+// Both sender and receiver displays update via their Firebase listeners.
+// This eliminates races between optimistic state and listener-driven state.
 async function sendResource(name, targetPlayerId) {
   if (!localInventory[name]) {
     toast("You don't have that resource anymore", "bad");
     return;
   }
 
-  const res      = RESOURCES[name];
-  const isIngr   = res?.type === "ingredient";
-  const field    = isIngr ? "ingredients" : "tools";
+  const res    = RESOURCES[name];
+  const field  = res?.type === "ingredient" ? "ingredients" : "tools";
   const senderPath   = `games/${gameCode}/players/${myPlayerId}/${field}/${name}`;
   const receiverPath = `games/${gameCode}/players/${targetPlayerId}/${field}/${name}`;
 
-  // 1. Optimistically update local display right away
+  // Guard: mark the item as in-flight so a double-tap can't send it twice
+  // before the Firebase write completes and the listener updates localInventory.
   removeFromLocalInventory(name);
+  // Also update lastKnownInventory immediately so our own listener
+  // does not re-add the item when Firebase confirms the write.
+  // (The listener compares against lastKnownInventory to detect new items.)
+  if (lastKnownInventoryRef[field]) {
+    const cur = lastKnownInventoryRef[field][name] || 0;
+    if (cur <= 1) delete lastKnownInventoryRef[field][name];
+    else lastKnownInventoryRef[field][name] = cur - 1;
+  }
   renderInventory();
 
   try {
-    // 2. Decrement sender's count in Firebase (remove key if zero)
-    const senderSnap = await get(ref(db, senderPath));
+    // Read sender current value and decrement
+    const senderSnap  = await get(ref(db, senderPath));
     const senderCount = (senderSnap.val() || 1) - 1;
     if (senderCount <= 0) {
       await remove(ref(db, senderPath));
@@ -1720,14 +1734,13 @@ async function sendResource(name, targetPlayerId) {
       await set(ref(db, senderPath), senderCount);
     }
 
-    // 3. Increment receiver's count in Firebase
-    const receiverSnap = await get(ref(db, receiverPath));
+    // Read receiver current value and increment
+    const receiverSnap  = await get(ref(db, receiverPath));
     const receiverCount = (receiverSnap.val() || 0) + 1;
     await set(ref(db, receiverPath), receiverCount);
 
-    // 4. Log the transfer for summary
-    const transfersRef = ref(db, `games/${gameCode}/transfers`);
-    await push(transfersRef, {
+    // Log the transfer for the summary screen
+    await push(ref(db, `games/${gameCode}/transfers`), {
       from:      myPlayerId,
       fromName:  myPlayerName,
       to:        targetPlayerId,
@@ -1737,7 +1750,7 @@ async function sendResource(name, targetPlayerId) {
       timestamp: Date.now()
     });
 
-    // 5. Notify receiver via a single-fire notification node
+    // Notify receiver (for toast + spring animation)
     const notifKey = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
     await set(ref(db, `games/${gameCode}/notifications/${targetPlayerId}/${notifKey}`), {
       resource: name,
@@ -1749,7 +1762,7 @@ async function sendResource(name, targetPlayerId) {
     toast(`Sent ${res?.emoji || ""} ${name} → ${targetName}`, "good");
 
   } catch (err) {
-    // Rollback optimistic update on failure
+    // Rollback: restore item locally and in lastKnownInventory
     addToLocalInventory(name);
     renderInventory();
     toast("Transfer failed — please try again", "bad");
@@ -1972,14 +1985,18 @@ function enterGame() {
   // to detect genuinely new items. This snapshot only updates AFTER we've
   // finished processing, preventing double-count false positives when Firebase
   // fires a listener twice (e.g. due to network latency or rapid sequential writes).
-  const lastKnownInventory = {}; // stable snapshot: name → count
-
+  // applyInventoryUpdate uses the module-scoped lastKnownInventoryRef
+  // so sendResource can also update it when doing optimistic removal,
+  // preventing the sender's listener from re-adding in-flight items.
   function applyInventoryUpdate(incoming, type) {
-    // Detect genuinely new items by comparing to lastKnownInventory (not localInventory)
+    const subkey = type === "ingredient" ? "ingredients" : "tools";
+    const knownSub = lastKnownInventoryRef[subkey];
+
+    // Detect genuinely new items vs last known state
     const newlyAdded = [];
     Object.entries(incoming).forEach(([k, v]) => {
       if (RESOURCES[k]?.type !== type) return;
-      const prev = lastKnownInventory[k] || 0;
+      const prev = knownSub[k] || 0;
       if (v > prev) {
         for (let i = prev; i < v; i++) newlyAdded.push(k);
       }
@@ -1993,12 +2010,10 @@ function enterGame() {
       if (RESOURCES[k]?.type === type && v > 0) localInventory[k] = v;
     });
 
-    // Update snapshot AFTER rebuilding — this is what prevents double-counting
-    Object.keys(lastKnownInventory).forEach(k => {
-      if (RESOURCES[k]?.type === type) delete lastKnownInventory[k];
-    });
+    // Update snapshot AFTER rebuilding
+    Object.keys(knownSub).forEach(k => delete knownSub[k]);
     Object.entries(incoming).forEach(([k, v]) => {
-      if (RESOURCES[k]?.type === type && v > 0) lastKnownInventory[k] = v;
+      if (RESOURCES[k]?.type === type && v > 0) knownSub[k] = v;
     });
 
     renderInventory(newlyAdded);
@@ -2399,6 +2414,8 @@ document.getElementById("btn-new-game").addEventListener("click", () => {
   eventName      = "";
   currentTask    = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
+  Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
+  Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
   // Reset UI
   document.getElementById("create-name").value = "";
   document.getElementById("join-code").value   = "";
