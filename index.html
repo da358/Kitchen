@@ -748,10 +748,10 @@
         <div style="display:flex; flex-direction:column; gap:6px;">
           <label style="font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3);">Round duration</label>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <label class="duration-opt"><input type="radio" name="duration" value="120" checked> 2 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="120"> 2 min</label>
             <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
             <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
-            <label class="duration-opt"><input type="radio" name="duration" value="300"> 5 min</label>
+            <label class="duration-opt"><input type="radio" name="duration" value="300" checked> 5 min</label>
             <label class="duration-opt"><input type="radio" name="duration" value="360"> 6 min</label>
           </div>
         </div>
@@ -852,8 +852,8 @@
 <!-- ══ SCREEN: SUMMARY ══════════════════════════════════════════ -->
 <div id="screen-summary" class="screen">
   <div class="summary-header">
-    <h2>Round complete</h2>
-    <p id="summary-event-name" style="font-size:16px; color:var(--accent); font-style:italic; margin-bottom:4px;"></p>
+    <p id="summary-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
+    <h2 style="margin-top:6px;">Event complete</h2>
     <p id="summary-subtitle">Here's how your team did</p>
   </div>
   <div class="summary-grid">
@@ -899,21 +899,13 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
 
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
-
   authDomain: "kitchen-5cb9a.firebaseapp.com",
-
   databaseURL: "https://kitchen-5cb9a-default-rtdb.firebaseio.com",
-
   projectId: "kitchen-5cb9a",
-
   storageBucket: "kitchen-5cb9a.firebasestorage.app",
-
   messagingSenderId: "297004284280",
-
   appId: "1:297004284280:web:095912fd748d7dcccb308d"
-
 };
 
 
@@ -1307,6 +1299,28 @@ function setupTileDrag(tile) {
   tile.addEventListener("touchstart", onTileTouchStart, { passive: false });
 }
 
+// Safety cleanup: if the browser cancels a touch (iOS Safari interruption,
+// incoming call, system gesture, etc.), abort the drag and remove the ghost.
+function abortDrag() {
+  if (ghost) { ghost.remove(); ghost = null; }
+  if (draggedTile) { draggedTile.classList.remove("dragging"); }
+  document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
+  draggedTile   = null;
+  draggedName   = null;
+  draggedSource = null;
+  dragCommitted = false;
+  document.removeEventListener("mousemove",  onMouseMove);
+  document.removeEventListener("mouseup",    onMouseUp);
+  document.removeEventListener("touchmove",  onTouchMove);
+  document.removeEventListener("touchend",   onTouchEnd);
+  document.removeEventListener("touchcancel",abortDrag);
+}
+document.addEventListener("touchcancel", abortDrag);
+// Also clean up on visibility change (user switches app on iPad)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && draggedTile) abortDrag();
+});
+
 function onTileMouseDown(e) {
   if (e.button !== 0) return;
   e.preventDefault(); // stop browser text-selection on mousedown
@@ -1319,8 +1333,9 @@ function onTileTouchStart(e) {
   const touch = e.touches[0];
   e.preventDefault();
   initPointer(e.currentTarget, touch.clientX, touch.clientY);
-  document.addEventListener("touchmove", onTouchMove, { passive: false });
-  document.addEventListener("touchend",  onTouchEnd);
+  document.addEventListener("touchmove",   onTouchMove,  { passive: false });
+  document.addEventListener("touchend",    onTouchEnd);
+  document.addEventListener("touchcancel", abortDrag,    { once: true });
 }
 
 function initPointer(tile, cx, cy) {
@@ -1954,44 +1969,49 @@ function enterGame() {
   });
 
   // ── 2. Watch MY inventory in Firebase — re-render whenever it changes ──
-  // This is what makes received resources appear automatically.
-  const ingUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), snap => {
-    const incoming = snap.val() || {};
-    // Detect newly added ingredients for spring animation
+  // We maintain a stable lastKnownInventory snapshot that we compare against
+  // to detect genuinely new items. This snapshot only updates AFTER we've
+  // finished processing, preventing double-count false positives when Firebase
+  // fires a listener twice (e.g. due to network latency or rapid sequential writes).
+  const lastKnownInventory = {}; // stable snapshot: name → count
+
+  function applyInventoryUpdate(incoming, type) {
+    // Detect genuinely new items by comparing to lastKnownInventory (not localInventory)
     const newlyAdded = [];
-    Object.entries(incoming).forEach(([k,v]) => {
-      const prev = localInventory[k] || 0;
+    Object.entries(incoming).forEach(([k, v]) => {
+      if (RESOURCES[k]?.type !== type) return;
+      const prev = lastKnownInventory[k] || 0;
       if (v > prev) {
         for (let i = prev; i < v; i++) newlyAdded.push(k);
       }
     });
-    // Rebuild from Firebase
+
+    // Rebuild localInventory for this type from Firebase truth
     Object.keys(localInventory).forEach(k => {
-      if (RESOURCES[k]?.type === "ingredient") delete localInventory[k];
+      if (RESOURCES[k]?.type === type) delete localInventory[k];
     });
-    Object.entries(incoming).forEach(([k,v]) => {
-      if (v > 0) localInventory[k] = v;
+    Object.entries(incoming).forEach(([k, v]) => {
+      if (RESOURCES[k]?.type === type && v > 0) localInventory[k] = v;
     });
+
+    // Update snapshot AFTER rebuilding — this is what prevents double-counting
+    Object.keys(lastKnownInventory).forEach(k => {
+      if (RESOURCES[k]?.type === type) delete lastKnownInventory[k];
+    });
+    Object.entries(incoming).forEach(([k, v]) => {
+      if (RESOURCES[k]?.type === type && v > 0) lastKnownInventory[k] = v;
+    });
+
     renderInventory(newlyAdded);
+  }
+
+  const ingUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), snap => {
+    applyInventoryUpdate(snap.val() || {}, "ingredient");
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/ingredients`), "value", ingUnsub));
 
   const toolUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), snap => {
-    const incoming = snap.val() || {};
-    const newlyAdded = [];
-    Object.entries(incoming).forEach(([k,v]) => {
-      const prev = localInventory[k] || 0;
-      if (v > prev) {
-        for (let i = prev; i < v; i++) newlyAdded.push(k);
-      }
-    });
-    Object.keys(localInventory).forEach(k => {
-      if (RESOURCES[k]?.type === "tool") delete localInventory[k];
-    });
-    Object.entries(incoming).forEach(([k,v]) => {
-      if (v > 0) localInventory[k] = v;
-    });
-    renderInventory(newlyAdded);
+    applyInventoryUpdate(snap.val() || {}, "tool");
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), "value", toolUnsub));
 
