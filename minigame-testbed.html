@@ -149,6 +149,10 @@
   .log-entry .result { font-weight: 600; color: var(--accent); }
   .log-empty { font-size: 13px; color: var(--text-3); font-style: italic; }
 
+  @keyframes spinBlade {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
   @keyframes sliceAnim {
     0%   { transform: translateX(0) rotate(-15deg); }
     50%  { transform: translateX(8px) rotate(-5deg); }
@@ -171,7 +175,7 @@
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
   <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
-  <p class="version">v10</p>
+  <p class="version">v14</p>
 </div>
 
 <div class="launcher">
@@ -200,6 +204,31 @@
     <div class="name">Blender</div>
     <div class="type">Mixer — Circle</div>
   </div>
+  <div class="launch-card" onclick="launchActivity('food-processor')">
+    <div class="icon">⚙️</div>
+    <div class="name">Food Processor</div>
+    <div class="type">Mixer — Pulse</div>
+  </div>
+  <div class="launch-card" onclick="launchActivity('bowl')">
+    <div class="icon">🥣</div>
+    <div class="name">Bowl</div>
+    <div class="type">Container — Shake</div>
+  </div>
+  <div class="launch-card" onclick="launchActivity('pan')">
+    <div class="icon">🍳</div>
+    <div class="name">Pan</div>
+    <div class="type">Container — Shake</div>
+  </div>
+  <div class="launch-card" onclick="launchActivity('tray')">
+    <div class="icon">▭</div>
+    <div class="name">Tray</div>
+    <div class="type">Container — Shake</div>
+  </div>
+  <div class="launch-card" onclick="launchActivity('pot')">
+    <div class="icon">🫕</div>
+    <div class="name">Pot</div>
+    <div class="type">Container — Shake</div>
+  </div>
 </div>
 
 <div id="modal-overlay">
@@ -213,7 +242,32 @@
       </div>
     </div>
     <canvas id="gesture-canvas" width="424" height="200"></canvas>
-    <p class="below-canvas-text">Each stroke counts — fill the progress bar to finish</p>
+
+    <!-- Pulse UI (food processor only) -->
+    <div id="pulse-area" style="display:none; flex-direction:column; align-items:center; gap:16px; padding:16px 0;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <svg id="blade-icon" width="64" height="64" viewBox="0 0 64 64"
+             style="animation: spinBlade 0.15s linear infinite; animation-play-state:paused;">
+          <circle cx="32" cy="32" r="4" fill="#5C6E5B" opacity="0.8"/>
+          <!-- 4 blade arms -->
+          <path d="M32 28 Q40 20 52 18 Q44 28 36 32 Z" fill="#5C6E5B" opacity="0.7"/>
+          <path d="M36 32 Q44 40 46 52 Q36 44 32 36 Z" fill="#5C6E5B" opacity="0.7"/>
+          <path d="M32 36 Q24 44 12 46 Q20 36 28 32 Z" fill="#5C6E5B" opacity="0.7"/>
+          <path d="M28 32 Q20 24 18 12 Q28 20 32 28 Z" fill="#5C6E5B" opacity="0.7"/>
+        </svg>
+        <button id="pulse-btn" style="padding:14px 32px; font-size:17px; font-weight:700;
+          font-family:var(--font); border-radius:var(--radius); border:2px solid var(--accent);
+          background:var(--accent-lt); color:var(--accent); cursor:pointer;
+          transition:opacity 0.2s, transform 0.1s; letter-spacing:0.05em;">
+          PULSE
+        </button>
+      </div>
+      <p style="font-size:12px; color:var(--text-2); text-align:center;">
+        Press Pulse — wait for the blade to stop — repeat
+      </p>
+    </div>
+
+    <p class="below-canvas-text" id="canvas-hint">Each stroke counts — fill the progress bar to finish</p>
     <div class="progress-wrap">
       <div class="progress-label">
         <span>Progress</span>
@@ -241,11 +295,18 @@
 <script>
 /* ─── ACTIVITY DEFINITIONS ──────────────────────────────────── */
 const ACTIVITIES = {
-  "chefs-knife":    { icon:"🔪", title:"Slice the ingredients",       task:"Chef's Knife",   type:"slice",  target:10, completionMsg:"Clean cuts. Well done." },
-  "serrated-knife": { icon:"🗡️", title:"Saw through it",              task:"Serrated Knife", type:"slice",  target:10, completionMsg:"Good work with the serrated edge." },
-  "mandolin":       { icon:"📐", title:"Run it through the mandolin", task:"Mandolin",       type:"slice",  target:10, completionMsg:"Perfectly thin slices." },
+  "chefs-knife":    { icon:"🔪", title:"Slice the ingredients",       task:"Chef's Knife",   type:"slice",  target:12, completionMsg:"Clean cuts. Well done." },
+  "serrated-knife": { icon:"🗡️", title:"Saw through it",              task:"Serrated Knife", type:"slice",  target:12, completionMsg:"Good work with the serrated edge." },
+  "mandolin":       { icon:"📐", title:"Run it through the mandolin", task:"Mandolin",       type:"slice",  target:12, completionMsg:"Perfectly thin slices." },
   "whisk":          { icon:"🥄", title:"Whisk it together",           task:"Whisk",          type:"circle", target:8,  completionMsg:"Smooth and well incorporated." },
   "blender":        { icon:"🌀", title:"Blend until smooth",          task:"Blender",        type:"circle", target:8,  completionMsg:"Perfectly blended." },
+  // Food processor — pulse button
+  "food-processor": { icon:"⚙️",  title:"Pulse the processor",         task:"Food Processor",  type:"pulse",  target:5,  completionMsg:"Perfectly processed." },
+  // Containers — shake
+  "bowl":           { icon:"🥣", title:"Shake the bowl",               task:"Bowl",            type:"shake",  target:10, completionMsg:"Well shaken." },
+  "pan":            { icon:"🍳", title:"Shake the pan",                task:"Pan",             type:"shake",  target:10, completionMsg:"Nicely tossed." },
+  "tray":           { icon:"▭",  title:"Shake the tray",               task:"Tray",            type:"shake",  target:10, completionMsg:"Evenly distributed." },
+  "pot":            { icon:"🫕", title:"Shake the pot",                task:"Pot",             type:"shake",  target:10, completionMsg:"Well stirred." },
 };
 
 // Slice directions: angle in radians + label
@@ -260,6 +321,12 @@ const SLICE_DIRS = [
 const CIRCLE_DIRS = [
   { cw: true,  label: "↻", name: "clockwise" },
   { cw: false, label: "↺", name: "counter-clockwise" },
+];
+
+// Shake directions: axis (h=horizontal, v=vertical) and first direction
+const SHAKE_DIRS = [
+  { axis:"h", first:"right", label:"→ ←", arrowA:"→", arrowB:"←" },
+  { axis:"h", first:"left",  label:"← →", arrowA:"←", arrowB:"→" },
 ];
 
 /* ─── STATE ─────────────────────────────────────────────────── */
@@ -295,6 +362,23 @@ let circleBboxMinY = 0, circleBboxMaxY = 0;
 // Signed angle accumulator for direction validation
 // Positive = CCW in screen coords (Y-down), Negative = CW
 let circleSignedAngle = 0;
+
+/* ── SHAKE STATE ──────────────────────────────────────────── */
+let currentShakeDir    = null;  // one of SHAKE_DIRS
+let lastShakeDirIdx    = -1;
+let shakeDown          = false;
+let shakePhase         = 0;     // 0=awaiting first stroke, 1=awaiting return stroke
+let shakePhaseStartX   = 0;
+let shakePhaseStartY   = 0;
+let shakePhaseDist     = 0;
+let shakeLastX         = 0;
+let shakeLastY         = 0;
+const SHAKE_MIN_DIST   = 90;    // px per stroke leg to count
+
+/* ── PULSE STATE ──────────────────────────────────────────── */
+let pulseCount         = 0;
+let pulseCooldown      = false;
+const PULSE_CYCLE_MS   = 2000;  // ms per pulse cycle
 const CIRCLE_MIN_PATHLEN  = 80;   // px — minimum path length before checking closure
 const CIRCLE_CLOSE_RATIO  = 0.42; // return-to-start distance / path-length threshold
                                    // higher = more forgiving (larger acceptable return radius)
@@ -330,16 +414,19 @@ function getPos(e) {
 // sliceFill: 0–1 representing progress within this single stroke
 // circleFill: 0–1 representing how far around the current loop
 
-function drawGuide(fillFraction) {
+function drawGuide(fillFraction, shakePhaseArg, shakePhaseFracArg) {
   if (!currentActivity) return;
   const { W, H } = getLogicalSize();
   ctx.clearRect(0, 0, W, H);
 
   if (currentActivity.type === "slice") {
     drawSliceGuide(W, H, fillFraction);
-  } else {
+  } else if (currentActivity.type === "circle") {
     drawCircleGuide(W, H, fillFraction);
+  } else if (currentActivity.type === "shake") {
+    drawShakeGuide(W, H, shakePhaseArg || 0, shakePhaseFracArg || 0);
   }
+  // pulse type: no canvas guide — handled by HTML button
 }
 
 // Draw a bold arrow from tail to head, filled `fraction` of the way
@@ -490,6 +577,113 @@ function drawCircleGuide(W, H, fraction) {
   ctx.closePath();
   ctx.fillStyle = "rgba(92,110,91,0.65)";
   ctx.fill();
+}
+
+function drawShakeGuide(W, H, phase, phaseFrac) {
+  // Two independent horizontal arrows stacked vertically.
+  // Arrow 1 (top): first required direction.
+  // Arrow 2 (bottom): opposite direction, locked until arrow 1 is complete.
+  // Each arrow fills independently like the slice guide.
+  // A numbered circle (1 or 2) at the tail indicates order.
+  const dir = currentShakeDir;
+  if (!dir) return;
+
+  const margin  = 28;           // horizontal margin
+  const row1Y   = H * 0.35;    // y-centre of top arrow
+  const row2Y   = H * 0.65;    // y-centre of bottom arrow
+  const goRight = dir.first === "right";
+
+  // Arrow 1: goes in first direction
+  const a1tail = { x: goRight ? margin : W - margin, y: row1Y };
+  const a1head = { x: goRight ? W - margin : margin, y: row1Y };
+
+  // Arrow 2: opposite direction
+  const a2tail = { x: goRight ? W - margin : margin,  y: row2Y };
+  const a2head = { x: goRight ? margin     : W - margin, y: row2Y };
+
+  const locked2 = phase === 0; // arrow 2 is locked until phase 1
+
+  // Helper: draw one arrow (ghost + optional fill fraction + numbered badge)
+  function drawArrowRow(tail, head, frac, num, locked) {
+    const angle   = Math.atan2(head.y - tail.y, head.x - tail.x);
+    const fullLen = Math.sqrt((head.x-tail.x)**2 + (head.y-tail.y)**2);
+    const hs      = 24;  // arrowhead size
+    const spread  = 0.50;
+
+    // Shorten ghost shaft to leave room for arrowhead
+    const shaftEndX = head.x - hs * 0.55 * Math.cos(angle);
+    const shaftEndY = head.y - hs * 0.55 * Math.sin(angle);
+
+    // Ghost (full arrow, light)
+    const ghostColor = locked ? "rgba(180,172,164,0.18)" : "rgba(160,152,144,0.28)";
+    ctx.beginPath();
+    ctx.moveTo(tail.x, tail.y);
+    ctx.lineTo(shaftEndX, shaftEndY);
+    ctx.strokeStyle = ghostColor;
+    ctx.lineWidth   = 6;
+    ctx.lineCap     = "round";
+    ctx.stroke();
+
+    // Ghost arrowhead
+    ctx.beginPath();
+    ctx.moveTo(head.x, head.y);
+    ctx.lineTo(head.x - hs*Math.cos(angle-spread), head.y - hs*Math.sin(angle-spread));
+    ctx.lineTo(head.x - hs*Math.cos(angle+spread), head.y - hs*Math.sin(angle+spread));
+    ctx.closePath();
+    ctx.fillStyle = ghostColor;
+    ctx.fill();
+
+    // Fill (only if not locked and frac > 0)
+    if (!locked && frac > 0) {
+      const fillEndX = tail.x + (shaftEndX - tail.x) * Math.min(frac, 1);
+      const fillEndY = tail.y + (shaftEndY - tail.y) * Math.min(frac, 1);
+      ctx.beginPath();
+      ctx.moveTo(tail.x, tail.y);
+      ctx.lineTo(fillEndX, fillEndY);
+      ctx.strokeStyle = "rgba(92,110,91,0.85)";
+      ctx.lineWidth   = 6;
+      ctx.lineCap     = "round";
+      ctx.stroke();
+
+      // Filled arrowhead when near completion
+      if (frac > 0.82) {
+        ctx.beginPath();
+        ctx.moveTo(head.x, head.y);
+        ctx.lineTo(head.x - hs*Math.cos(angle-spread), head.y - hs*Math.sin(angle-spread));
+        ctx.lineTo(head.x - hs*Math.cos(angle+spread), head.y - hs*Math.sin(angle+spread));
+        ctx.closePath();
+        ctx.fillStyle = "rgba(92,110,91,0.85)";
+        ctx.fill();
+      }
+    }
+
+    // Numbered badge at tail
+    const badgeR = 12;
+    const bx = tail.x + (goRight && num===1 ? badgeR+4 : -(badgeR+4)) * (num===1 ? 0 : 0);
+    // Place badge just outside the tail end
+    const badgeX = tail.x + (angle > Math.PI/2 || angle < -Math.PI/2 ? badgeR+6 : -(badgeR+6));
+    const badgeY = tail.y;
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI*2);
+    ctx.fillStyle   = locked ? "rgba(180,172,164,0.35)" : "rgba(92,110,91,0.18)";
+    ctx.fill();
+    ctx.strokeStyle = locked ? "rgba(180,172,164,0.5)"  : "rgba(92,110,91,0.55)";
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.font         = "bold 13px Inter, sans-serif";
+    ctx.fillStyle    = locked ? "rgba(160,152,144,0.7)"  : "rgba(92,110,91,0.9)";
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(num), badgeX, badgeY);
+  }
+
+  // Arrow 1: fill based on phase 0 phaseFrac
+  const frac1 = phase === 0 ? phaseFrac : 1.0;
+  drawArrowRow(a1tail, a1head, frac1, 1, false);
+
+  // Arrow 2: fill based on phase 1 phaseFrac; locked during phase 0
+  const frac2 = phase === 1 ? phaseFrac : 0;
+  drawArrowRow(a2tail, a2head, frac2, 2, locked2);
 }
 
 /* ─── PROGRESS ──────────────────────────────────────────────── */
@@ -778,33 +972,164 @@ function circleComplete() {
   }, 700);
 }
 
+/* ─── SHAKE DIRECTION PICKER ────────────────────────────────── */
+function pickNewShakeDir() {
+  let idx;
+  do { idx = Math.floor(Math.random() * SHAKE_DIRS.length); }
+  while (idx === lastShakeDirIdx && SHAKE_DIRS.length > 1);
+  lastShakeDirIdx  = idx;
+  currentShakeDir  = SHAKE_DIRS[idx];
+  shakePhase       = 0;
+  shakePhaseStartX = 0; shakePhaseStartY = 0;
+  shakePhaseDist   = 0;
+  drawGuide(0, 0, 0);
+}
+
+/* ─── SHAKE HANDLERS ─────────────────────────────────────────── */
+function shakeStart(e) {
+  if (isComplete) return;
+  e.preventDefault();
+  const p = getPos(e);
+  shakeDown        = true;
+  shakePhaseStartX = p.x;
+  shakePhaseStartY = p.y;
+  shakePhaseDist   = 0;
+  shakeLastX       = p.x;
+  shakeLastY       = p.y;
+  canvas.classList.add("active-drag");
+}
+
+function shakeMove(e) {
+  if (!shakeDown || isComplete) return;
+  e.preventDefault();
+  const p      = getPos(e);
+  const dx     = p.x - shakeLastX;
+  const totalDx = p.x - shakePhaseStartX;  // net displacement from phase start
+  shakeLastX   = p.x;
+  shakeLastY   = p.y;
+
+  const dir        = currentShakeDir;
+  const phase0Sign = dir.first === "right" ? 1 : -1;
+  const reqSign    = shakePhase === 0 ? phase0Sign : -phase0Sign;
+
+  // Only accumulate distance when moving in the correct direction for this phase
+  const movingCorrectly = dx * reqSign > 0;
+  if (movingCorrectly) {
+    shakePhaseDist += Math.abs(dx);
+  }
+
+  const phaseFrac = Math.min(1, shakePhaseDist / SHAKE_MIN_DIST);
+  const { W, H }  = getLogicalSize();
+
+  ctx.clearRect(0, 0, W, H);
+  drawGuide(0, shakePhase, phaseFrac);
+
+  // Freehand trace — tinted red when going wrong direction
+  ctx.beginPath();
+  ctx.moveTo(p.x - dx, p.y);
+  ctx.lineTo(p.x, p.y);
+  ctx.strokeStyle = movingCorrectly
+    ? "rgba(92,110,91,0.40)"
+    : "rgba(180,84,80,0.30)";
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = "round";
+  ctx.stroke();
+
+  // Trigger phase advance only when enough net displacement in correct direction
+  if (totalDx * reqSign >= SHAKE_MIN_DIST) {
+    if (shakePhase === 0) {
+      shakePhase       = 1;
+      shakePhaseStartX = p.x;
+      shakePhaseStartY = p.y;
+      shakePhaseDist   = 0;
+      drawGuide(0, 1, 0);
+    } else {
+      shakeComplete();
+    }
+  }
+}
+
+function shakeEnd(e) {
+  if (!shakeDown) return;
+  shakeDown = false;
+  canvas.classList.remove("active-drag");
+  // If user lifted without completing both legs, reset to phase 0
+  shakePhase       = 0;
+  shakePhaseDist   = 0;
+  setTimeout(() => drawGuide(0, 0, 0), 200);
+}
+
+function shakeComplete() {
+  shakeDown        = false;
+  shakePhase       = 0;
+  shakePhaseDist   = 0;
+  canvas.classList.remove("active-drag");
+  addProgress();
+  if (!isComplete) {
+    pickNewShakeDir();
+  }
+}
+
+/* ─── PULSE HANDLERS ─────────────────────────────────────────── */
+function setupPulseButton() {
+  const btn   = document.getElementById("pulse-btn");
+  const blade = document.getElementById("blade-icon");
+  btn.disabled = false;
+  btn.style.opacity = "1";
+
+  btn.onclick = () => {
+    if (pulseCooldown || isComplete) return;
+    pulseCooldown = true;
+    btn.disabled  = true;
+    btn.style.opacity = "0.45";
+
+    // Spin up then slow down
+    blade.style.animationDuration = "0.15s";
+    blade.style.animationPlayState = "running";
+
+    // Slow down halfway through cycle
+    setTimeout(() => {
+      blade.style.animationDuration = "1.2s";
+    }, PULSE_CYCLE_MS * 0.45);
+
+    // Stop and re-enable
+    setTimeout(() => {
+      blade.style.animationPlayState = "paused";
+      blade.style.animationDuration  = "0.15s";
+      pulseCooldown = false;
+      if (!isComplete) {
+        btn.disabled      = false;
+        btn.style.opacity = "1";
+      }
+      addProgress();
+    }, PULSE_CYCLE_MS);
+  };
+}
+
 /* ─── LAUNCH ────────────────────────────────────────────────── */
 function launchActivity(key) {
   const act = ACTIVITIES[key];
   if (!act) return;
 
-  currentActivity = act;
-  progress        = 0;
-  isComplete      = false;
-  circleCooldown  = false;
-  circlePoints    = [];
-  circleDown      = false;
-  circlePathLen   = 0;
-  circleStartX    = 0;
-  circleStartY    = 0;
-  circleBboxMinX    = 0; circleBboxMaxX = 0;
-  circleBboxMinY    = 0; circleBboxMaxY = 0;
+  currentActivity   = act;
+  progress          = 0;
+  isComplete        = false;
+  circleCooldown    = false;
+  circlePoints      = [];
+  circleDown        = false;
+  circlePathLen     = 0;
+  circleStartX      = 0; circleStartY      = 0;
+  circleBboxMinX    = 0; circleBboxMaxX    = 0;
+  circleBboxMinY    = 0; circleBboxMaxY    = 0;
   circleSignedAngle = 0;
-  sliceDown       = false;
-  lastSliceDirIdx  = -1;
-  lastCircleDirIdx = -1;
-
-  // Pick initial directions
-  if (act.type === "slice")  { currentSliceDir  = null; pickNewSliceDir(); }
-  if (act.type === "circle") { currentCircleDir = null;
-    lastCircleDirIdx = Math.random() < 0.5 ? 1 : 0; // random first direction
-    pickNewCircleDir();
-  }
+  sliceDown         = false;
+  shakeDown         = false;
+  shakePhase        = 0;
+  shakePhaseDist    = 0;
+  pulseCooldown     = false;
+  lastSliceDirIdx   = -1;
+  lastCircleDirIdx  = -1;
+  lastShakeDirIdx   = -1;
 
   document.getElementById("tool-icon").textContent   = act.icon;
   document.getElementById("tool-icon").className     = "modal-tool-icon";
@@ -815,20 +1140,47 @@ function launchActivity(key) {
   document.getElementById("progress-count").textContent = `0 / ${act.target}`;
   document.getElementById("complete-banner").classList.remove("show");
   document.getElementById("btn-done").disabled = true;
-  canvas.style.pointerEvents = "auto";
 
-  // mousedown on canvas; mousemove and mouseup on document so fast drags
-  // that exit the canvas boundary still register correctly.
-  canvas.onmousedown  = act.type === "slice" ? sliceStart : circleStart;
-  canvas.onmousemove  = null; // cleared — document listener handles move
-  canvas.onmouseup    = null; // cleared — document listener handles up
-  document._gameMoveHandler = act.type === "slice" ? sliceMove  : circleMove;
-  document._gameUpHandler   = act.type === "slice" ? sliceEnd   : circleEnd;
-  document.addEventListener("mousemove", document._gameMoveHandler);
-  document.addEventListener("mouseup",   document._gameUpHandler);
-  canvas.ontouchstart = act.type === "slice" ? sliceStart : circleStart;
-  canvas.ontouchmove  = act.type === "slice" ? sliceMove  : circleMove;
-  canvas.ontouchend   = act.type === "slice" ? sliceEnd   : circleEnd;
+  // Show/hide canvas vs pulse UI
+  const pulseArea = document.getElementById("pulse-area");
+  if (act.type === "pulse") {
+    canvas.style.display    = "none";
+    pulseArea.style.display = "flex";
+    canvas.style.pointerEvents = "none";
+    const blade = document.getElementById("blade-icon");
+    blade.style.animationPlayState = "paused";
+    setupPulseButton();
+  } else {
+    canvas.style.display    = "block";
+    pulseArea.style.display = "none";
+    canvas.style.pointerEvents = "auto";
+  }
+
+  // Pick initial directions
+  if (act.type === "slice")  { currentSliceDir  = null; pickNewSliceDir(); }
+  if (act.type === "circle") { currentCircleDir = null;
+    lastCircleDirIdx = Math.random() < 0.5 ? 1 : 0;
+    pickNewCircleDir();
+  }
+  if (act.type === "shake")  { currentShakeDir  = null; pickNewShakeDir(); }
+
+  // Wire canvas events (not needed for pulse)
+  if (act.type !== "pulse") {
+    const startFn = act.type==="slice"  ? sliceStart  :
+                    act.type==="circle" ? circleStart : shakeStart;
+    const moveFn  = act.type==="slice"  ? sliceMove   :
+                    act.type==="circle" ? circleMove  : shakeMove;
+    const endFn   = act.type==="slice"  ? sliceEnd    :
+                    act.type==="circle" ? circleEnd   : shakeEnd;
+    canvas.onmousedown  = startFn;
+    canvas.ontouchstart = startFn;
+    canvas.ontouchmove  = moveFn;
+    canvas.ontouchend   = endFn;
+    document._gameMoveHandler = moveFn;
+    document._gameUpHandler   = endFn;
+    document.addEventListener("mousemove", document._gameMoveHandler);
+    document.addEventListener("mouseup",   document._gameUpHandler);
+  }
 
   document.getElementById("modal-overlay").classList.add("active");
   requestAnimationFrame(resizeCanvas);
