@@ -171,7 +171,7 @@
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
   <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
-  <p class="version">v9</p>
+  <p class="version">v10</p>
 </div>
 
 <div class="launcher">
@@ -739,7 +739,7 @@ function circleMove(e) {
     // Threshold: at least 0.5 radians of net rotation in the correct direction
     // to avoid noise from wobbly gestures near zero.
     const dir = currentCircleDir;
-    const requiredSign = dir.cw ? -1 : 1; // CW=negative, CCW=positive
+    const requiredSign = dir.cw ? 1 : -1; // sign convention: CW=positive, CCW=negative (empirically confirmed)
     const correctDirection = (circleSignedAngle * requiredSign) > 0.5;
 
     if (isClosed && isLoopShaped && correctDirection) {
