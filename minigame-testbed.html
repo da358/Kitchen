@@ -171,7 +171,7 @@
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
   <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
-  <p class="version">v4</p>
+  <p class="version">v5</p>
 </div>
 
 <div class="launcher">
@@ -280,13 +280,17 @@ let sliceProgress = 0;
 const SLICE_MIN_DIST  = 50;   // px to count as a valid stroke
 const SLICE_DIR_THRESH = 0.45; // cosine similarity — how aligned with required direction
 
-// Circle tracking
+// Circle tracking — closed-loop detection
+// A loop counts when: the path travels far enough AND comes back near its start.
 let circlePoints   = [];
 let circleDown     = false;
 let circleCooldown = false;
-let circleAngleAcc = 0;  // accumulated signed angle for current loop
-const CIRCLE_MIN_R   = 24;   // px minimum radius
-const CIRCLE_THRESH  = 0.75; // fraction of full rotation needed
+let circlePathLen  = 0;    // total distance traveled so far this gesture
+let circleStartX   = 0;
+let circleStartY   = 0;
+const CIRCLE_MIN_PATHLEN = 120; // px — minimum path length before checking closure
+const CIRCLE_CLOSE_RATIO = 0.28; // return-to-start distance / path-length threshold
+                                  // lower = more forgiving closure
 
 /* ─── CANVAS ────────────────────────────────────────────────── */
 const canvas = document.getElementById("gesture-canvas");
@@ -434,34 +438,31 @@ function drawCircleGuide(W, H, fraction) {
   }
 
   // ── Arrowhead at the HEAD end of the ghost arc ──
-  // Position: point on circle at headAngle (normalised to 0–2π range)
-  const normHead = dir.cw
-    ? tailAngle + arcSweep
-    : tailAngle - arcSweep;
+  const normHead = dir.cw ? tailAngle + arcSweep : tailAngle - arcSweep;
   const arrowX = cx + R * Math.cos(normHead);
   const arrowY = cy + R * Math.sin(normHead);
-
-  // Tangent direction at head: perpendicular to radius, in travel direction
   const tangent = dir.cw ? normHead + Math.PI/2 : normHead - Math.PI/2;
-  const hs = 13; // arrowhead arm length
+
+  // Draw a filled triangular arrowhead — larger and more readable
+  const hs = 20; // arrowhead size (increased from 13)
+  const spread = 0.52;
+  const tip  = { x: arrowX, y: arrowY };
+  const left = {
+    x: arrowX - hs * Math.cos(tangent - spread),
+    y: arrowY - hs * Math.sin(tangent - spread)
+  };
+  const right = {
+    x: arrowX - hs * Math.cos(tangent + spread),
+    y: arrowY - hs * Math.sin(tangent + spread)
+  };
 
   ctx.beginPath();
-  ctx.moveTo(arrowX, arrowY);
-  ctx.lineTo(
-    arrowX - hs * Math.cos(tangent - 0.45),
-    arrowY - hs * Math.sin(tangent - 0.45)
-  );
-  ctx.moveTo(arrowX, arrowY);
-  ctx.lineTo(
-    arrowX - hs * Math.cos(tangent + 0.45),
-    arrowY - hs * Math.sin(tangent + 0.45)
-  );
-  ctx.strokeStyle = "rgba(120,140,120,0.65)";
-  ctx.lineWidth   = 3.5;
-  ctx.lineCap     = "round";
-  ctx.stroke();
-
-  // No center label — the open arc shape and arrowhead are sufficient
+  ctx.moveTo(tip.x,   tip.y);
+  ctx.lineTo(left.x,  left.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(92,110,91,0.55)";
+  ctx.fill();
 }
 
 /* ─── PROGRESS ──────────────────────────────────────────────── */
@@ -524,7 +525,6 @@ function pickNewCircleDir() {
   const idx = lastCircleDirIdx === 0 ? 1 : 0;
   lastCircleDirIdx  = idx;
   currentCircleDir  = CIRCLE_DIRS[idx];
-  circleAngleAcc    = 0;
   drawGuide(0);
 }
 
@@ -601,14 +601,22 @@ function sliceEnd(e) {
   sliceProgress = 0;
 }
 
-/* ─── CIRCLE HANDLERS ───────────────────────────────────────── */
+/* ─── CIRCLE HANDLERS (closed-loop detection) ───────────────── */
+// A loop counts when the path:
+//  1. Has traveled at least CIRCLE_MIN_PATHLEN px total
+//  2. Returns to within CIRCLE_CLOSE_RATIO * pathLength of its start point
+// The guide fill reflects how much path has been traveled vs the minimum,
+// giving players feedback that they're making progress even mid-loop.
+
 function circleStart(e) {
-  if (isComplete) return;
+  if (isComplete || circleCooldown) return;
   e.preventDefault();
   const p = getPos(e);
   circlePoints  = [p];
   circleDown    = true;
-  circleAngleAcc = 0;
+  circlePathLen = 0;
+  circleStartX  = p.x;
+  circleStartY  = p.y;
   canvas.classList.add("active-drag");
 }
 
@@ -618,45 +626,40 @@ function circleMove(e) {
   const p    = getPos(e);
   const last = circlePoints[circlePoints.length - 1];
   const dx   = p.x - last.x, dy = p.y - last.y;
-  if (Math.sqrt(dx*dx + dy*dy) < 3) return;
+  const step = Math.sqrt(dx*dx + dy*dy);
+  if (step < 2) return;
+
   circlePoints.push(p);
+  circlePathLen += step;
 
-  const n  = circlePoints.length;
-  const cx = circlePoints.reduce((s,pt) => s+pt.x, 0) / n;
-  const cy = circlePoints.reduce((s,pt) => s+pt.y, 0) / n;
+  // Fill fraction: how much of minimum path length has been covered
+  // Caps at 1 once minimum is reached — further travel doesn't overfill
+  const pathFrac = Math.min(1, circlePathLen / CIRCLE_MIN_PATHLEN);
 
-  // Accumulate signed angle delta for the last step
-  if (n >= 2) {
-    const prev = circlePoints[n-2];
-    let da = Math.atan2(p.y-cy, p.x-cx) - Math.atan2(prev.y-cy, prev.x-cx);
-    if (da >  Math.PI) da -= 2*Math.PI;
-    if (da < -Math.PI) da += 2*Math.PI;
-    circleAngleAcc += da;
-  }
-
-  // Fill fraction: how far into the required rotation
-  const dir      = currentCircleDir;
-  const signed   = dir.cw ? circleAngleAcc : -circleAngleAcc;
-  const fillFrac = Math.max(0, Math.min(1, signed / (2*Math.PI)));
-
-  // Redraw guide with live fill
+  // Redraw guide
   const { W, H } = getLogicalSize();
   ctx.clearRect(0, 0, W, H);
-  drawGuide(fillFrac);
+  drawGuide(pathFrac);
 
-  // Freehand trace
-  const prev2 = circlePoints[n-2];
+  // Draw freehand trace
+  const prev = circlePoints[circlePoints.length - 2];
   ctx.beginPath();
-  ctx.moveTo(prev2.x, prev2.y);
+  ctx.moveTo(prev.x, prev.y);
   ctx.lineTo(p.x, p.y);
-  ctx.strokeStyle = "rgba(92,110,91,0.4)";
+  ctx.strokeStyle = "rgba(92,110,91,0.45)";
   ctx.lineWidth   = 3;
   ctx.lineCap     = "round";
   ctx.stroke();
 
-  // Check for completion
-  if (!circleCooldown && fillFrac >= CIRCLE_THRESH) {
-    circleComplete();
+  // Check closure: has path traveled enough AND returned near start?
+  if (!circleCooldown && circlePathLen >= CIRCLE_MIN_PATHLEN) {
+    const distToStart = Math.sqrt(
+      (p.x - circleStartX)**2 + (p.y - circleStartY)**2
+    );
+    const closeEnough = distToStart / circlePathLen <= CIRCLE_CLOSE_RATIO;
+    if (closeEnough) {
+      circleComplete();
+    }
   }
 }
 
@@ -664,31 +667,29 @@ function circleEnd(e) {
   if (!circleDown) return;
   circleDown    = false;
   circlePoints  = [];
-  circleAngleAcc = 0;
+  circlePathLen = 0;
   canvas.classList.remove("active-drag");
-  setTimeout(() => drawGuide(0), 300);
+  if (!circleCooldown) setTimeout(() => drawGuide(0), 200);
 }
 
 function circleComplete() {
   circleCooldown = true;
-
-  // 1. Show the completed arc at full fill for a moment (confirmation)
-  drawGuide(1);
-
-  // 2. Count the progress (does NOT call pickNewCircleDir)
-  addProgress();
-
+  circleDown     = false;
   circlePoints   = [];
-  circleAngleAcc = 0;
+  circlePathLen  = 0;
 
-  // 3. After cooldown: switch to new direction and redraw fresh guide
+  // Show full arc briefly as confirmation
+  drawGuide(1);
+  addProgress(); // increments counter, flashes icon
+
+  // After hold: switch direction and reset guide
   setTimeout(() => {
     circleCooldown = false;
     if (!isComplete) {
-      pickNewCircleDir(); // now switch direction
+      pickNewCircleDir();
       drawGuide(0);
     }
-  }, 700); // 700ms — enough to register as confirmation before flip
+  }, 700);
 }
 
 /* ─── LAUNCH ────────────────────────────────────────────────── */
@@ -702,6 +703,9 @@ function launchActivity(key) {
   circleCooldown  = false;
   circlePoints    = [];
   circleDown      = false;
+  circlePathLen   = 0;
+  circleStartX    = 0;
+  circleStartY    = 0;
   sliceDown       = false;
   lastSliceDirIdx  = -1;
   lastCircleDirIdx = -1;
@@ -741,7 +745,7 @@ function closeModal(completed) {
   if (completed || progress > 0) logResult(completed);
   const { W, H } = getLogicalSize();
   ctx.clearRect(0, 0, W, H);
-  circlePoints = []; circleDown = false; sliceDown = false;
+  circlePoints = []; circleDown = false; circlePathLen = 0; sliceDown = false;
 }
 
 document.getElementById("modal-close-btn").addEventListener("click", () => closeModal(false));
