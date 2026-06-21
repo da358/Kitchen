@@ -5,24 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Cooking Activities — Testbed</title>
 <style>
-  /* ── TOKENS ──────────────────────────────────────────────────── */
   :root {
-    --bg:         #F7F5F2;
-    --surface:    #FFFFFF;
-    --border:     #E2DDD7;
-    --text:       #1A1814;
-    --text-2:     #6B6560;
-    --text-3:     #9E9890;
-    --accent:     #5C6E5B;
-    --accent-lt:  #EEF2EE;
-    --warm:       #8B7355;
-    --danger:     #B85450;
-    --font:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-d:     'Georgia', serif;
-    --radius:     10px;
-    --radius-lg:  18px;
+    --bg:        #F7F5F2;
+    --surface:   #FFFFFF;
+    --border:    #E2DDD7;
+    --text:      #1A1814;
+    --text-2:    #6B6560;
+    --text-3:    #9E9890;
+    --accent:    #5C6E5B;
+    --accent-lt: #EEF2EE;
+    --font:      'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-d:    'Georgia', serif;
+    --radius:    10px;
+    --radius-lg: 18px;
   }
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: var(--font);
@@ -37,268 +33,122 @@
     -webkit-user-select: none;
     user-select: none;
   }
+  h1 { font-family: var(--font-d); font-size: 28px; font-weight: normal; }
+  .subtitle { font-size: 13px; color: var(--text-2); margin-top: 4px; text-align: center; }
+  .version  { font-size: 11px; color: var(--text-3); margin-top: 2px; letter-spacing: 0.06em; }
 
-  h1 {
-    font-family: var(--font-d);
-    font-size: 28px;
-    font-weight: normal;
-    color: var(--text);
-  }
-  .subtitle {
-    font-size: 13px;
-    color: var(--text-2);
-    margin-top: 4px;
-    text-align: center;
-  }
-
-  /* ── LAUNCHER ────────────────────────────────────────────────── */
   .launcher {
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
-    justify-content: center;
-    max-width: 600px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    justify-content: center; max-width: 600px;
   }
   .launch-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px 24px;
-    cursor: pointer;
-    text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 20px 24px;
+    cursor: pointer; text-align: center;
     transition: box-shadow 0.15s, transform 0.1s;
-    min-width: 140px;
-    flex: 1;
+    min-width: 130px; flex: 1;
   }
-  .launch-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    transform: translateY(-2px);
-  }
+  .launch-card:hover  { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
   .launch-card:active { transform: scale(0.97); }
   .launch-card .icon { font-size: 32px; margin-bottom: 8px; }
-  .launch-card .name { font-size: 14px; font-weight: 600; color: var(--text); }
-  .launch-card .type { font-size: 11px; color: var(--text-3); margin-top: 3px; letter-spacing:0.05em; text-transform:uppercase; }
+  .launch-card .name { font-size: 14px; font-weight: 600; }
+  .launch-card .type { font-size: 11px; color: var(--text-3); margin-top: 3px;
+                        letter-spacing: 0.05em; text-transform: uppercase; }
 
-  /* ── MODAL OVERLAY ───────────────────────────────────────────── */
   #modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(20, 18, 15, 0.72);
-    backdrop-filter: blur(3px);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
+    display: none; position: fixed; inset: 0;
+    background: rgba(20,18,15,0.72); backdrop-filter: blur(3px);
+    z-index: 100; align-items: center; justify-content: center;
   }
   #modal-overlay.active { display: flex; }
-
   .modal {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    width: min(480px, calc(100vw - 32px));
-    padding: 28px;
-    position: relative;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.25);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    background: var(--surface); border-radius: var(--radius-lg);
+    width: min(480px, calc(100vw - 32px)); padding: 28px;
+    position: relative; box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+    display: flex; flex-direction: column; gap: 16px;
   }
-
   .modal-close {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: none;
-    background: var(--bg);
-    color: var(--text-2);
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute; top: 14px; right: 14px;
+    width: 28px; height: 28px; border-radius: 50%;
+    border: none; background: var(--bg); color: var(--text-2);
+    font-size: 16px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
     transition: background 0.15s;
-    line-height: 1;
   }
   .modal-close:hover { background: var(--border); }
-
   .modal-header { display: flex; align-items: center; gap: 14px; }
   .modal-tool-icon {
-    font-size: 40px;
-    line-height: 1;
-    transition: transform 0.15s;
-    display: block;
-    width: 56px;
-    text-align: center;
+    font-size: 40px; line-height: 1; display: block;
+    width: 56px; text-align: center;
   }
-  .modal-tool-icon.wobble  { animation: wobble 0.35s ease; }
-  .modal-tool-icon.slice-anim { animation: sliceAnim 0.2s ease; }
-  .modal-tool-icon.spin-anim  { animation: spinAnim 0.4s ease; }
-
-  .modal-title { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .modal-tool-icon.slice-anim { animation: sliceAnim 0.22s ease; }
+  .modal-tool-icon.spin-anim  { animation: spinAnim  0.4s ease; }
+  .modal-title { font-size: 20px; font-weight: 700; line-height: 1.2; }
   .modal-task  { font-size: 13px; color: var(--text-2); margin-top: 2px; }
 
-  /* Instruction area */
-  .modal-instruction {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 16px;
-    background: var(--bg);
-    border-radius: var(--radius);
-    text-align: center;
-  }
-  .instruction-text {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-  }
-  .instruction-sub {
-    font-size: 12px;
-    color: var(--text-2);
-  }
-
-  /* Arrow animation hints */
-  .gesture-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    margin-top: 4px;
-  }
-  .arrow-anim {
-    font-size: 22px;
-    opacity: 0.5;
-    animation: arrowPulse 1.2s ease-in-out infinite;
-  }
-  .arrow-anim:nth-child(2) { animation-delay: 0.2s; }
-  .arrow-anim:nth-child(3) { animation-delay: 0.4s; }
-  .arrow-circle {
-    font-size: 24px;
-    animation: rotatePulse 1.6s linear infinite;
-    display: inline-block;
-  }
-  @keyframes arrowPulse {
-    0%, 100% { opacity: 0.25; transform: translateX(0); }
-    50%       { opacity: 0.9;  transform: translateX(4px); }
-  }
-  @keyframes rotatePulse {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-
-  /* Canvas */
   #gesture-canvas {
+    display: block; width: 100%; height: 200px;
     border-radius: var(--radius);
     border: 2px solid var(--border);
     background: var(--bg);
     cursor: crosshair;
     touch-action: none;
-    display: block;
-    width: 100%;
-    height: 180px;
+    transition: border-color 0.15s;
   }
-  #gesture-canvas.active-drag { border-color: var(--accent); background: var(--accent-lt); }
+  #gesture-canvas.active-drag { border-color: var(--accent); }
 
-  /* Progress bar */
-  .progress-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .below-canvas-text {
+    font-size: 12px; color: var(--text-2); text-align: center;
   }
+  .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
   .progress-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text-2);
-    font-weight: 500;
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--text-2); font-weight: 500;
   }
   .progress-track {
-    height: 10px;
-    background: var(--bg);
-    border-radius: 99px;
-    overflow: hidden;
-    border: 1px solid var(--border);
+    height: 10px; background: var(--bg);
+    border-radius: 99px; overflow: hidden; border: 1px solid var(--border);
   }
   .progress-fill {
-    height: 100%;
-    border-radius: 99px;
-    background: var(--accent);
-    width: 0%;
-    transition: width 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+    height: 100%; border-radius: 99px; background: var(--accent);
+    width: 0%; transition: width 0.25s cubic-bezier(0.34,1.4,0.64,1);
   }
   .progress-fill.complete { background: #4a9e4a; }
-
-  /* Pulse button (food processor) */
-  #pulse-btn {
-    display: none;
-    width: 100%;
-    padding: 18px;
-    border-radius: var(--radius);
-    border: 2px solid var(--accent);
-    background: var(--accent-lt);
-    color: var(--accent);
-    font-size: 18px;
-    font-weight: 700;
-    font-family: var(--font);
-    cursor: pointer;
-    transition: transform 0.08s, background 0.1s;
-    letter-spacing: 0.04em;
-  }
-  #pulse-btn:active {
-    transform: scale(0.95);
-    background: #d4e4d4;
-  }
-
-  /* Completion state */
   .complete-banner {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 14px;
-    background: #EAF2EA;
-    border-radius: var(--radius);
-    color: var(--accent);
-    font-weight: 600;
-    font-size: 15px;
+    display: none; align-items: center; justify-content: center;
+    gap: 10px; padding: 14px; background: #EAF2EA;
+    border-radius: var(--radius); color: var(--accent);
+    font-weight: 600; font-size: 15px;
   }
   .complete-banner.show { display: flex; }
-  .complete-banner .check { font-size: 22px; }
-
-  /* Cancel / Done buttons */
   .modal-actions { display: flex; gap: 10px; }
   .btn {
-    flex: 1;
-    padding: 11px 18px;
-    border-radius: var(--radius);
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: var(--font);
-    transition: opacity 0.15s, transform 0.1s;
+    flex: 1; padding: 11px 18px; border-radius: var(--radius);
+    border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+    font-family: var(--font); transition: opacity 0.15s, transform 0.1s;
   }
   .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary  { background: var(--accent); color: #fff; }
   .btn-primary:disabled { background: var(--border); color: var(--text-3); cursor: default; }
   .btn-secondary { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
 
-  /* Stroke feedback trails */
-  .trail { position: absolute; pointer-events: none; border-radius: 50%; background: var(--accent); opacity: 0; }
-
-  /* Tool icon animations */
-  @keyframes wobble {
-    0%   { transform: rotate(0deg) scale(1); }
-    20%  { transform: rotate(-12deg) scale(1.1); }
-    40%  { transform: rotate(10deg) scale(1.05); }
-    60%  { transform: rotate(-6deg) scale(1.02); }
-    80%  { transform: rotate(3deg); }
-    100% { transform: rotate(0deg) scale(1); }
+  .results-log {
+    max-width: 600px; width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 20px 24px;
   }
+  .results-log h3 {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
+  }
+  .log-entry {
+    font-size: 13px; color: var(--text-2);
+    padding: 5px 0; border-bottom: 1px solid var(--border);
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .result { font-weight: 600; color: var(--accent); }
+  .log-empty { font-size: 13px; color: var(--text-3); font-style: italic; }
+
   @keyframes sliceAnim {
     0%   { transform: translateX(0) rotate(-15deg); }
     50%  { transform: translateX(8px) rotate(-5deg); }
@@ -308,51 +158,22 @@
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
   }
-
-  /* Feedback flash on canvas */
-  @keyframes canvasFlash {
-    0%   { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(92,110,91,0.4); }
-    50%  { border-color: var(--accent); box-shadow: 0 0 0 8px rgba(92,110,91,0); }
-    100% { border-color: var(--border); box-shadow: none; }
+  @keyframes successPulse {
+    0%   { box-shadow: 0 0 0 0   rgba(92,110,91,0.5); }
+    50%  { box-shadow: 0 0 0 8px rgba(92,110,91,0); }
+    100% { box-shadow: none; }
   }
-  .canvas-flash { animation: canvasFlash 0.4s ease forwards; }
-
-  /* Results log */
-  .results-log {
-    max-width: 600px;
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px 24px;
-  }
-  .results-log h3 {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 12px;
-  }
-  .log-entry {
-    font-size: 13px;
-    color: var(--text-2);
-    padding: 5px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .log-entry:last-child { border-bottom: none; }
-  .log-entry .result { font-weight: 600; color: var(--accent); }
-  .log-empty { font-size: 13px; color: var(--text-3); font-style: italic; }
+  .success-flash { animation: successPulse 0.4s ease forwards; }
 </style>
 </head>
 <body>
 
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
-  <p class="subtitle">Mini-game testbed — tap a tool to launch its activity</p>
+  <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
+  <p class="version">v4</p>
 </div>
 
-<!-- Launcher cards -->
 <div class="launcher">
   <div class="launch-card" onclick="launchActivity('chefs-knife')">
     <div class="icon">🔪</div>
@@ -381,43 +202,30 @@
   </div>
 </div>
 
-<!-- Modal -->
 <div id="modal-overlay">
   <div class="modal">
-    <button class="modal-close" id="modal-close-btn" title="Cancel">✕</button>
-
+    <button class="modal-close" id="modal-close-btn">✕</button>
     <div class="modal-header">
       <span class="modal-tool-icon" id="tool-icon">🔪</span>
       <div>
-        <div class="modal-title" id="modal-title">Slice the ingredients</div>
-        <div class="modal-task"  id="modal-task">Chef's Knife · Herb Fish Fillet</div>
+        <div class="modal-title" id="modal-title">Slice</div>
+        <div class="modal-task"  id="modal-task">Chef's Knife</div>
       </div>
     </div>
-
-    <div class="modal-instruction">
-      <div class="instruction-text" id="instruction-text">Draw slicing strokes across the board</div>
-      <div class="gesture-hint" id="gesture-hint"></div>
-      <div class="instruction-sub" id="instruction-sub">Each stroke counts — keep going until the bar is full</div>
-    </div>
-
-    <canvas id="gesture-canvas" width="424" height="180"></canvas>
-    <button id="pulse-btn">PULSE</button>
-
+    <canvas id="gesture-canvas" width="424" height="200"></canvas>
+    <p class="below-canvas-text">Each stroke counts — fill the progress bar to finish</p>
     <div class="progress-wrap">
       <div class="progress-label">
-        <span id="progress-label-text">Progress</span>
-        <span id="progress-count">0 / 5</span>
+        <span>Progress</span>
+        <span id="progress-count">0 / 10</span>
       </div>
       <div class="progress-track">
         <div class="progress-fill" id="progress-fill"></div>
       </div>
     </div>
-
     <div class="complete-banner" id="complete-banner">
-      <span class="check">✓</span>
-      <span id="complete-text">Done! Nicely cut.</span>
+      <span>✓</span><span id="complete-text">Done!</span>
     </div>
-
     <div class="modal-actions">
       <button class="btn btn-secondary" id="btn-cancel">Cancel</button>
       <button class="btn btn-primary"   id="btn-done" disabled>Complete</button>
@@ -425,413 +233,502 @@
   </div>
 </div>
 
-<!-- Results log -->
 <div class="results-log">
   <h3>Session log</h3>
   <div id="log-container"><div class="log-empty">No activities completed yet.</div></div>
 </div>
 
 <script>
-/* ── ACTIVITY DEFINITIONS ─────────────────────────────────────── */
+/* ─── ACTIVITY DEFINITIONS ──────────────────────────────────── */
 const ACTIVITIES = {
-  "chefs-knife": {
-    icon: "🔪", title: "Slice the ingredients",
-    task: "Chef's Knife",
-    type: "slice",
-    instruction: "Draw slicing strokes across the board",
-    sub: "Each stroke counts — keep going until the bar fills",
-    target: 10,
-    completionMsg: "Clean cuts. Well done.",
-    iconAnim: "slice-anim",
-  },
-  "serrated-knife": {
-    icon: "🗡️", title: "Saw through it",
-    task: "Serrated Knife",
-    type: "slice",
-    instruction: "Draw back-and-forth strokes across the board",
-    sub: "Longer strokes count more — keep going until the bar fills",
-    target: 10,
-    completionMsg: "Good work with the serrated edge.",
-    iconAnim: "slice-anim",
-  },
-  "mandolin": {
-    icon: "📐", title: "Run it through the mandolin",
-    task: "Mandolin",
-    type: "slice",
-    instruction: "Slide ingredients across — stroke downward or sideways",
-    sub: "Each pass through counts — fill the bar to finish",
-    target: 10,
-    completionMsg: "Perfectly thin slices.",
-    iconAnim: "slice-anim",
-  },
-  "whisk": {
-    icon: "🥄", title: "Whisk it together",
-    task: "Whisk",
-    type: "circle",
-    instruction: "Draw circles anywhere on the board",
-    sub: "Each loop counts — fill the bar to finish",
-    target: 8,
-    completionMsg: "Smooth and well incorporated.",
-    iconAnim: "spin-anim",
-  },
-  "blender": {
-    icon: "🌀", title: "Blend until smooth",
-    task: "Blender",
-    type: "circle",
-    instruction: "Draw circular motions on the board",
-    sub: "Keep the circles going — fill the bar to finish",
-    target: 8,
-    completionMsg: "Perfectly blended.",
-    iconAnim: "spin-anim",
-  },
+  "chefs-knife":    { icon:"🔪", title:"Slice the ingredients",       task:"Chef's Knife",   type:"slice",  target:10, completionMsg:"Clean cuts. Well done." },
+  "serrated-knife": { icon:"🗡️", title:"Saw through it",              task:"Serrated Knife", type:"slice",  target:10, completionMsg:"Good work with the serrated edge." },
+  "mandolin":       { icon:"📐", title:"Run it through the mandolin", task:"Mandolin",       type:"slice",  target:10, completionMsg:"Perfectly thin slices." },
+  "whisk":          { icon:"🥄", title:"Whisk it together",           task:"Whisk",          type:"circle", target:8,  completionMsg:"Smooth and well incorporated." },
+  "blender":        { icon:"🌀", title:"Blend until smooth",          task:"Blender",        type:"circle", target:8,  completionMsg:"Perfectly blended." },
 };
 
-/* ── STATE ───────────────────────────────────────────────────── */
+// Slice directions: angle in radians + label
+const SLICE_DIRS = [
+  { angle: 0,              label: "→", dx: 1,  dy: 0  },  // right
+  { angle: Math.PI,        label: "←", dx: -1, dy: 0  },  // left
+  { angle: Math.PI*1.5,    label: "↑", dx: 0,  dy: -1 },  // up
+  { angle: Math.PI*0.5,    label: "↓", dx: 0,  dy: 1  },  // down
+];
+
+// Circle directions
+const CIRCLE_DIRS = [
+  { cw: true,  label: "↻", name: "clockwise" },
+  { cw: false, label: "↺", name: "counter-clockwise" },
+];
+
+/* ─── STATE ─────────────────────────────────────────────────── */
 let currentActivity = null;
 let progress        = 0;
 let isComplete      = false;
 let logEntries      = [];
 
-// Slice detection state
-let slicePointerDown = false;
-let sliceStartX = 0, sliceStartY = 0;
-let sliceLastX  = 0, sliceLastY  = 0;
-let sliceTotalDist  = 0;
-const SLICE_MIN_DIST = 60; // px of movement for one slice to register
-const SLICE_DIR_THRESH = 0.55; // how "straight" the stroke needs to be (0=anything, 1=perfect line)
+// Current required direction for this stroke/loop
+let currentSliceDir   = null;  // one of SLICE_DIRS
+let currentCircleDir  = null;  // one of CIRCLE_DIRS
 
-// Circle detection state
-let circlePoints = [];
-let circleActive = false;
-const CIRCLE_MIN_RADIUS  = 28; // px — minimum radius of loop to count
-const CIRCLE_COMPLETION  = 0.72; // fraction of full circle needed to count (0–1)
+// Slice tracking
+let sliceDown = false;
+let sliceSX = 0, sliceSY = 0, sliceLX = 0, sliceLY = 0, sliceDist = 0;
+// How far the stroke has progressed along the required axis (0–1)
+let sliceProgress = 0;
+const SLICE_MIN_DIST  = 50;   // px to count as a valid stroke
+const SLICE_DIR_THRESH = 0.45; // cosine similarity — how aligned with required direction
 
-/* ── CANVAS SETUP ────────────────────────────────────────────── */
-const canvas  = document.getElementById("gesture-canvas");
-const ctx     = canvas.getContext("2d");
+// Circle tracking
+let circlePoints   = [];
+let circleDown     = false;
+let circleCooldown = false;
+let circleAngleAcc = 0;  // accumulated signed angle for current loop
+const CIRCLE_MIN_R   = 24;   // px minimum radius
+const CIRCLE_THRESH  = 0.75; // fraction of full rotation needed
+
+/* ─── CANVAS ────────────────────────────────────────────────── */
+const canvas = document.getElementById("gesture-canvas");
+const ctx    = canvas.getContext("2d");
+
+function getLogicalSize() {
+  const rect = canvas.getBoundingClientRect();
+  return { W: rect.width, H: rect.height };
+}
 
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
-  canvas.width  = rect.width  * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const dpr  = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  drawGuide(0);
 }
 window.addEventListener("resize", resizeCanvas);
 
-function clearCanvas() {
+function getPos(e) {
   const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  const src  = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
 }
 
-function drawStrokePoint(x, y, color = "rgba(92,110,91,0.25)", radius = 6) {
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
+/* ─── GUIDE DRAWING ─────────────────────────────────────────── */
+// sliceFill: 0–1 representing progress within this single stroke
+// circleFill: 0–1 representing how far around the current loop
+
+function drawGuide(fillFraction) {
+  if (!currentActivity) return;
+  const { W, H } = getLogicalSize();
+  ctx.clearRect(0, 0, W, H);
+
+  if (currentActivity.type === "slice") {
+    drawSliceGuide(W, H, fillFraction);
+  } else {
+    drawCircleGuide(W, H, fillFraction);
+  }
 }
 
-function drawLine(x1, y1, x2, y2, color = "rgba(92,110,91,0.3)", width = 3) {
+// Draw a bold arrow from tail to head, filled `fraction` of the way
+function drawSliceGuide(W, H, fraction) {
+  const dir  = currentSliceDir;
+  if (!dir) return;
+
+  const cx = W / 2, cy = H / 2;
+  const len = Math.min(W, H) * 0.52; // arrow length
+  const tailX = cx - dir.dx * len / 2;
+  const tailY = cy - dir.dy * len / 2;
+  const headX = cx + dir.dx * len / 2;
+  const headY = cy + dir.dy * len / 2;
+
+  // Ghost arrow (full, light)
+  drawArrow(tailX, tailY, headX, headY, "rgba(160,152,144,0.25)", 6, 18);
+
+  // Filled portion (based on how far along the gesture has traveled)
+  if (fraction > 0) {
+    const fx = tailX + (headX - tailX) * fraction;
+    const fy = tailY + (headY - tailY) * fraction;
+    drawArrow(tailX, tailY, fx, fy, "rgba(92,110,91,0.75)", 6, fraction > 0.85 ? 18 : 0);
+  }
+
+  // Direction label in corner
+  ctx.font      = "bold 28px sans-serif";
+  ctx.fillStyle = "rgba(92,110,91,0.35)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(dir.label, W - 26, 26);
+}
+
+function drawArrow(x1, y1, x2, y2, color, lineWidth, headSize) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.strokeStyle = color;
-  ctx.lineWidth   = width;
+  ctx.lineWidth   = lineWidth;
   ctx.lineCap     = "round";
   ctx.stroke();
-}
 
-/* ── PROGRESS ────────────────────────────────────────────────── */
-function addProgress(amount = 1) {
-  if (isComplete) return;
-  progress = Math.min(progress + amount, currentActivity.target);
-  updateProgressUI();
-
-  // Animate tool icon
-  const iconEl = document.getElementById("tool-icon");
-  iconEl.classList.remove(currentActivity.iconAnim);
-  void iconEl.offsetWidth; // reflow to restart animation
-  iconEl.classList.add(currentActivity.iconAnim);
-
-  // Flash canvas border
-  canvas.classList.remove("canvas-flash");
-  void canvas.offsetWidth;
-  canvas.classList.add("canvas-flash");
-
-  if (progress >= currentActivity.target) {
-    completeActivity();
+  if (headSize > 0) {
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headSize * Math.cos(angle - 0.4), y2 - headSize * Math.sin(angle - 0.4));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headSize * Math.cos(angle + 0.4), y2 - headSize * Math.sin(angle + 0.4));
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = lineWidth * 0.85;
+    ctx.lineCap     = "round";
+    ctx.stroke();
   }
 }
 
-function updateProgressUI() {
-  const pct = (progress / currentActivity.target) * 100;
-  const fill = document.getElementById("progress-fill");
-  fill.style.width = pct + "%";
-  fill.classList.toggle("complete", isComplete);
-  document.getElementById("progress-count").textContent =
-    `${progress} / ${currentActivity.target}`;
+function drawCircleGuide(W, H, fraction) {
+  const dir = currentCircleDir;
+  if (!dir) return;
+
+  const cx = W / 2, cy = H / 2;
+  const R  = Math.min(W, H) * 0.33;
+  const startAngle = -Math.PI / 2; // top of circle
+
+  // Ghost ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(160,152,144,0.22)";
+  ctx.lineWidth   = 10;
+  ctx.stroke();
+
+  // Filled arc for current loop progress
+  if (fraction > 0) {
+    const sweep = fraction * Math.PI * 2;
+    const endAngle = dir.cw
+      ? startAngle + sweep
+      : startAngle - sweep;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAngle,
+            dir.cw ? startAngle + sweep : startAngle - sweep,
+            !dir.cw);
+    ctx.strokeStyle = "rgba(92,110,91,0.75)";
+    ctx.lineWidth   = 10;
+    ctx.lineCap     = "round";
+    ctx.stroke();
+  }
+
+  // Arrowhead at start point indicating direction
+  const arrowR = R + 1;
+  const ax = cx + arrowR * Math.cos(startAngle);
+  const ay = cy + arrowR * Math.sin(startAngle);
+  // Small tangent arrow showing direction
+  const tangentAngle = dir.cw ? startAngle + Math.PI/2 : startAngle - Math.PI/2;
+  const arrowSize = 14;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(
+    ax + arrowSize * Math.cos(tangentAngle - 0.4),
+    ay + arrowSize * Math.sin(tangentAngle - 0.4)
+  );
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(
+    ax + arrowSize * Math.cos(tangentAngle + 0.4),
+    ay + arrowSize * Math.sin(tangentAngle + 0.4)
+  );
+  ctx.strokeStyle = "rgba(92,110,91,0.55)";
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = "round";
+  ctx.stroke();
+
+  // Direction label
+  ctx.font      = "bold 22px sans-serif";
+  ctx.fillStyle = "rgba(92,110,91,0.4)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(dir.label, cx, cy);
 }
 
-function completeActivity() {
+/* ─── PROGRESS ──────────────────────────────────────────────── */
+function addProgress() {
+  if (isComplete) return;
+  progress = Math.min(progress + 1, currentActivity.target);
+
+  const pct = (progress / currentActivity.target) * 100;
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("progress-count").textContent = `${progress} / ${currentActivity.target}`;
+
+  // Animate tool icon
+  const anim = currentActivity.type === "slice" ? "slice-anim" : "spin-anim";
+  const el = document.getElementById("tool-icon");
+  el.classList.remove(anim);
+  void el.offsetWidth;
+  el.classList.add(anim);
+
+  // Flash canvas
+  canvas.classList.remove("success-flash");
+  void canvas.offsetWidth;
+  canvas.classList.add("success-flash");
+
+  if (progress >= currentActivity.target) {
+    finishActivity();
+  } else {
+    // Pick new direction for next stroke/loop
+    if (currentActivity.type === "slice")  pickNewSliceDir();
+    if (currentActivity.type === "circle") pickNewCircleDir();
+  }
+}
+
+function finishActivity() {
   isComplete = true;
   document.getElementById("progress-fill").classList.add("complete");
   document.getElementById("complete-banner").classList.add("show");
   document.getElementById("complete-text").textContent = currentActivity.completionMsg;
   document.getElementById("btn-done").disabled = false;
   canvas.style.pointerEvents = "none";
-  document.getElementById("pulse-btn").disabled = true;
+  drawGuide(1);
 }
 
-/* ── SLICE DETECTION ─────────────────────────────────────────── */
-// A "slice" is a gesture that:
-// 1. Travels at least SLICE_MIN_DIST pixels total
-// 2. Is roughly linear (not looping back on itself)
-// We measure directional consistency: if the gesture keeps
-// moving in roughly the same direction, it's a slice.
+/* ─── DIRECTION PICKERS ─────────────────────────────────────── */
+let lastSliceDirIdx   = -1;
+let lastCircleDirIdx  = -1;
 
-function getEventPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  if (e.touches) {
-    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-  }
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+function pickNewSliceDir() {
+  // Avoid repeating same direction twice in a row
+  let idx;
+  do { idx = Math.floor(Math.random() * SLICE_DIRS.length); }
+  while (idx === lastSliceDirIdx);
+  lastSliceDirIdx = idx;
+  currentSliceDir = SLICE_DIRS[idx];
+  sliceProgress   = 0;
+  drawGuide(0);
 }
 
-function onSliceStart(e) {
+function pickNewCircleDir() {
+  // Alternate: opposite of last
+  const idx = lastCircleDirIdx === 0 ? 1 : 0;
+  lastCircleDirIdx  = idx;
+  currentCircleDir  = CIRCLE_DIRS[idx];
+  circleAngleAcc    = 0;
+  drawGuide(0);
+}
+
+/* ─── SLICE HANDLERS ────────────────────────────────────────── */
+function sliceStart(e) {
   if (isComplete) return;
   e.preventDefault();
-  const pos = getEventPos(e);
-  slicePointerDown = true;
-  sliceStartX = sliceLastX = pos.x;
-  sliceStartY = sliceLastY = pos.y;
-  sliceTotalDist = 0;
+  const p = getPos(e);
+  sliceDown = true;
+  sliceSX = sliceLX = p.x;
+  sliceSY = sliceLY = p.y;
+  sliceDist = 0;
+  sliceProgress = 0;
   canvas.classList.add("active-drag");
 }
 
-function onSliceMove(e) {
-  if (!slicePointerDown || isComplete) return;
+function sliceMove(e) {
+  if (!sliceDown || isComplete) return;
   e.preventDefault();
-  const pos = getEventPos(e);
+  const p  = getPos(e);
+  const dx = p.x - sliceSX, dy = p.y - sliceSY;
+  const totalDist = Math.sqrt(dx*dx + dy*dy);
 
-  const dx = pos.x - sliceLastX;
-  const dy = pos.y - sliceLastY;
-  const dist = Math.sqrt(dx*dx + dy*dy);
+  // How aligned is this stroke with the required direction?
+  const dir = currentSliceDir;
+  const len = totalDist || 1;
+  const cosA = (dx * dir.dx + dy * dir.dy) / len; // dot product with unit vector
 
-  drawLine(sliceLastX, sliceLastY, pos.x, pos.y, "rgba(92,110,91,0.35)", 4);
-  drawStrokePoint(pos.x, pos.y, "rgba(92,110,91,0.15)", 4);
+  // Fill fraction: how far along the required axis, clamped 0-1
+  // Only show fill if moving in roughly right direction
+  const axialDist = dx * dir.dx + dy * dir.dy; // signed projection
+  const { W, H } = getLogicalSize();
+  const maxLen = Math.min(W, H) * 0.52;
+  const fillFrac = Math.max(0, Math.min(1, axialDist / maxLen));
 
-  sliceTotalDist += dist;
-  sliceLastX = pos.x;
-  sliceLastY = pos.y;
+  sliceProgress = fillFrac;
+  sliceDist     = totalDist;
+
+  // Draw freehand trace over guide
+  ctx.clearRect(0, 0, getLogicalSize().W, getLogicalSize().H);
+  drawGuide(fillFrac);
+  ctx.beginPath();
+  ctx.moveTo(sliceSX, sliceSY);
+  ctx.lineTo(p.x, p.y);
+  ctx.strokeStyle = cosA > SLICE_DIR_THRESH
+    ? "rgba(92,110,91,0.45)"
+    : "rgba(180,84,80,0.35)"; // red tint if wrong direction
+  ctx.lineWidth = 3;
+  ctx.lineCap   = "round";
+  ctx.stroke();
+
+  sliceLX = p.x; sliceLY = p.y;
 }
 
-function onSliceEnd(e) {
-  if (!slicePointerDown) return;
-  slicePointerDown = false;
+function sliceEnd(e) {
+  if (!sliceDown) return;
+  sliceDown = false;
   canvas.classList.remove("active-drag");
 
-  // Check if stroke qualifies as a slice
-  const totalDx = sliceLastX - sliceStartX;
-  const totalDy = sliceLastY - sliceStartY;
-  const directDist = Math.sqrt(totalDx*totalDx + totalDy*totalDy);
+  const dir    = currentSliceDir;
+  const totalDx = sliceLX - sliceSX, totalDy = sliceLY - sliceSY;
+  const totalD  = Math.sqrt(totalDx*totalDx + totalDy*totalDy);
+  const cosA    = totalD > 0
+    ? (totalDx * dir.dx + totalDy * dir.dy) / totalD
+    : 0;
 
-  // Straightness: ratio of direct distance to total path length
-  // High ratio = straight stroke, low = wandering
-  const straightness = sliceTotalDist > 0 ? directDist / sliceTotalDist : 0;
-
-  if (sliceTotalDist >= SLICE_MIN_DIST && straightness >= SLICE_DIR_THRESH) {
-    addProgress(1);
-    // Briefly show a brighter confirmatory stroke
-    setTimeout(clearCanvas, 350);
+  if (totalD >= SLICE_MIN_DIST && cosA >= SLICE_DIR_THRESH) {
+    addProgress();
+    setTimeout(() => drawGuide(0), 300);
   } else {
-    // Stroke didn't qualify — fade it out
-    setTimeout(clearCanvas, 200);
+    // Invalid stroke — redraw clean guide
+    setTimeout(() => drawGuide(0), 200);
   }
+  sliceProgress = 0;
 }
 
-/* ── CIRCLE DETECTION ────────────────────────────────────────── */
-// We track pointer positions. A "circle" is counted when:
-// 1. The path has enough points
-// 2. The bounding box is large enough (not a tiny wiggle)
-// 3. The path comes back close to where it started
-// 4. The path subtends enough of a full rotation (using cross-product angle accumulation)
-
-function onCircleStart(e) {
+/* ─── CIRCLE HANDLERS ───────────────────────────────────────── */
+function circleStart(e) {
   if (isComplete) return;
   e.preventDefault();
-  const pos = getEventPos(e);
-  circlePoints = [pos];
-  circleActive = true;
+  const p = getPos(e);
+  circlePoints  = [p];
+  circleDown    = true;
+  circleAngleAcc = 0;
   canvas.classList.add("active-drag");
 }
 
-function onCircleMove(e) {
-  if (!circleActive || isComplete) return;
+function circleMove(e) {
+  if (!circleDown || isComplete) return;
   e.preventDefault();
-  const pos = getEventPos(e);
+  const p    = getPos(e);
   const last = circlePoints[circlePoints.length - 1];
-  const dx = pos.x - last.x, dy = pos.y - last.y;
-  if (Math.sqrt(dx*dx + dy*dy) < 3) return; // throttle tiny jitter
+  const dx   = p.x - last.x, dy = p.y - last.y;
+  if (Math.sqrt(dx*dx + dy*dy) < 3) return;
+  circlePoints.push(p);
 
-  circlePoints.push(pos);
-  drawLine(last.x, last.y, pos.x, pos.y, "rgba(92,110,91,0.35)", 4);
+  const n  = circlePoints.length;
+  const cx = circlePoints.reduce((s,pt) => s+pt.x, 0) / n;
+  const cy = circlePoints.reduce((s,pt) => s+pt.y, 0) / n;
 
-  // Live check: have we completed a loop yet?
-  if (circlePoints.length > 12) {
-    checkCircleComplete();
-  }
-}
-
-function onCircleEnd(e) {
-  if (!circleActive) return;
-  circleActive = false;
-  canvas.classList.remove("active-drag");
-  circlePoints = [];
-  setTimeout(clearCanvas, 300);
-}
-
-function checkCircleComplete() {
-  const pts = circlePoints;
-  const n   = pts.length;
-  if (n < 8) return;
-
-  // Compute centroid
-  const cx = pts.reduce((s,p)=>s+p.x,0)/n;
-  const cy = pts.reduce((s,p)=>s+p.y,0)/n;
-
-  // Compute average radius
-  const avgR = pts.reduce((s,p)=>s+Math.sqrt((p.x-cx)**2+(p.y-cy)**2),0)/n;
-  if (avgR < CIRCLE_MIN_RADIUS) return; // too small
-
-  // Accumulate signed angle swept (using atan2 differences)
-  let totalAngle = 0;
-  for (let i = 1; i < n; i++) {
-    const a1 = Math.atan2(pts[i-1].y - cy, pts[i-1].x - cx);
-    const a2 = Math.atan2(pts[i].y   - cy, pts[i].x   - cx);
-    let da = a2 - a1;
-    // Normalize to [-π, π]
+  // Accumulate signed angle delta for the last step
+  if (n >= 2) {
+    const prev = circlePoints[n-2];
+    let da = Math.atan2(p.y-cy, p.x-cx) - Math.atan2(prev.y-cy, prev.x-cx);
     if (da >  Math.PI) da -= 2*Math.PI;
     if (da < -Math.PI) da += 2*Math.PI;
-    totalAngle += da;
+    circleAngleAcc += da;
   }
 
-  // If we've swept enough of a full rotation, count it
-  const fractionComplete = Math.abs(totalAngle) / (2 * Math.PI);
-  if (fractionComplete >= CIRCLE_COMPLETION) {
-    addProgress(1);
-    // Reset points so next loop starts fresh
-    circlePoints = [pts[pts.length-1]];
-    clearCanvas();
-    totalAngle = 0;
+  // Fill fraction: how far into the required rotation
+  const dir      = currentCircleDir;
+  const signed   = dir.cw ? circleAngleAcc : -circleAngleAcc;
+  const fillFrac = Math.max(0, Math.min(1, signed / (2*Math.PI)));
+
+  // Redraw guide with live fill
+  const { W, H } = getLogicalSize();
+  ctx.clearRect(0, 0, W, H);
+  drawGuide(fillFrac);
+
+  // Freehand trace
+  const prev2 = circlePoints[n-2];
+  ctx.beginPath();
+  ctx.moveTo(prev2.x, prev2.y);
+  ctx.lineTo(p.x, p.y);
+  ctx.strokeStyle = "rgba(92,110,91,0.4)";
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = "round";
+  ctx.stroke();
+
+  // Check for completion
+  if (!circleCooldown && fillFrac >= CIRCLE_THRESH) {
+    circleComplete();
   }
 }
 
-/* ── LAUNCH MODAL ────────────────────────────────────────────── */
-function launchActivity(toolKey) {
-  const act = ACTIVITIES[toolKey];
+function circleEnd(e) {
+  if (!circleDown) return;
+  circleDown    = false;
+  circlePoints  = [];
+  circleAngleAcc = 0;
+  canvas.classList.remove("active-drag");
+  setTimeout(() => drawGuide(0), 300);
+}
+
+function circleComplete() {
+  addProgress();
+  circlePoints   = circlePoints.slice(-1); // keep last point as new start
+  circleAngleAcc = 0;
+  circleCooldown = true;
+  setTimeout(() => { circleCooldown = false; }, 420);
+}
+
+/* ─── LAUNCH ────────────────────────────────────────────────── */
+function launchActivity(key) {
+  const act = ACTIVITIES[key];
   if (!act) return;
 
   currentActivity = act;
-  progress   = 0;
-  isComplete = false;
+  progress        = 0;
+  isComplete      = false;
+  circleCooldown  = false;
+  circlePoints    = [];
+  circleDown      = false;
+  sliceDown       = false;
+  lastSliceDirIdx  = -1;
+  lastCircleDirIdx = -1;
 
-  // Populate modal
-  document.getElementById("tool-icon").textContent       = act.icon;
-  document.getElementById("tool-icon").className         = "modal-tool-icon";
-  document.getElementById("modal-title").textContent     = act.title;
-  document.getElementById("modal-task").textContent      = act.task;
-  document.getElementById("instruction-text").textContent = act.instruction;
-  document.getElementById("instruction-sub").textContent  = act.sub;
-  document.getElementById("progress-fill").style.width   = "0%";
+  // Pick initial directions
+  if (act.type === "slice")  { currentSliceDir  = null; pickNewSliceDir(); }
+  if (act.type === "circle") { currentCircleDir = null;
+    lastCircleDirIdx = Math.random() < 0.5 ? 1 : 0; // random first direction
+    pickNewCircleDir();
+  }
+
+  document.getElementById("tool-icon").textContent   = act.icon;
+  document.getElementById("tool-icon").className     = "modal-tool-icon";
+  document.getElementById("modal-title").textContent = act.title;
+  document.getElementById("modal-task").textContent  = act.task;
+  document.getElementById("progress-fill").style.width = "0%";
   document.getElementById("progress-fill").classList.remove("complete");
-  document.getElementById("progress-count").textContent  = `0 / ${act.target}`;
+  document.getElementById("progress-count").textContent = `0 / ${act.target}`;
   document.getElementById("complete-banner").classList.remove("show");
-  document.getElementById("btn-done").disabled           = true;
+  document.getElementById("btn-done").disabled = true;
   canvas.style.pointerEvents = "auto";
 
-  // Gesture hint arrows
-  const hintEl = document.getElementById("gesture-hint");
-  hintEl.innerHTML = "";
-  if (act.type === "slice") {
-    hintEl.innerHTML = `<span class="arrow-anim">→</span><span class="arrow-anim">→</span><span class="arrow-anim">→</span>`;
-  } else if (act.type === "circle") {
-    hintEl.innerHTML = `<span class="arrow-circle">↻</span>`;
-  }
-
-  // Show/hide canvas vs pulse button
-  const pulseBtn = document.getElementById("pulse-btn");
-  if (act.type === "pulse") {
-    canvas.style.display = "none";
-    pulseBtn.style.display = "block";
-    pulseBtn.disabled = false;
-  } else {
-    canvas.style.display = "block";
-    pulseBtn.style.display = "none";
-  }
-
-  clearCanvas();
-  resizeCanvas();
-
-  // Wire up canvas events for this activity type
-  canvas.onmousedown  = act.type === "slice" ? onSliceStart : onCircleStart;
-  canvas.onmousemove  = act.type === "slice" ? onSliceMove  : onCircleMove;
-  canvas.onmouseup    = act.type === "slice" ? onSliceEnd   : onCircleEnd;
-  canvas.ontouchstart = act.type === "slice" ? onSliceStart : onCircleStart;
-  canvas.ontouchmove  = act.type === "slice" ? onSliceMove  : onCircleMove;
-  canvas.ontouchend   = act.type === "slice" ? onSliceEnd   : onCircleEnd;
+  canvas.onmousedown  = act.type === "slice" ? sliceStart : circleStart;
+  canvas.onmousemove  = act.type === "slice" ? sliceMove  : circleMove;
+  canvas.onmouseup    = act.type === "slice" ? sliceEnd   : circleEnd;
+  canvas.ontouchstart = act.type === "slice" ? sliceStart : circleStart;
+  canvas.ontouchmove  = act.type === "slice" ? sliceMove  : circleMove;
+  canvas.ontouchend   = act.type === "slice" ? sliceEnd   : circleEnd;
 
   document.getElementById("modal-overlay").classList.add("active");
+  requestAnimationFrame(resizeCanvas);
 }
 
-/* ── CLOSE / CANCEL ─────────────────────────────────────────── */
-function closeModal(completed = false) {
+/* ─── CLOSE ─────────────────────────────────────────────────── */
+function closeModal(completed) {
   document.getElementById("modal-overlay").classList.remove("active");
-
-  if (completed) {
-    logResult(currentActivity, true);
-  } else if (progress > 0) {
-    logResult(currentActivity, false);
-  }
-
-  clearCanvas();
-  circlePoints    = [];
-  circleActive    = false;
-  slicePointerDown= false;
+  if (completed || progress > 0) logResult(completed);
+  const { W, H } = getLogicalSize();
+  ctx.clearRect(0, 0, W, H);
+  circlePoints = []; circleDown = false; sliceDown = false;
 }
 
 document.getElementById("modal-close-btn").addEventListener("click", () => closeModal(false));
 document.getElementById("btn-cancel").addEventListener("click",      () => closeModal(false));
 document.getElementById("btn-done").addEventListener("click",        () => closeModal(true));
-
-// Close on overlay click (outside modal)
 document.getElementById("modal-overlay").addEventListener("click", e => {
   if (e.target === document.getElementById("modal-overlay")) closeModal(false);
 });
 
-/* ── SESSION LOG ─────────────────────────────────────────────── */
-function logResult(act, completed) {
-  const entry = {
-    tool: act.task,
-    type: act.type,
-    progress: progress,
-    target: act.target,
-    completed,
-    time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })
-  };
-  logEntries.unshift(entry);
-  renderLog();
-}
-
-function renderLog() {
-  const container = document.getElementById("log-container");
-  if (logEntries.length === 0) {
-    container.innerHTML = '<div class="log-empty">No activities completed yet.</div>';
-    return;
-  }
-  container.innerHTML = logEntries.slice(0, 10).map(e => `
-    <div class="log-entry">
-      ${e.time} — <strong>${e.tool}</strong> (${e.type})
-      — <span class="result">${e.completed ? "✓ Completed" : `Cancelled at ${e.progress}/${e.target}`}</span>
-    </div>`).join("");
+/* ─── LOG ───────────────────────────────────────────────────── */
+function logResult(completed) {
+  logEntries.unshift({
+    tool: currentActivity.task, type: currentActivity.type,
+    progress, target: currentActivity.target, completed,
+    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  });
+  document.getElementById("log-container").innerHTML =
+    logEntries.slice(0,10).map(e =>
+      `<div class="log-entry">${e.time} — <strong>${e.tool}</strong> (${e.type})
+       — <span class="result">${e.completed ? "✓ Completed" : `Cancelled at ${e.progress}/${e.target}`}</span></div>`
+    ).join("");
 }
 </script>
 </body>
