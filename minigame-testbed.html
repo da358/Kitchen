@@ -351,12 +351,7 @@ function drawSliceGuide(W, H, fraction) {
     drawArrow(tailX, tailY, fx, fy, "rgba(92,110,91,0.75)", 6, fraction > 0.85 ? 18 : 0);
   }
 
-  // Direction label in corner
-  ctx.font      = "bold 28px sans-serif";
-  ctx.fillStyle = "rgba(92,110,91,0.35)";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(dir.label, W - 26, 26);
+    // No corner label — the arrow itself is the guide
 }
 
 function drawArrow(x1, y1, x2, y2, color, lineWidth, headSize) {
@@ -388,60 +383,85 @@ function drawCircleGuide(W, H, fraction) {
 
   const cx = W / 2, cy = H / 2;
   const R  = Math.min(W, H) * 0.33;
-  const startAngle = -Math.PI / 2; // top of circle
 
-  // Ghost ring
+  // The guide is an open arc (~80% of a full circle) with a gap at the top.
+  // Gap: 20% of the circle (36°), centered at the top (−π/2).
+  // The arc runs from gapEnd to gapStart in the travel direction.
+  //
+  // For CW travel:
+  //   tail = gapEnd   (just past the gap, clockwise side)  = -π/2 + gapHalf
+  //   head = gapStart (just before the gap, arrives here)  = -π/2 - gapHalf  (+2π)
+  //   arc goes CW from tail to head
+  //
+  // For CCW travel: mirror image.
+
+  const gapHalf  = Math.PI * 0.12;  // 21.6° each side → 43.2° total gap
+  const arcSweep = 2 * Math.PI - 2 * gapHalf; // ~318° of arc
+
+  const tailAngle = dir.cw
+    ? -Math.PI/2 + gapHalf          // CW tail: right side of gap
+    : -Math.PI/2 - gapHalf;         // CCW tail: left side of gap
+
+  const headAngle = dir.cw
+    ? -Math.PI/2 - gapHalf + 2*Math.PI   // CW head: left side of gap (after full sweep)
+    : -Math.PI/2 + gapHalf - 2*Math.PI;  // CCW head: right side of gap
+
+  // ── Ghost arc (full open ring, light) ──
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(160,152,144,0.22)";
+  if (dir.cw) {
+    ctx.arc(cx, cy, R, tailAngle, tailAngle + arcSweep, false);
+  } else {
+    ctx.arc(cx, cy, R, tailAngle, tailAngle - arcSweep, true);
+  }
+  ctx.strokeStyle = "rgba(160,152,144,0.25)";
   ctx.lineWidth   = 10;
+  ctx.lineCap     = "round";
   ctx.stroke();
 
-  // Filled arc for current loop progress
-  if (fraction > 0) {
-    const sweep = fraction * Math.PI * 2;
-    const endAngle = dir.cw
-      ? startAngle + sweep
-      : startAngle - sweep;
+  // ── Filled arc: fills from tail toward head as fraction increases ──
+  if (fraction > 0.01) {
+    const filledSweep = arcSweep * Math.min(fraction, 1);
     ctx.beginPath();
-    ctx.arc(cx, cy, R, startAngle,
-            dir.cw ? startAngle + sweep : startAngle - sweep,
-            !dir.cw);
-    ctx.strokeStyle = "rgba(92,110,91,0.75)";
+    if (dir.cw) {
+      ctx.arc(cx, cy, R, tailAngle, tailAngle + filledSweep, false);
+    } else {
+      ctx.arc(cx, cy, R, tailAngle, tailAngle - filledSweep, true);
+    }
+    ctx.strokeStyle = "rgba(92,110,91,0.80)";
     ctx.lineWidth   = 10;
     ctx.lineCap     = "round";
     ctx.stroke();
   }
 
-  // Arrowhead at start point indicating direction
-  const arrowR = R + 1;
-  const ax = cx + arrowR * Math.cos(startAngle);
-  const ay = cy + arrowR * Math.sin(startAngle);
-  // Small tangent arrow showing direction
-  const tangentAngle = dir.cw ? startAngle + Math.PI/2 : startAngle - Math.PI/2;
-  const arrowSize = 14;
+  // ── Arrowhead at the HEAD end of the ghost arc ──
+  // Position: point on circle at headAngle (normalised to 0–2π range)
+  const normHead = dir.cw
+    ? tailAngle + arcSweep
+    : tailAngle - arcSweep;
+  const arrowX = cx + R * Math.cos(normHead);
+  const arrowY = cy + R * Math.sin(normHead);
+
+  // Tangent direction at head: perpendicular to radius, in travel direction
+  const tangent = dir.cw ? normHead + Math.PI/2 : normHead - Math.PI/2;
+  const hs = 13; // arrowhead arm length
+
   ctx.beginPath();
-  ctx.moveTo(ax, ay);
+  ctx.moveTo(arrowX, arrowY);
   ctx.lineTo(
-    ax + arrowSize * Math.cos(tangentAngle - 0.4),
-    ay + arrowSize * Math.sin(tangentAngle - 0.4)
+    arrowX - hs * Math.cos(tangent - 0.45),
+    arrowY - hs * Math.sin(tangent - 0.45)
   );
-  ctx.moveTo(ax, ay);
+  ctx.moveTo(arrowX, arrowY);
   ctx.lineTo(
-    ax + arrowSize * Math.cos(tangentAngle + 0.4),
-    ay + arrowSize * Math.sin(tangentAngle + 0.4)
+    arrowX - hs * Math.cos(tangent + 0.45),
+    arrowY - hs * Math.sin(tangent + 0.45)
   );
-  ctx.strokeStyle = "rgba(92,110,91,0.55)";
-  ctx.lineWidth   = 3;
+  ctx.strokeStyle = "rgba(120,140,120,0.65)";
+  ctx.lineWidth   = 3.5;
   ctx.lineCap     = "round";
   ctx.stroke();
 
-  // Direction label
-  ctx.font      = "bold 22px sans-serif";
-  ctx.fillStyle = "rgba(92,110,91,0.4)";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(dir.label, cx, cy);
+  // No center label — the open arc shape and arrowhead are sufficient
 }
 
 /* ─── PROGRESS ──────────────────────────────────────────────── */
@@ -468,9 +488,9 @@ function addProgress() {
   if (progress >= currentActivity.target) {
     finishActivity();
   } else {
-    // Pick new direction for next stroke/loop
-    if (currentActivity.type === "slice")  pickNewSliceDir();
-    if (currentActivity.type === "circle") pickNewCircleDir();
+    // Slice: pick new direction immediately (no visual hold needed)
+    if (currentActivity.type === "slice") pickNewSliceDir();
+    // Circle: direction switch is handled by circleComplete() after cooldown
   }
 }
 
@@ -650,11 +670,25 @@ function circleEnd(e) {
 }
 
 function circleComplete() {
-  addProgress();
-  circlePoints   = circlePoints.slice(-1); // keep last point as new start
-  circleAngleAcc = 0;
   circleCooldown = true;
-  setTimeout(() => { circleCooldown = false; }, 420);
+
+  // 1. Show the completed arc at full fill for a moment (confirmation)
+  drawGuide(1);
+
+  // 2. Count the progress (does NOT call pickNewCircleDir)
+  addProgress();
+
+  circlePoints   = [];
+  circleAngleAcc = 0;
+
+  // 3. After cooldown: switch to new direction and redraw fresh guide
+  setTimeout(() => {
+    circleCooldown = false;
+    if (!isComplete) {
+      pickNewCircleDir(); // now switch direction
+      drawGuide(0);
+    }
+  }, 700); // 700ms — enough to register as confirmation before flip
 }
 
 /* ─── LAUNCH ────────────────────────────────────────────────── */
