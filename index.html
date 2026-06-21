@@ -859,7 +859,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 617.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260621.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1042,6 +1042,7 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
 
+
 const firebaseConfig = {
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
   authDomain: "kitchen-5cb9a.firebaseapp.com",
@@ -1051,6 +1052,8 @@ const firebaseConfig = {
   messagingSenderId: "297004284280",
   appId: "1:297004284280:web:095912fd748d7dcccb308d"
 };
+
+
 /* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
 const RESOURCES = {
   // Ingredients — Spices
@@ -3364,6 +3367,10 @@ function launchCookingActivity(toolName) {
   const act = ACTIVITIES[key];
   if (!act) return;
 
+  // Initialize canvas references FIRST — everything below may use them
+  activityCanvas = document.getElementById("activity-gesture-canvas");
+  activityCtx    = activityCanvas.getContext("2d");
+
   currentActivity   = act;
   progress          = 0;
   isComplete        = false;
@@ -3435,9 +3442,6 @@ function launchCookingActivity(toolName) {
     document.addEventListener("mouseup",   document._gameUpHandler);
   }
 
-  // Initialize canvas references each launch (DOM may have been rebuilt)
-  activityCanvas = document.getElementById("activity-gesture-canvas");
-  activityCtx    = activityCanvas.getContext("2d");
   document.getElementById("activity-modal-overlay").classList.add("active");
   requestAnimationFrame(resizeActivityCanvas);
 }
