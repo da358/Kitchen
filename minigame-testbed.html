@@ -171,7 +171,7 @@
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
   <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
-  <p class="version">v5</p>
+  <p class="version">v7</p>
 </div>
 
 <div class="launcher">
@@ -288,9 +288,9 @@ let circleCooldown = false;
 let circlePathLen  = 0;    // total distance traveled so far this gesture
 let circleStartX   = 0;
 let circleStartY   = 0;
-const CIRCLE_MIN_PATHLEN = 120; // px — minimum path length before checking closure
-const CIRCLE_CLOSE_RATIO = 0.28; // return-to-start distance / path-length threshold
-                                  // lower = more forgiving closure
+const CIRCLE_MIN_PATHLEN = 80;  // px — minimum path length before checking closure
+const CIRCLE_CLOSE_RATIO = 0.42; // return-to-start distance / path-length threshold
+                                  // higher = more forgiving (larger acceptable return radius)
 
 /* ─── CANVAS ────────────────────────────────────────────────── */
 const canvas = document.getElementById("gesture-canvas");
@@ -359,25 +359,38 @@ function drawSliceGuide(W, H, fraction) {
 }
 
 function drawArrow(x1, y1, x2, y2, color, lineWidth, headSize) {
+  // Draw the shaft — stop it slightly short so the head tip sits at x2,y2
+  const angle  = Math.atan2(y2 - y1, x2 - x1);
+  const shaftEndX = x2 - headSize * 0.6 * Math.cos(angle);
+  const shaftEndY = y2 - headSize * 0.6 * Math.sin(angle);
+
   ctx.beginPath();
   ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
+  ctx.lineTo(headSize > 0 ? shaftEndX : x2, headSize > 0 ? shaftEndY : y2);
   ctx.strokeStyle = color;
   ctx.lineWidth   = lineWidth;
   ctx.lineCap     = "round";
   ctx.stroke();
 
+  // Filled triangle arrowhead — same style as circle guide
   if (headSize > 0) {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const spread = 0.50;
+    const tip   = { x: x2, y: y2 };
+    const left  = {
+      x: x2 - headSize * Math.cos(angle - spread),
+      y: y2 - headSize * Math.sin(angle - spread)
+    };
+    const right = {
+      x: x2 - headSize * Math.cos(angle + spread),
+      y: y2 - headSize * Math.sin(angle + spread)
+    };
     ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - headSize * Math.cos(angle - 0.4), y2 - headSize * Math.sin(angle - 0.4));
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - headSize * Math.cos(angle + 0.4), y2 - headSize * Math.sin(angle + 0.4));
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = lineWidth * 0.85;
-    ctx.lineCap     = "round";
-    ctx.stroke();
+    ctx.moveTo(tip.x,   tip.y);
+    ctx.lineTo(left.x,  left.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
   }
 }
 
@@ -438,16 +451,21 @@ function drawCircleGuide(W, H, fraction) {
   }
 
   // ── Arrowhead at the HEAD end of the ghost arc ──
-  const normHead = dir.cw ? tailAngle + arcSweep : tailAngle - arcSweep;
-  const arrowX = cx + R * Math.cos(normHead);
-  const arrowY = cy + R * Math.sin(normHead);
-  const tangent = dir.cw ? normHead + Math.PI/2 : normHead - Math.PI/2;
+  // The arc stroke has rounded caps that extend slightly past the endpoint.
+  // We push the arrowhead tip FORWARD along the tangent by a few px so the
+  // stroke terminates inside the arrowhead rather than protruding past it.
+  const normHead  = dir.cw ? tailAngle + arcSweep : tailAngle - arcSweep;
+  const arcEndX   = cx + R * Math.cos(normHead);
+  const arcEndY   = cy + R * Math.sin(normHead);
+  const tangent   = dir.cw ? normHead + Math.PI/2 : normHead - Math.PI/2;
+  const nudge     = 12; // px forward push to cover rounded cap + larger head
+  const arrowX    = arcEndX + nudge * Math.cos(tangent);
+  const arrowY    = arcEndY + nudge * Math.sin(tangent);
 
-  // Draw a filled triangular arrowhead — larger and more readable
-  const hs = 20; // arrowhead size (increased from 13)
-  const spread = 0.52;
-  const tip  = { x: arrowX, y: arrowY };
-  const left = {
+  const hs     = 30;   // 50% larger than previous 20
+  const spread = 0.50;
+  const tip   = { x: arrowX, y: arrowY };
+  const left  = {
     x: arrowX - hs * Math.cos(tangent - spread),
     y: arrowY - hs * Math.sin(tangent - spread)
   };
@@ -461,7 +479,7 @@ function drawCircleGuide(W, H, fraction) {
   ctx.lineTo(left.x,  left.y);
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
-  ctx.fillStyle = "rgba(92,110,91,0.55)";
+  ctx.fillStyle = "rgba(92,110,91,0.65)";
   ctx.fill();
 }
 
@@ -632,14 +650,30 @@ function circleMove(e) {
   circlePoints.push(p);
   circlePathLen += step;
 
-  // Fill fraction: how much of minimum path length has been covered
-  // Caps at 1 once minimum is reached — further travel doesn't overfill
-  const pathFrac = Math.min(1, circlePathLen / CIRCLE_MIN_PATHLEN);
+  // Guide fill = how close are we to completing a loop?
+  // Phase 1 (not enough path yet): fill proportionally to path traveled (0→0.5)
+  // Phase 2 (enough path traveled): fill based on how close we are to the start (0.5→1)
+  // This means: straight lines fill to ~50% then stall; only curving back fills to 100%.
+  let guideFrac = 0;
+  const hasMinPath = circlePathLen >= CIRCLE_MIN_PATHLEN;
+  if (!hasMinPath) {
+    // First half of the guide fills as path grows
+    guideFrac = (circlePathLen / CIRCLE_MIN_PATHLEN) * 0.5;
+  } else {
+    // Second half fills as we return to start
+    // Max return distance that still shows progress = 60% of path length
+    const distToStart = Math.sqrt(
+      (p.x - circleStartX)**2 + (p.y - circleStartY)**2
+    );
+    const maxDist  = circlePathLen * CIRCLE_CLOSE_RATIO * 2; // twice threshold = 0% fill
+    const closeFrac = Math.max(0, 1 - (distToStart / maxDist));
+    guideFrac = 0.5 + closeFrac * 0.5;
+  }
 
-  // Redraw guide
+  // Redraw guide with computed fill
   const { W, H } = getLogicalSize();
   ctx.clearRect(0, 0, W, H);
-  drawGuide(pathFrac);
+  drawGuide(Math.min(1, guideFrac));
 
   // Draw freehand trace
   const prev = circlePoints[circlePoints.length - 2];
@@ -651,13 +685,12 @@ function circleMove(e) {
   ctx.lineCap     = "round";
   ctx.stroke();
 
-  // Check closure: has path traveled enough AND returned near start?
-  if (!circleCooldown && circlePathLen >= CIRCLE_MIN_PATHLEN) {
+  // Trigger completion when guide would be full (closure threshold met)
+  if (!circleCooldown && hasMinPath) {
     const distToStart = Math.sqrt(
       (p.x - circleStartX)**2 + (p.y - circleStartY)**2
     );
-    const closeEnough = distToStart / circlePathLen <= CIRCLE_CLOSE_RATIO;
-    if (closeEnough) {
+    if (distToStart / circlePathLen <= CIRCLE_CLOSE_RATIO) {
       circleComplete();
     }
   }
