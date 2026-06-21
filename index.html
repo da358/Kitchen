@@ -1042,7 +1042,6 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
 
-
 const firebaseConfig = {
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
   authDomain: "kitchen-5cb9a.firebaseapp.com",
@@ -1052,9 +1051,6 @@ const firebaseConfig = {
   messagingSenderId: "297004284280",
   appId: "1:297004284280:web:095912fd748d7dcccb308d"
 };
-
-
-
 /* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
 const RESOURCES = {
   // Ingredients — Spices
@@ -2651,7 +2647,7 @@ function resizeActivityCanvas() {
   activityCtx.scale(dpr, dpr);
   drawGuide(0);
 }
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", resizeActivityCanvas);
 
 function getPos(e) {
   const rect = activityCanvas.getBoundingClientRect();
@@ -3469,9 +3465,6 @@ function closeActivityModal(completed) {
   }
 }
 
-document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
-document.getElementById("activity-btn-cancel").addEventListener("click",      () => closeActivityModal(false));
-document.getElementById("activity-btn-done").addEventListener("click",        () => closeActivityModal(true));
 // Overlay click intentionally does NOT cancel the modal.
 // Players may release mouse outside the modal mid-gesture.
 // Use the Cancel button or ✕ to exit.
