@@ -171,7 +171,7 @@
 <div style="text-align:center;">
   <h1>Cooking Activities</h1>
   <p class="subtitle">Mini-game testbed — tap a tool to try its activity</p>
-  <p class="version">v8</p>
+  <p class="version">v9</p>
 </div>
 
 <div class="launcher">
@@ -292,6 +292,9 @@ let circleStartY   = 0;
 // Bounding box of gesture (used to reject thin back-and-forth strokes)
 let circleBboxMinX = 0, circleBboxMaxX = 0;
 let circleBboxMinY = 0, circleBboxMaxY = 0;
+// Signed angle accumulator for direction validation
+// Positive = CCW in screen coords (Y-down), Negative = CW
+let circleSignedAngle = 0;
 const CIRCLE_MIN_PATHLEN  = 80;   // px — minimum path length before checking closure
 const CIRCLE_CLOSE_RATIO  = 0.42; // return-to-start distance / path-length threshold
                                    // higher = more forgiving (larger acceptable return radius)
@@ -641,9 +644,10 @@ function circleStart(e) {
   circlePathLen = 0;
   circleStartX  = p.x;
   circleStartY  = p.y;
-  // Bounding box tracking
+  // Bounding box and direction tracking
   circleBboxMinX = p.x; circleBboxMaxX = p.x;
   circleBboxMinY = p.y; circleBboxMaxY = p.y;
+  circleSignedAngle = 0;
   canvas.classList.add("active-drag");
 }
 
@@ -664,6 +668,20 @@ function circleMove(e) {
   circleBboxMaxX = Math.max(circleBboxMaxX, p.x);
   circleBboxMinY = Math.min(circleBboxMinY, p.y);
   circleBboxMaxY = Math.max(circleBboxMaxY, p.y);
+
+  // Accumulate signed angle around the running centroid for direction detection
+  // We use the last two points and an approximate centroid for efficiency.
+  // Positive total = CCW (screen Y-down), Negative = CW
+  if (circlePoints.length >= 3) {
+    const n   = circlePoints.length;
+    const cx  = (circleBboxMinX + circleBboxMaxX) / 2;
+    const cy  = (circleBboxMinY + circleBboxMaxY) / 2;
+    const pp  = circlePoints[n - 2]; // previous point
+    let da = Math.atan2(p.y - cy, p.x - cx) - Math.atan2(pp.y - cy, pp.x - cx);
+    if (da >  Math.PI) da -= 2 * Math.PI;
+    if (da < -Math.PI) da += 2 * Math.PI;
+    circleSignedAngle += da;
+  }
 
   // Guide fill = how close are we to completing a loop?
   // Phase 1 (not enough path yet): fill proportionally to path traveled (0→0.5)
@@ -715,7 +733,16 @@ function circleMove(e) {
     const aspect  = longer > 0 ? shorter / longer : 0;
     const isLoopShaped = aspect >= CIRCLE_MIN_ASPECT;
 
-    if (isClosed && isLoopShaped) {
+    // Direction check: circleSignedAngle sign must match required direction.
+    // In screen coords (Y-down): CW rotation produces negative angle sum,
+    // CCW produces positive. We require the sign to roughly match.
+    // Threshold: at least 0.5 radians of net rotation in the correct direction
+    // to avoid noise from wobbly gestures near zero.
+    const dir = currentCircleDir;
+    const requiredSign = dir.cw ? -1 : 1; // CW=negative, CCW=positive
+    const correctDirection = (circleSignedAngle * requiredSign) > 0.5;
+
+    if (isClosed && isLoopShaped && correctDirection) {
       circleComplete();
     }
   }
@@ -733,8 +760,9 @@ function circleEnd(e) {
 function circleComplete() {
   circleCooldown = true;
   circleDown     = false;
-  circlePoints   = [];
-  circlePathLen  = 0;
+  circlePoints      = [];
+  circlePathLen     = 0;
+  circleSignedAngle = 0;
 
   // Show full arc briefly as confirmation
   drawGuide(1);
@@ -764,8 +792,9 @@ function launchActivity(key) {
   circlePathLen   = 0;
   circleStartX    = 0;
   circleStartY    = 0;
-  circleBboxMinX  = 0; circleBboxMaxX = 0;
-  circleBboxMinY  = 0; circleBboxMaxY = 0;
+  circleBboxMinX    = 0; circleBboxMaxX = 0;
+  circleBboxMinY    = 0; circleBboxMaxY = 0;
+  circleSignedAngle = 0;
   sliceDown       = false;
   lastSliceDirIdx  = -1;
   lastCircleDirIdx = -1;
@@ -788,9 +817,15 @@ function launchActivity(key) {
   document.getElementById("btn-done").disabled = true;
   canvas.style.pointerEvents = "auto";
 
+  // mousedown on canvas; mousemove and mouseup on document so fast drags
+  // that exit the canvas boundary still register correctly.
   canvas.onmousedown  = act.type === "slice" ? sliceStart : circleStart;
-  canvas.onmousemove  = act.type === "slice" ? sliceMove  : circleMove;
-  canvas.onmouseup    = act.type === "slice" ? sliceEnd   : circleEnd;
+  canvas.onmousemove  = null; // cleared — document listener handles move
+  canvas.onmouseup    = null; // cleared — document listener handles up
+  document._gameMoveHandler = act.type === "slice" ? sliceMove  : circleMove;
+  document._gameUpHandler   = act.type === "slice" ? sliceEnd   : circleEnd;
+  document.addEventListener("mousemove", document._gameMoveHandler);
+  document.addEventListener("mouseup",   document._gameUpHandler);
   canvas.ontouchstart = act.type === "slice" ? sliceStart : circleStart;
   canvas.ontouchmove  = act.type === "slice" ? sliceMove  : circleMove;
   canvas.ontouchend   = act.type === "slice" ? sliceEnd   : circleEnd;
@@ -806,14 +841,23 @@ function closeModal(completed) {
   const { W, H } = getLogicalSize();
   ctx.clearRect(0, 0, W, H);
   circlePoints = []; circleDown = false; circlePathLen = 0; sliceDown = false;
+  // Remove document-level mouse listeners to avoid leaks
+  if (document._gameMoveHandler) {
+    document.removeEventListener("mousemove", document._gameMoveHandler);
+    document._gameMoveHandler = null;
+  }
+  if (document._gameUpHandler) {
+    document.removeEventListener("mouseup", document._gameUpHandler);
+    document._gameUpHandler = null;
+  }
 }
 
 document.getElementById("modal-close-btn").addEventListener("click", () => closeModal(false));
 document.getElementById("btn-cancel").addEventListener("click",      () => closeModal(false));
 document.getElementById("btn-done").addEventListener("click",        () => closeModal(true));
-document.getElementById("modal-overlay").addEventListener("click", e => {
-  if (e.target === document.getElementById("modal-overlay")) closeModal(false);
-});
+// Overlay click intentionally does NOT cancel the modal.
+// Players may release mouse outside the modal mid-gesture.
+// Use the Cancel button or ✕ to exit.
 
 /* ─── LOG ───────────────────────────────────────────────────── */
 function logResult(completed) {
