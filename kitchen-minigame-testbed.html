@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Kitchen — Mini-game Testbed v10</title>
+<title>The Kitchen — Mini-game Testbed v12</title>
 <style>
 :root{--bg:#F7F5F2;--surface:#FFF;--border:#E2DDD7;--text:#1A1814;--text-2:#6B6560;--text-3:#9E9890;--accent:#5C6E5B;--font:'Inter',-apple-system,sans-serif;--radius:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -25,11 +25,14 @@ canvas{border:1.5px solid var(--border);border-radius:8px;display:block;touch-ac
 </style>
 </head>
 <body>
-<h1>🍳 Mini-game Testbed v10</h1>
-<p class="sub">Refined per feedback. New: Oil Drizzle rethink, Knead A (smooth), Knead D (blob mass).</p>
+<h1>🍳 Mini-game Testbed v12</h1>
+<p class="sub">v12: Slicing fixed (9 cuts, narrower spacing, looser angle). Renamed activities.</p>
 <div class="sec">Seasoning family</div><div class="grid" id="gs"></div>
 <div class="sec">Spreading family — Butter &amp; Oil</div><div class="grid" id="gsp"></div>
-<div class="sec">Knead variants</div><div class="grid" id="gk"></div>
+<div class="sec">Chopping</div><div class="grid" id="gchop"></div>
+<div class="sec">Whisking</div><div class="grid" id="gwhisk"></div>
+<div class="sec">Food Processor</div><div class="grid" id="gfp2"></div>
+<div class="sec">Dough</div><div class="grid" id="gdough"></div>
 <div class="sec">Mortar &amp; Pestle</div><div class="grid" id="gm"></div>
 
 <script>
@@ -684,169 +687,6 @@ function drawPlatter(ctx,cx,cy,rx,ry){
 })();
 
 
-/* ══════════════════════════════════════════════════════════════
-   KNEAD A — SMOOTH BEZIER DEFORMATION
-   Arrow shows next target spot. Player punches near arrow.
-   Bottom edge stays flat (counter surface). % progress bar.
-══════════════════════════════════════════════════════════════ */
-(function(){
-  const ID="ka";
-  addCard("gk",{id:ID,icon:"✊",H:230,title:"Knead A — Smooth Deform",sub:"Punch where the arrow points",
-    notes:"Red arrow shows next target. Punch within ~42px of arrow to score. Bottom stays flat like dough on a counter. 10 punches. % progress bar."});
-  const PUNCHES=10,NPTS=24;
-  const HIT_RADIUS=42; // 20% smaller than 52
-  let g,pts,punches,done,_raf,puffs,rings;
-  let arrowX=0,arrowY=0,arrowAlpha=0,arrowFading=false,arrowFadeDir=1;
-  const CX=W=>W*0.5,CY=H=>H*0.57,RX=W=>W*0.397,RY=H=>H*0.317; // 15% bigger
-  const FLOOR=H=>H*0.80;
-
-  function makePts(_g){
-    pts=[];
-    const W=_g.W,H=_g.H,cx=CX(W),cy=CY(H),rx=RX(W),ry=RY(H),fl=FLOOR(H);
-    for(let i=0;i<NPTS;i++){
-      const a=(i/NPTS)*Math.PI*2;
-      const noise=0.92+Math.random()*0.10; // puffier, rounder (was 0.84..1.02)
-      const rawY=cy+Math.sin(a)*ry*noise;
-      const px2=cx+Math.cos(a)*rx*noise;
-      const py2=Math.min(fl,rawY);
-      pts.push({x:px2,y:py2});
-    }
-  }
-
-  function pickArrow(){
-    // Pick a random point inside the upper dough area
-    const{W,H}=g;
-    const cx=CX(W),cy=CY(H),rx=RX(W),ry=RY(H);
-    let ax,ay,tries=0;
-    do{
-      const a=Math.random()*Math.PI*2;
-      const r=0.25+Math.random()*0.55;
-      ax=cx+Math.cos(a)*rx*r;
-      ay=cy+Math.sin(a)*ry*r*0.7-ry*0.1; // bias upward slightly
-      tries++;
-    }while(ay>FLOOR(H)-20&&tries<20);
-    arrowX=ax; arrowY=Math.min(arrowY,FLOOR(H)-25)||ay;
-    arrowY=ay;
-    arrowAlpha=0; arrowFading=false; arrowFadeDir=1; // fade in
-  }
-
-  function drawDough(ctx){
-    if(pts.length<3)return;
-    ctx.beginPath();
-    for(let i=0;i<pts.length;i++){
-      const p0=pts[(i-1+pts.length)%pts.length];
-      const p1=pts[i]; const p2=pts[(i+1)%pts.length]; const p3=pts[(i+2)%pts.length];
-      if(i===0)ctx.moveTo(p1.x,p1.y);
-      const cp1x=p1.x+(p2.x-p0.x)/6,cp1y=p1.y+(p2.y-p0.y)/6;
-      const cp2x=p2.x-(p3.x-p1.x)/6,cp2y=p2.y-(p3.y-p1.y)/6;
-      ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,p2.x,p2.y);
-    }
-    ctx.closePath();
-  }
-
-  function init(){
-    g=IC(ID);makePts(g);punches=0;done=false;puffs=[];rings=[];
-    resetCard(ID);SP(ID,0,"0%");SS(ID,"Punch where the arrow points");
-    pickArrow();
-    if(_raf)cancelAnimationFrame(_raf);tick();
-  }
-
-  function punch(px,py){
-    if(done||arrowFading)return;
-    const dx=px-arrowX,dy=py-arrowY;
-    if(Math.sqrt(dx*dx+dy*dy)>HIT_RADIUS){SS(ID,"Punch closer to the arrow ↓");return;}
-    // Gaussian push toward center from punch point
-    const{W,H}=g,cx=CX(W),cy=CY(H),fl=FLOOR(H);
-    const sigma=RX(W)*0.42;
-    pts.forEach(p=>{
-      const d=Math.sqrt((px-p.x)**2+(py-p.y)**2);
-      const force=Math.exp(-(d*d)/(2*sigma*sigma));
-      p.x+=(cx-p.x)*force*0.092; // 15% more deformation than 0.08
-      const ny=p.y+(cy-p.y)*force*0.092;
-      p.y=Math.min(fl,ny);
-      if(p.y>fl)p.y=fl;
-    });
-    for(let i=0;i<14;i++)puffs.push({x:px+(Math.random()-.5)*14,y:py,vx:(Math.random()-.5)*3,vy:-Math.random()*4-1,r:3+Math.random()*5,life:1});
-    rings.push({x:px,y:py,r:0,life:1});
-    punches++;
-    const pct=Math.round(punches/PUNCHES*100);
-    SP(ID,pct,pct+"%");
-    if(punches>=PUNCHES){done=true;SP(ID,100,"100%");}
-    else{ SS(ID,"Next punch spot incoming…"); arrowFading=true; arrowFadeDir=-1; } // fade out then relocate
-  }
-
-  function tick(){
-    const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
-    const fl=FLOOR(H);
-
-    // Counter surface
-    ctx.fillStyle="#E8DCC8";ctx.fillRect(0,fl,W,H-fl);
-    ctx.strokeStyle="#C8B898";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,fl);ctx.lineTo(W,fl);ctx.stroke();
-
-    puffs.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.07;p.life-=0.022;ctx.globalAlpha=Math.max(0,p.life*0.38);ctx.fillStyle="#F8F4EE";ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();});
-    puffs=puffs.filter(p=>p.life>0);ctx.globalAlpha=1;
-
-    // Dough shadow
-    ctx.fillStyle="rgba(0,0,0,0.06)";ctx.beginPath();ctx.ellipse(CX(W),fl+4,RX(W)*0.9,6,0,0,Math.PI*2);ctx.fill();
-
-    // Dough fill — pillowy, cloud-like
-    const dg=ctx.createRadialGradient(CX(W),CY(H)-RY(H)*0.3,RY(H)*0.1,CX(W),CY(H),RX(W)*1.05);
-    dg.addColorStop(0,"#FAF6EC");   // bright top highlight
-    dg.addColorStop(0.35,"#F5EED8"); // main body
-    dg.addColorStop(0.72,"#EDE4C8");
-    dg.addColorStop(1,"#D8CCA8");   // shadow at edges
-    ctx.fillStyle=dg;drawDough(ctx);ctx.fill();
-    // Dome highlight — soft bright oval on upper-center, like a cloud lit from above
-    ctx.save();drawDough(ctx);ctx.clip();
-    const hg=ctx.createRadialGradient(CX(W)-RX(W)*0.08,CY(H)-RY(H)*0.42,0,CX(W)-RX(W)*0.08,CY(H)-RY(H)*0.1,RX(W)*0.62);
-    hg.addColorStop(0,"rgba(255,255,255,0.55)");
-    hg.addColorStop(0.5,"rgba(255,255,255,0.18)");
-    hg.addColorStop(1,"rgba(255,255,255,0)");
-    ctx.fillStyle=hg;ctx.fillRect(0,0,W,H);
-    ctx.restore();
-    ctx.strokeStyle="rgba(200,175,120,0.30)";ctx.lineWidth=1.5;drawDough(ctx);ctx.stroke();
-
-    // Arrow — fades in after relocating, fades out after hit
-    if(!done){
-      if(arrowFading){
-        arrowAlpha+=arrowFadeDir*0.06;
-        if(arrowAlpha<=0&&arrowFadeDir<0){arrowAlpha=0;pickArrow();arrowFadeDir=1;}
-        if(arrowAlpha>=1){arrowAlpha=1;arrowFading=false;}
-      } else {
-        arrowAlpha=Math.min(1,arrowAlpha+0.05); // initial fade-in
-      }
-      const aa=Math.max(0,arrowAlpha);
-      // Bouncing offset
-      const bounce=Math.sin(Date.now()/350)*5;
-      const ax=arrowX,ay=arrowY-28+bounce;
-      ctx.save();ctx.globalAlpha=aa;
-      // Arrow head (pointing down)
-      ctx.fillStyle="#CC2222";
-      ctx.beginPath();ctx.moveTo(ax,ay+22);ctx.lineTo(ax-12,ay);ctx.lineTo(ax+12,ay);ctx.closePath();ctx.fill();
-      // Arrow shaft
-      ctx.fillStyle="#CC2222";
-      ctx.beginPath();ctx.roundRect(ax-5,ay-18,10,20,3);ctx.fill();
-      // Hit zone circle (faint)
-      ctx.strokeStyle="rgba(204,34,34,0.25)";ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
-      ctx.beginPath();ctx.arc(arrowX,arrowY,HIT_RADIUS,0,Math.PI*2);ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-
-    rings.forEach(r=>{r.r+=3.5;r.life-=0.055;ctx.globalAlpha=Math.max(0,r.life*0.5);ctx.strokeStyle="#B89A50";ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke();});
-    rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;
-    if(!done)_raf=requestAnimationFrame(tick);
-  }
-
-  whenReady(ID,()=>{
-    const c=document.getElementById("c-"+ID);
-    c.addEventListener("mousedown",e=>{if(!done){e.preventDefault();const p=ep(e,c);punch(p.x,p.y);}});
-    c.addEventListener("touchstart",e=>{if(!done){e.preventDefault();const p=ep(e,c);punch(p.x,p.y);}},{passive:false});
-    RB(ID,init);init();
-  });
-})();
-
-
 
 
 
@@ -983,6 +823,766 @@ function drawPlatter(ctx,cx,cy,rx,ry){
     RB(ID,init);init();
   });
 })();
+
+/* ─── HELPERS FROM BRANCH 1 ────────────────────────────────── */
+function drawBoard(ctx,x,y,w,h){
+  const g=ctx.createLinearGradient(x,y,x,y+h);g.addColorStop(0,"#D4A870");g.addColorStop(0.5,"#C89858");g.addColorStop(1,"#B88848");
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.fill();
+  ctx.strokeStyle="rgba(0,0,0,0.07)";ctx.lineWidth=1;
+  for(let i=0;i<6;i++){const gy=y+h*0.12+i*(h*0.13);ctx.beginPath();ctx.moveTo(x+6,gy);ctx.lineTo(x+w-6,gy);ctx.stroke();}
+  ctx.strokeStyle="rgba(0,0,0,0.18)";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.stroke();
+}
+
+/* ── GUIDE ARROW ─────────────────────────────────────────── */
+function drawCircleArrow(ctx,cx,cy,r,alpha=1,cw=true){
+  ctx.save();ctx.globalAlpha=alpha;
+  const gapAngle=Math.PI*0.18;
+  ctx.strokeStyle="rgba(92,110,91,0.85)";ctx.lineWidth=5;ctx.lineCap="round";
+  ctx.beginPath();
+  if(cw)ctx.arc(cx,cy,r,-Math.PI/2+gapAngle,-Math.PI/2-gapAngle+Math.PI*2,false);
+  else ctx.arc(cx,cy,r,-Math.PI/2-gapAngle,-Math.PI/2+gapAngle-Math.PI*2,true);
+  ctx.stroke();
+  const headAngle=cw?(-Math.PI/2-gapAngle+Math.PI*2):(-Math.PI/2+gapAngle-Math.PI*2);
+  const tangent=cw?headAngle+Math.PI/2:headAngle-Math.PI/2;
+  const hx=cx+Math.cos(headAngle)*r,hy=cy+Math.sin(headAngle)*r,hs=28;
+  ctx.fillStyle="rgba(92,110,91,0.85)";
+  ctx.beginPath();ctx.moveTo(hx,hy);
+  ctx.lineTo(hx-hs*Math.cos(tangent-0.5),hy-hs*Math.sin(tangent-0.5));
+  ctx.lineTo(hx-hs*Math.cos(tangent+0.5),hy-hs*Math.sin(tangent+0.5));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+/* ── WHISK helpers ───────────────────────────────────────── */
+function drawWhistTopDown(ctx,bowlCX,bowlCY,bowlR,whiskOrbitAngle,whiskHeadAngle,foamParts,offCanvas){
+  ctx.fillStyle="#C8B8D8";ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,0,Math.PI*2);ctx.fill();
+  const bg=ctx.createRadialGradient(bowlCX,bowlCY,0,bowlCX,bowlCY,bowlR*0.88);
+  bg.addColorStop(0,"#FFF8E8");bg.addColorStop(0.7,"#F8EDD8");bg.addColorStop(1,"#E8D8C0");
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.88,0,Math.PI*2);ctx.fill();
+  if(offCanvas){ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.86,0,Math.PI*2);ctx.clip();ctx.drawImage(offCanvas,0,0);ctx.restore();}
+  foamParts.forEach(f=>{
+    f.life-=0.003;ctx.globalAlpha=Math.max(0,f.life*0.95);
+    ctx.fillStyle="#FFFFFF";ctx.strokeStyle="rgba(120,100,80,0.7)";ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,Math.PI*2);ctx.fill();ctx.stroke();
+  });
+  ctx.globalAlpha=1;
+  const wx=bowlCX+Math.cos(whiskOrbitAngle)*bowlR*0.32,wy=bowlCY+Math.sin(whiskOrbitAngle)*bowlR*0.32;
+  ctx.save();ctx.translate(wx,wy);ctx.rotate(whiskHeadAngle);
+  ctx.strokeStyle="#6B4A2A";ctx.lineWidth=12;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-bowlR*0.68);ctx.stroke();
+  ctx.strokeStyle="rgba(160,110,60,0.4)";ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(-3,-8);ctx.lineTo(-3,-bowlR*0.64);ctx.stroke();
+  ctx.strokeStyle="#B0A898";ctx.lineWidth=4;
+  ctx.beginPath();ctx.ellipse(0,0,22,26,0,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=2.4;ctx.strokeStyle="#C0B8B0";
+  for(let t=0;t<4;t++){const ta=t*Math.PI/4;ctx.beginPath();ctx.moveTo(Math.cos(ta)*22,Math.sin(ta)*26);ctx.lineTo(Math.cos(ta+Math.PI)*22,Math.sin(ta+Math.PI)*26);ctx.stroke();}
+  ctx.fillStyle="#9A9080";ctx.beginPath();ctx.arc(0,0,8,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+/* ─── CHOPPING ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   CHOP B (unchanged)
+══════════════════════════════════════════════════════════ */
+(function(){
+  const ID="cb";
+  addCard("gchop",{id:ID,icon:"🗡️",H:230,title:"Slice the Ingredients",sub:"Drag downward to slice",notes:"9 slices. Drag downward across ingredient. Narrower cuts allowed."});
+  const SLICES_NEEDED=9,MIN_STROKE_LEN=40,MIN_VERT_RATIO=0.45;
+  let g,slices,done,_raf,cutLines,strokeStart,currentStroke,rejectFlash,successFlash;
+  let boardX,boardY,boardW,boardH,ingrX,ingrY,ingrW,ingrH;
+  function layout(){const{W,H}=g;boardX=W*0.06;boardY=H*0.35;boardW=W*0.88;boardH=H*0.54;ingrX=W*0.11;ingrY=H*0.44;ingrW=W*0.78;ingrH=H*0.28;}
+  function init(){g=IC(ID);layout();slices=0;done=false;cutLines=[];strokeStart=null;currentStroke=null;rejectFlash=0;successFlash=0;resetCard(ID);SP(ID,0,"0%");SS(ID,"Drag downward across the ingredient");if(_raf)cancelAnimationFrame(_raf);tick();}
+  function isOnIngr(x,y){return x>ingrX&&x<ingrX+ingrW&&y>ingrY-20&&y<ingrY+ingrH+20;}
+  function trySlice(sx,sy,ex,ey){
+    const dx=ex-sx,dy=ey-sy,len=Math.sqrt(dx*dx+dy*dy);
+    if(len<MIN_STROKE_LEN){SS(ID,"Stroke too short");return;}
+    if(Math.abs(dy)/len<MIN_VERT_RATIO){rejectFlash=20;SS(ID,"Drag more downward");return;}
+    const midX=(sx+ex)/2;
+    if(midX<ingrX+ingrW*0.02||midX>ingrX+ingrW*0.98){SS(ID,"Slice across the ingredient");return;}
+    const norm=(midX-ingrX)/ingrW;
+    if(cutLines.some(c=>Math.abs(c-norm)*ingrW<12)){SS(ID,"Too close to a previous cut");return;}
+    cutLines.push(norm);cutLines.sort((a,b)=>a-b);slices++;successFlash=18;
+    const pct=Math.round(slices/SLICES_NEEDED*100);SP(ID,pct,pct+"%");
+    if(slices>=SLICES_NEEDED){done=true;SP(ID,100,"100%");}else SS(ID,`${SLICES_NEEDED-slices} more`);
+  }
+  function drawIngr(ctx){
+    const sorted=[0,...cutLines,1],GAP=3;
+    for(let i=0;i<sorted.length-1;i++){
+      const x0=ingrX+sorted[i]*ingrW+(i>0?GAP:0),x1=ingrX+sorted[i+1]*ingrW-(i<sorted.length-2?GAP:0);
+      if(x1-x0<2)continue;
+      const bg=ctx.createLinearGradient(x0,ingrY,x0,ingrY+ingrH);
+      bg.addColorStop(0,"#8AC060");bg.addColorStop(0.35,"#5A9030");bg.addColorStop(0.7,"#3A7010");bg.addColorStop(1,"#2A5008");
+      ctx.fillStyle=bg;
+      const topR=i===0?ingrH*0.35:ingrH*0.48,botR=i===sorted.length-2?ingrH*0.35:ingrH*0.48;
+      ctx.beginPath();ctx.moveTo(x0,ingrY+ingrH*0.5-topR);ctx.lineTo(x1,ingrY+ingrH*0.5-botR);ctx.lineTo(x1,ingrY+ingrH*0.5+botR);ctx.lineTo(x0,ingrY+ingrH*0.5+topR);ctx.closePath();ctx.fill();
+      if(i>0){ctx.fillStyle="rgba(190,230,150,0.7)";ctx.beginPath();ctx.ellipse(x0+1,ingrY+ingrH*0.5,3,ingrH*0.44,0,0,Math.PI*2);ctx.fill();}
+      ctx.strokeStyle="rgba(40,80,10,0.18)";ctx.lineWidth=1;
+      for(let t=0;t<3;t++){const ty=ingrY+ingrH*0.5+(t-1)*ingrH*0.28;ctx.beginPath();ctx.moveTo(x0,ty);ctx.lineTo(x1,ty);ctx.stroke();}
+    }
+    if(cutLines.length===0||Math.min(...cutLines)>0.06){ctx.fillStyle="#3A6018";ctx.beginPath();ctx.ellipse(ingrX+3,ingrY+ingrH*0.5,3,ingrH*0.22,0,0,Math.PI*2);ctx.fill();}
+  }
+  function tick(){
+    const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
+    drawBoard(ctx,boardX,boardY,boardW,boardH);drawIngr(ctx);
+    if(currentStroke&&strokeStart){ctx.strokeStyle=rejectFlash>0?"rgba(200,60,60,0.5)":"rgba(80,80,80,0.35)";ctx.lineWidth=2.5;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(strokeStart.x,strokeStart.y);ctx.lineTo(currentStroke.x,currentStroke.y);ctx.stroke();}
+    if(rejectFlash>0)rejectFlash--;if(successFlash>0){successFlash--;ctx.fillStyle=`rgba(92,110,91,${successFlash/18*0.18})`;ctx.beginPath();ctx.roundRect(boardX,boardY,boardW,boardH,6);ctx.fill();}
+    if(slices===0&&!strokeStart){const ax=ingrX+ingrW*0.5,ay=ingrY-38+Math.sin(Date.now()/380)*5;ctx.fillStyle="rgba(92,110,91,0.55)";ctx.font="bold 13px Inter,sans-serif";ctx.textAlign="center";ctx.fillText("drag ↓ across",ax,ay);}
+    if(!done)_raf=requestAnimationFrame(tick);
+  }
+  whenReady(ID,()=>{
+    const c=document.getElementById("c-"+ID);
+    function onStart(e){if(done)return;e.preventDefault();const p=ep(e,c);if(isOnIngr(p.x,p.y)||p.y<ingrY+ingrH*0.5){strokeStart={...p};currentStroke={...p};}}
+    function onMove(e){if(!strokeStart||done)return;e.preventDefault();currentStroke=ep(e,c);}
+    function onEnd(e){if(!strokeStart||done)return;e.preventDefault();const p=e.changedTouches?ep(e,c):currentStroke||ep(e,c);trySlice(strokeStart.x,strokeStart.y,p.x,p.y);strokeStart=null;currentStroke=null;}
+    c.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);
+    c.addEventListener("touchstart",onStart,{passive:false});c.addEventListener("touchmove",onMove,{passive:false});c.addEventListener("touchend",onEnd);
+    RB(ID,init);init();
+  });
+})();
+
+/* ─── WHISKING ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   WHISK C3 (unchanged)
+══════════════════════════════════════════════════════════ */
+(function(){
+  const ID="wc3";
+  addCard("gwhisk",{id:ID,icon:"⭕",H:240,title:"Whisk the Ingredients",sub:"Draw circles to whisk",notes:"Draw circles around the bowl. 9 full rotations."});
+  let g,off,handle,done,isDown,_raf;
+  let whiskOrbit=0,whiskHead=0,foamParts=[],totalAngle=0;
+  let bowlCX,bowlCY,bowlR;
+  function layout(){const{W,H}=g;bowlCX=W*0.5;bowlCY=H*0.52;bowlR=Math.min(W,H)*0.42;}
+  function init(){
+    g=IC(ID);layout();off=OS(g.W,g.H);handle={angle:0,last:null};
+    done=false;isDown=false;whiskOrbit=-Math.PI/2;whiskHead=0;foamParts=[];totalAngle=0;
+    resetCard(ID);off.ctx.clearRect(0,0,g.W,g.H);SP(ID,0,"0%");SS(ID,"Draw circles around the bowl center");
+    if(_raf)cancelAnimationFrame(_raf);tick();
+  }
+  function addFoam(){const fa=Math.random()*Math.PI*2;foamParts.push({x:bowlCX+Math.cos(fa)*bowlR*(0.68+Math.random()*0.22),y:bowlCY+Math.sin(fa)*bowlR*(0.68+Math.random()*0.22),r:5+Math.random()*8,life:1});}
+  function writeSwirl(da){const ox=bowlCX+Math.cos(whiskOrbit)*bowlR*0.32,oy=bowlCY+Math.sin(whiskOrbit)*bowlR*0.32;off.ctx.strokeStyle="rgba(220,210,180,0.18)";off.ctx.lineWidth=9+Math.random()*4;off.ctx.lineCap="round";off.ctx.beginPath();off.ctx.arc(ox,oy,bowlR*0.14,whiskHead,whiskHead+Math.PI*0.7,Math.sign(da)<0);off.ctx.stroke();}
+  function tick(){
+    const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
+    foamParts=foamParts.filter(f=>f.life>0);
+    drawWhistTopDown(ctx,bowlCX,bowlCY,bowlR,whiskOrbit,whiskHead,foamParts,off.c);
+    drawCircleArrow(ctx,bowlCX,bowlCY,bowlR*0.52,Math.max(0,1-totalAngle/(Math.PI*2*9))*0.55,true);
+    if(!done)_raf=requestAnimationFrame(tick);
+  }
+  function onStart(e){if(done)return;e.preventDefault();isDown=true;const p=ep(e,g.cvs);handle.last=Math.atan2(p.y-bowlCY,p.x-bowlCX);}
+  function onMove(e){
+    if(!isDown||done)return;e.preventDefault();
+    const p=ep(e,g.cvs),a=Math.atan2(p.y-bowlCY,p.x-bowlCX);
+    if(handle.last!==null){
+      let da=a-handle.last;if(da>Math.PI)da-=Math.PI*2;if(da<-Math.PI)da+=Math.PI*2;
+      handle.angle+=da;whiskOrbit+=da*0.95;whiskHead+=da*1.1;
+      writeSwirl(da);if(Math.random()<0.35)addFoam();
+      totalAngle+=Math.abs(da);
+      const totalNeeded=Math.PI*2*9;
+      const pct=Math.min(100,Math.round(totalAngle/totalNeeded*100));
+      SP(ID,pct,pct+"%");
+      if(totalAngle>=totalNeeded){done=true;SP(ID,100,"100%");}
+      else SS(ID,`${Math.round((totalNeeded-totalAngle)/(Math.PI*2)*10)/10} rotations left`);
+    }
+    handle.last=a;
+  }
+  function onEnd(){isDown=false;handle.last=null;}
+  whenReady(ID,()=>{
+    const c=document.getElementById("c-"+ID);
+    c.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);
+    c.addEventListener("touchstart",onStart,{passive:false});c.addEventListener("touchmove",onMove,{passive:false});c.addEventListener("touchend",onEnd);
+    RB(ID,init);init();
+  });
+})();
+
+/* ─── FOOD PROCESSOR ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   FOOD PROCESSOR — shared infrastructure
+   Food-shaped particles (not spheres): carrot chunks, leaves,
+   beans, nuts. Earthy palette. Curved crescent blades.
+   Tall narrow PULSE button. Two variants differ in details.
+══════════════════════════════════════════════════════════ */
+
+/* ── Food particle shapes ────────────────────────────────── */
+const FP_SHAPES=[
+  // 0: carrot chunk — orange rounded rectangle, slightly tapered
+  function(ctx,r,color){
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.roundRect(-r*0.55,-r*0.4,r*1.1,r*0.85,r*0.18);ctx.fill();
+    // fibres
+    ctx.strokeStyle="rgba(200,120,20,0.35)";ctx.lineWidth=0.7;
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-r*0.35+i*r*0.3,-r*0.38);ctx.lineTo(-r*0.38+i*r*0.32,r*0.42);ctx.stroke();}
+  },
+  // 1: leaf — green ellipse, pointed ends
+  function(ctx,r,color){
+    ctx.fillStyle=color;
+    ctx.save();ctx.rotate(Math.PI*0.12);
+    ctx.beginPath();ctx.ellipse(0,0,r*0.42,r*0.85,0,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    // vein
+    ctx.strokeStyle="rgba(30,80,10,0.35)";ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.moveTo(0,-r*0.8);ctx.lineTo(0,r*0.8);ctx.stroke();
+  },
+  // 2: bean — dark oval with crease
+  function(ctx,r,color){
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.ellipse(0,0,r*0.5,r*0.75,0.2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="rgba(40,25,10,0.4)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(-r*0.1,-r*0.6);ctx.quadraticCurveTo(-r*0.4,0,-r*0.1,r*0.6);ctx.stroke();
+  },
+  // 3: nut — beige irregular oval
+  function(ctx,r,color){
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(0,-r*0.8);ctx.bezierCurveTo(r*0.6,-r*0.7,r*0.65,r*0.3,r*0.1,r*0.8);
+    ctx.bezierCurveTo(-r*0.55,r*0.75,-r*0.65,r*0.2,-r*0.05,-r*0.8);ctx.closePath();ctx.fill();
+    ctx.strokeStyle="rgba(100,70,20,0.3)";ctx.lineWidth=0.8;ctx.stroke();
+  }
+];
+// Earthy palette: carrot orange, herb green, bean dark-brown, nut tan, dark-green leaf
+const FP_COLORS=["#C8641A","#3A7818","#4A2E10","#8B6030","#2A5C14"];
+const FP_COLOR_FOR_SHAPE=[0,2,3,4,1]; // shape idx → color idx
+
+/* ── Curved crescent blade ───────────────────────────────── */
+function drawCrescentBlade(ctx,cx,cy,R,angle,speed){
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+  const op=0.55+speed*0.45;
+  // Two crescent blades, 180° apart
+  for(let side=0;side<2;side++){
+    ctx.save();ctx.rotate(side*Math.PI);
+    // Crescent = large arc minus small offset arc, filled as a path
+    const outer=R*0.78, inner=R*0.56, sweep=Math.PI*0.72;
+    const startA=-sweep/2, endA=sweep/2;
+    // Metallic gradient along the blade
+    const bladeGrad=ctx.createLinearGradient(0,0,outer,0);
+    bladeGrad.addColorStop(0,`rgba(140,132,122,${op})`);
+    bladeGrad.addColorStop(0.4,`rgba(200,194,186,${op})`);
+    bladeGrad.addColorStop(0.75,`rgba(185,178,170,${op})`);
+    bladeGrad.addColorStop(1,`rgba(160,152,142,${op*0.7})`);
+    ctx.fillStyle=bladeGrad;
+    ctx.beginPath();
+    // Outer arc (leading edge)
+    ctx.arc(0,0,outer,startA-0.15,endA+0.08,false);
+    // Inner arc back (trailing edge — concave curve)
+    ctx.arc(R*0.12,R*0.06,inner,endA+0.12,startA-0.12,true);
+    ctx.closePath();
+    ctx.fill();
+    // Sharp leading edge highlight
+    ctx.strokeStyle=`rgba(230,224,218,${op*0.7})`;ctx.lineWidth=1.5;ctx.lineCap="round";
+    ctx.beginPath();ctx.arc(0,0,outer,startA-0.12,endA+0.05,false);ctx.stroke();
+    ctx.restore();
+  }
+  // Hub
+  const hg=ctx.createRadialGradient(0,0,0,0,0,R*0.10);
+  hg.addColorStop(0,`rgba(200,192,182,${op})`);hg.addColorStop(1,`rgba(150,142,132,${op})`);
+  ctx.fillStyle=hg;ctx.strokeStyle=`rgba(120,112,102,${op*0.6})`;ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(0,0,R*0.10,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+
+/* ── FP factory ──────────────────────────────────────────── */
+function makeFP(ID,title,PULSES,CYCLE_FRAMES,btnColor,notes){
+  addCard("gfp2",{id:ID,icon:"⚙️",H:270,title,sub:"Press PULSE to process",notes});
+
+  const N_PARTS=35;
+  let g,pulses,done,_raf,phase,pulseCooldown;
+  let particles=[],bladeAngle=0,bladeSpeed=0;
+  let bowlCX,bowlCY,bowlR,btnX,btnY,btnW,btnH;
+  let trailOff;
+
+  function initParticles(){
+    particles=[];
+    for(let i=0;i<N_PARTS;i++){
+      const shapeIdx=i%4;
+      const colorIdx=FP_COLOR_FOR_SHAPE[shapeIdx];
+      const a=Math.random()*Math.PI*2,r=Math.random()*bowlR*0.68;
+      const baseR=(5+Math.random()*7)*1.5;
+      particles.push({
+        x:bowlCX+Math.cos(a)*r, y:bowlCY+Math.sin(a)*r,
+        r:baseR, baseR, vx:0, vy:0,
+        shapeIdx, color:FP_COLORS[colorIdx],
+        rot:Math.random()*Math.PI*2, rotV:0
+      });
+    }
+  }
+
+  function layout(){
+    const{W,H}=g;
+    bowlCX=W*0.56;bowlCY=H*0.46;bowlR=Math.min(W,H)*0.36;
+    // Tall narrow button — left side
+    btnW=W*0.14;btnH=H*0.44;
+    btnX=W*0.06;btnY=(H-btnH)/2;
+  }
+
+  function init(){
+    g=IC(ID);layout();trailOff=OS(g.W,g.H);
+    pulses=0;done=false;phase="idle";pulseCooldown=0;bladeAngle=0;bladeSpeed=0;
+    resetCard(ID);SP(ID,0,"0%");SS(ID,"Press PULSE to process");
+    initParticles();if(_raf)cancelAnimationFrame(_raf);tick();
+  }
+
+  function doPulse(){
+    if(phase!=="idle"||done)return;
+    phase="spinning";pulseCooldown=CYCLE_FRAMES;bladeSpeed=0;
+    trailOff.ctx.globalAlpha=0.12;trailOff.ctx.fillStyle="#F2EDE0";trailOff.ctx.fillRect(0,0,g.W,g.H);trailOff.ctx.globalAlpha=1;
+  }
+
+  function tick(){
+    const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
+
+    if(phase==="spinning"){
+      pulseCooldown--;
+      const t=(CYCLE_FRAMES-pulseCooldown)/CYCLE_FRAMES;
+      if(t<0.18)bladeSpeed=Math.min(0.28,t/0.18*0.28);
+      else if(t<0.65)bladeSpeed=0.28;
+      else bladeSpeed=Math.max(0,(1-t)/0.35*0.28);
+      bladeAngle+=bladeSpeed;
+
+      particles.forEach(p=>{
+        const dx=p.x-bowlCX,dy=p.y-bowlCY,d=Math.sqrt(dx*dx+dy*dy)||1;
+        p.vx+=(-dy/d)*bladeSpeed*2.4-dx*0.009;
+        p.vy+=(dx/d)*bladeSpeed*2.4-dy*0.009;
+        p.x+=p.vx;p.y+=p.vy;p.vx*=0.90;p.vy*=0.90;
+        p.rotV+=bladeSpeed*0.8;p.rot+=p.rotV;p.rotV*=0.85;
+        const dx2=p.x-bowlCX,dy2=p.y-bowlCY,d2=Math.sqrt(dx2*dx2+dy2*dy2);
+        if(d2>bowlR*0.85){const sc=bowlR*0.83/d2;p.x=bowlCX+dx2*sc;p.y=bowlCY+dy2*sc;p.vx*=-0.4;p.vy*=-0.4;}
+      });
+
+      trailOff.ctx.globalAlpha=0.05;trailOff.ctx.fillStyle="#EAE4D0";trailOff.ctx.fillRect(0,0,W,H);trailOff.ctx.globalAlpha=1;
+      particles.forEach(p=>{
+        trailOff.ctx.save();trailOff.ctx.translate(p.x,p.y);trailOff.ctx.rotate(p.rot);
+        trailOff.ctx.globalAlpha=0.22;
+        FP_SHAPES[p.shapeIdx](trailOff.ctx,p.r*0.55,p.color);
+        trailOff.ctx.globalAlpha=1;trailOff.ctx.restore();
+      });
+
+      if(pulseCooldown<=0){
+        phase="idle";pulses++;
+        const shrink=Math.pow(0.78,pulses);
+        particles.forEach(p=>{p.r=Math.max(1.2,p.baseR*shrink);p.vx=0;p.vy=0;p.rotV=0;});
+        const pct=Math.round(pulses/PULSES*100);SP(ID,pct,pct+"%");
+        if(pulses>=PULSES){done=true;SP(ID,100,"100%");}
+        else SS(ID,`${PULSES-pulses} more pulse${PULSES-pulses!==1?"s":""}`);
+      }
+    }
+
+    // Bowl
+    ctx.fillStyle="#B8B0C8";ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR+5,0,Math.PI*2);ctx.fill();
+    const bg=ctx.createRadialGradient(bowlCX,bowlCY,0,bowlCX,bowlCY,bowlR);
+    bg.addColorStop(0,"#F8F2E4");bg.addColorStop(0.8,"#EAE0CE");bg.addColorStop(1,"#D8CCBA");
+    ctx.fillStyle=bg;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,0,Math.PI*2);ctx.fill();
+
+    ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.93,0,Math.PI*2);ctx.clip();ctx.drawImage(trailOff.c,0,0,W,H);ctx.restore();
+
+    ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.88,0,Math.PI*2);ctx.clip();
+    particles.forEach(p=>{
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      FP_SHAPES[p.shapeIdx](ctx,p.r,p.color);
+      ctx.restore();
+    });
+    ctx.restore();
+
+    drawCrescentBlade(ctx,bowlCX,bowlCY,bowlR*0.82,bladeAngle,bladeSpeed/0.28);
+
+    ctx.strokeStyle="rgba(255,255,255,0.4)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,Math.PI*1.1,Math.PI*1.7);ctx.stroke();
+    ctx.strokeStyle="#9890A8";ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR+5,0,Math.PI*2);ctx.stroke();
+
+    // Tall narrow PULSE button
+    const btnActive=phase==="idle"&&!done;
+    ctx.fillStyle="rgba(0,0,0,0.15)";ctx.beginPath();ctx.roundRect(btnX+2,btnY+3,btnW,btnH,10);ctx.fill();
+    const [bc,bs]=btnColor;
+    ctx.fillStyle=btnActive?bc:`rgba(${parseInt(bc.slice(1,3),16)},${parseInt(bc.slice(3,5),16)},${parseInt(bc.slice(5,7),16)},0.35)`;
+    ctx.strokeStyle=btnActive?bs:"transparent";ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.roundRect(btnX,btnY,btnW,btnH,10);ctx.fill();ctx.stroke();
+    if(btnActive){ctx.shadowColor=bs;ctx.shadowBlur=16;ctx.beginPath();ctx.roundRect(btnX,btnY,btnW,btnH,10);ctx.stroke();ctx.shadowBlur=0;}
+    // Text: 80% of button height
+    const fontSize=btnH*0.80/5; // 5 chars in PULSE, each ~0.16 of height
+    ctx.fillStyle=btnActive?"#FFFFFF":"rgba(200,220,200,0.5)";
+    ctx.font=`bold ${fontSize}px Inter,sans-serif`;ctx.textAlign="center";
+    // Write "PULSE" vertically
+    const letters="PULSE";const letterH=btnH*0.80/letters.length;
+    letters.split("").forEach((ch,i)=>{
+      ctx.fillText(ch,btnX+btnW/2,btnY+btnH*0.10+letterH*(i+0.85));
+    });
+    // Pulse count
+    ctx.font=`${btnH*0.065}px Inter,sans-serif`;
+    ctx.fillStyle=btnActive?"rgba(220,255,220,0.9)":"rgba(120,160,120,0.6)";
+    ctx.fillText(`${pulses}/${PULSES}`,btnX+btnW/2,btnY+btnH*0.93);
+    // Activity ring when spinning
+    if(phase==="spinning"){
+      const ang=Date.now()/100;
+      ctx.strokeStyle="rgba(150,255,150,0.7)";ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(btnX+btnW/2,btnY+btnH*0.5,btnW*0.38,ang,ang+Math.PI*1.2);ctx.stroke();
+    }
+
+    if(!done)_raf=requestAnimationFrame(tick);
+  }
+
+  whenReady(ID,()=>{
+    const c=document.getElementById("c-"+ID);
+    function onClick(e){
+      e.preventDefault();if(done||phase!=="idle")return;
+      const p=ep(e,c);if(p.x>=btnX&&p.x<=btnX+btnW&&p.y>=btnY&&p.y<=btnY+btnH)doPulse();
+    }
+    c.addEventListener("mousedown",onClick);c.addEventListener("touchstart",onClick,{passive:false});
+    RB(ID,init);init();
+  });
+}
+
+// FP Variant 1: 5 pulses, 130-frame animation, green button
+// FP Variant 2: 5 pulses, 90-frame animation (crisper), teal button, faster shrink
+makeFP("fp2","Process the Ingredients",5,90,
+  ["#1A5A6A","#2AAAC4"],
+  "5 pulses. 90-frame animation per pulse — snappier rhythm. Teal button. Same shapes. Slightly more aggressive shrink per pulse.");
+
+/* ─── ROLL OUT THE DOUGH ────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   ROLL OUT THE DOUGH — shared dough renderer
+   Key fix: doughHCurrent interpolates smoothly to doughHTarget.
+   The dimple animation drives height down during the pass;
+   it arrives at the new target naturally.
+   Seamless base: a solid-color flat pancake layer + the arch
+   shape drawn in the same color, no separate edges.
+══════════════════════════════════════════════════════════ */
+
+/* ── Dough shape renderer ────────────────────────────────── */
+// DOUGH_COLOR: single solid color for seamless look
+const DOUGH_COLOR="#EDE8D8";
+const DOUGH_BASE_H=0.055; // base pancake as fraction of canvas H — never compressed
+
+function drawDoughShape(ctx,leftX,rightX,floorY,archH,baseH,dimples){
+  // Draw as ONE unified solid shape: base pancake + arch on top, no internal edges.
+  // The arch profile:
+  const cx=(leftX+rightX)/2, halfW=(rightX-leftX)/2;
+  const N=60;
+  const topPts=[];
+  for(let i=0;i<=N;i++){
+    const t=i/N,x=leftX+t*(rightX-leftX),nx=(x-cx)/halfW;
+    let a=Math.pow(Math.max(0,Math.cos(nx*Math.PI*0.5)),1.5);
+    // Apply dimples
+    dimples.forEach(d=>{const dx=(x-d.x)/d.w;a-=d.depth*Math.exp(-dx*dx*2.5);});
+    a=Math.max(0,a);
+    topPts.push({x,y:floorY-baseH-archH*a});
+  }
+
+  // Base extends slightly wider than arch on each side, with rounded bottom corners
+  const baseMargin=(rightX-leftX)*0.06; // 6% wider each side
+  const baseLeft=leftX-baseMargin, baseRight=rightX+baseMargin;
+  const cornerR=Math.min(12,(rightX-leftX)*0.04); // rounded corner radius
+
+  ctx.beginPath();
+  // Bottom-left rounded corner
+  ctx.moveTo(baseLeft+cornerR,floorY);
+  ctx.lineTo(baseRight-cornerR,floorY);
+  // Bottom-right rounded corner
+  ctx.quadraticCurveTo(baseRight,floorY,baseRight,floorY-cornerR);
+  // Right side up to arch start
+  ctx.lineTo(topPts[N].x,topPts[N].y);
+  // Arch top (smooth)
+  for(let i=N-1;i>=0;i--){
+    const mx=(topPts[i].x+topPts[i+1].x)/2,my=(topPts[i].y+topPts[i+1].y)/2;
+    ctx.quadraticCurveTo(topPts[i+1].x,topPts[i+1].y,mx,my);
+  }
+  // Left side down
+  ctx.lineTo(baseLeft,floorY-cornerR);
+  // Bottom-left rounded corner
+  ctx.quadraticCurveTo(baseLeft,floorY,baseLeft+cornerR,floorY);
+  ctx.closePath();
+
+  ctx.fillStyle=DOUGH_COLOR;ctx.fill();
+
+  // Single soft shading pass — subtle, stays unified
+  const sg=ctx.createLinearGradient(cx,floorY-baseH-archH,cx,floorY);
+  sg.addColorStop(0,"rgba(255,255,255,0.22)");
+  sg.addColorStop(0.35,"rgba(255,255,255,0.08)");
+  sg.addColorStop(1,"rgba(0,0,0,0.06)");
+  ctx.fillStyle=sg;
+  // Re-draw same path for gradient overlay
+  ctx.beginPath();
+  ctx.moveTo(baseLeft+cornerR,floorY);ctx.lineTo(baseRight-cornerR,floorY);
+  ctx.quadraticCurveTo(baseRight,floorY,baseRight,floorY-cornerR);
+  ctx.lineTo(topPts[N].x,topPts[N].y);
+  for(let i=N-1;i>=0;i--){const mx=(topPts[i].x+topPts[i+1].x)/2,my=(topPts[i].y+topPts[i+1].y)/2;ctx.quadraticCurveTo(topPts[i+1].x,topPts[i+1].y,mx,my);}
+  ctx.lineTo(baseLeft,floorY-cornerR);ctx.quadraticCurveTo(baseLeft,floorY,baseLeft+cornerR,floorY);
+  ctx.closePath();ctx.fill();
+}
+
+/* ── Rolling pin variants ────────────────────────────────── */
+
+// Pin A: End-grain wood texture — concentric rings + radial rays with natural offsets.
+// The angle offset rotates the entire pattern, making rotation clearly visible.
+function drawPinWoodGrain(ctx, pinX, pinY, pinR, angle){
+  ctx.save();
+  ctx.translate(pinX, pinY);
+
+  // Shadow
+  ctx.fillStyle="rgba(0,0,0,0.10)";
+  ctx.beginPath();ctx.ellipse(3,pinR*0.28,pinR,pinR*0.28,0,0,Math.PI*2);ctx.fill();
+
+  // Base fill — warm honey
+  const bg=ctx.createRadialGradient(-pinR*0.18,-pinR*0.2,0,0,0,pinR);
+  bg.addColorStop(0,"#F2DC9A");bg.addColorStop(0.45,"#D4A050");bg.addColorStop(0.82,"#B07828");bg.addColorStop(1,"#8A5818");
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,pinR,0,Math.PI*2);ctx.fill();
+
+  // Clip to circle for all grain elements
+  ctx.save();ctx.beginPath();ctx.arc(0,0,pinR*0.98,0,Math.PI*2);ctx.clip();
+
+  // Concentric annual rings — slightly off-center for natural look
+  // The rings themselves don't rotate, but their thickness variation
+  // creates a fixed pattern. The radial rays rotate.
+  const rings=[0.22,0.38,0.52,0.64,0.74,0.83,0.91];
+  rings.forEach((r,i)=>{
+    // Offset center slightly for each ring — natural growth irregularity
+    const ox=Math.sin(i*1.4)*pinR*0.06, oy=Math.cos(i*2.1)*pinR*0.05;
+    ctx.strokeStyle=`rgba(90,45,8,${0.18+i*0.04})`;
+    ctx.lineWidth=1.2+i*0.3;
+    ctx.beginPath();ctx.arc(ox,oy,r*pinR,0,Math.PI*2);ctx.stroke();
+  });
+
+  // Radial medullary rays — rotate with angle, uneven spacing for natural look
+  ctx.rotate(angle);
+  const rayAngles=[0, 0.55, 1.0, 1.62, 2.3, 2.85, 3.5, 4.2, 4.9, 5.6];
+  rayAngles.forEach(ra=>{
+    ctx.strokeStyle="rgba(80,38,6,0.22)";ctx.lineWidth=0.9;
+    ctx.beginPath();ctx.moveTo(Math.cos(ra)*pinR*0.06,Math.sin(ra)*pinR*0.06);
+    ctx.lineTo(Math.cos(ra)*pinR*0.94,Math.sin(ra)*pinR*0.94);ctx.stroke();
+  });
+  // A few wider, darker rays for contrast
+  [0.3, 2.1, 4.0].forEach(ra=>{
+    ctx.strokeStyle="rgba(70,30,4,0.38)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(Math.cos(ra)*pinR*0.08,Math.sin(ra)*pinR*0.08);
+    ctx.lineTo(Math.cos(ra)*pinR*0.90,Math.sin(ra)*pinR*0.90);ctx.stroke();
+  });
+  ctx.restore(); // unclip
+
+  // Outer rim
+  ctx.strokeStyle="rgba(80,40,8,0.55)";ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(0,0,pinR,0,Math.PI*2);ctx.stroke();
+  // Inner pith dot
+  ctx.fillStyle="rgba(60,28,4,0.5)";ctx.beginPath();ctx.arc(0,0,pinR*0.06,0,Math.PI*2);ctx.fill();
+
+  ctx.restore();
+}
+
+// Pin B: Spoke/dial markings — bold wedge segments like a clock face.
+// Clearly shows rotation without needing to interpret wood texture.
+function drawPinSpoke(ctx, pinX, pinY, pinR, angle){
+  ctx.save();
+  ctx.translate(pinX, pinY);
+
+  // Shadow
+  ctx.fillStyle="rgba(0,0,0,0.10)";
+  ctx.beginPath();ctx.ellipse(3,pinR*0.28,pinR,pinR*0.28,0,0,Math.PI*2);ctx.fill();
+
+  // Base fill
+  const bg=ctx.createRadialGradient(-pinR*0.2,-pinR*0.22,0,0,0,pinR);
+  bg.addColorStop(0,"#EED898");bg.addColorStop(0.5,"#C89840");bg.addColorStop(1,"#906018");
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,pinR,0,Math.PI*2);ctx.fill();
+
+  // Clip for spokes
+  ctx.save();ctx.beginPath();ctx.arc(0,0,pinR*0.97,0,Math.PI*2);ctx.clip();
+  ctx.rotate(angle);
+
+  // 6 alternating light/dark wedge segments — like slices of a pie
+  const N=6;
+  for(let i=0;i<N;i++){
+    const a0=(i/N)*Math.PI*2, a1=((i+0.48)/N)*Math.PI*2;
+    ctx.fillStyle=i%2===0?"rgba(80,38,6,0.32)":"rgba(255,235,180,0.18)";
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,pinR*0.93,a0,a1);ctx.closePath();ctx.fill();
+  }
+
+  // Bold spokes
+  for(let i=0;i<N;i++){
+    const a=(i/N)*Math.PI*2;
+    ctx.strokeStyle=`rgba(70,30,4,${i%2===0?0.55:0.22})`;
+    ctx.lineWidth=i%2===0?2.5:1;
+    ctx.beginPath();ctx.moveTo(Math.cos(a)*pinR*0.12,Math.sin(a)*pinR*0.12);
+    ctx.lineTo(Math.cos(a)*pinR*0.90,Math.sin(a)*pinR*0.90);ctx.stroke();
+  }
+
+  // Concentric accent rings
+  [0.40,0.68,0.88].forEach(r=>{
+    ctx.strokeStyle="rgba(90,42,8,0.25)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(0,0,r*pinR,0,Math.PI*2);ctx.stroke();
+  });
+  ctx.restore(); // unclip
+
+  // Outer rim
+  ctx.strokeStyle="rgba(75,36,6,0.60)";ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(0,0,pinR,0,Math.PI*2);ctx.stroke();
+  // Center hub
+  const hg=ctx.createRadialGradient(0,0,0,0,0,pinR*0.14);
+  hg.addColorStop(0,"#F0D890");hg.addColorStop(1,"#906018");
+  ctx.fillStyle=hg;ctx.beginPath();ctx.arc(0,0,pinR*0.14,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(70,30,4,0.5)";ctx.lineWidth=1.5;ctx.stroke();
+
+  ctx.restore();
+}
+
+// Pin style B: 3/4 cylinder (more realistic depth)
+function drawPinCylinder(ctx,pinX,pinY,halfLen,pinR){
+  // Shadow beneath
+  ctx.fillStyle="rgba(0,0,0,0.08)";ctx.beginPath();ctx.ellipse(pinX+2,pinY+pinR+5,halfLen,pinR*0.25,0,0,Math.PI*2);ctx.fill();
+
+  // Left end cap
+  const capLX=pinX-halfLen;
+  const lcg=ctx.createRadialGradient(capLX-pinR*0.3,pinY-pinR*0.3,0,capLX,pinY,pinR);
+  lcg.addColorStop(0,"#F0D8A8");lcg.addColorStop(0.6,"#C89840");lcg.addColorStop(1,"#906820");
+  ctx.fillStyle=lcg;ctx.beginPath();ctx.ellipse(capLX,pinY,pinR*0.28,pinR,0,0,Math.PI*2);ctx.fill();
+
+  // Cylinder body (top face)
+  const bodyGrad=ctx.createLinearGradient(pinX,pinY-pinR,pinX,pinY+pinR);
+  bodyGrad.addColorStop(0,"#F0D8A8");bodyGrad.addColorStop(0.3,"#D4A860");bodyGrad.addColorStop(0.6,"#C09040");bodyGrad.addColorStop(1,"#906820");
+  ctx.fillStyle=bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(pinX-halfLen,pinY,pinR*0.28,pinR,0,-Math.PI/2,Math.PI/2);
+  ctx.ellipse(pinX+halfLen,pinY,pinR*0.28,pinR,0,Math.PI/2,-Math.PI/2,false);
+  ctx.closePath();ctx.fill();
+
+  // Right end cap
+  const rcg=ctx.createRadialGradient(pinX+halfLen-pinR*0.3,pinY-pinR*0.3,0,pinX+halfLen,pinY,pinR);
+  rcg.addColorStop(0,"#E8D098");rcg.addColorStop(0.6,"#B88838");rcg.addColorStop(1,"#806018");
+  ctx.fillStyle=rcg;ctx.beginPath();ctx.ellipse(pinX+halfLen,pinY,pinR*0.28,pinR,0,0,Math.PI*2);ctx.fill();
+
+  // Surface highlight
+  ctx.strokeStyle="rgba(255,245,210,0.5)";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pinX-halfLen+2,pinY-pinR*0.55);ctx.lineTo(pinX+halfLen-2,pinY-pinR*0.55);ctx.stroke();
+
+  // Handles
+  const hL=halfLen*0.22;
+  [pinX-halfLen-hL,pinX+halfLen].forEach(hx=>{
+    ctx.fillStyle="#6A3E18";ctx.strokeStyle="#4A2A08";ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(hx,pinY-pinR*0.5,hL,pinR*1.0,4);ctx.fill();ctx.stroke();
+    // Handle end ring
+    ctx.strokeStyle="#3A1A04";ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(hx+(hx<pinX?0:hL),pinY,3,pinR*0.5,0,0,Math.PI*2);ctx.stroke();
+  });
+}
+
+/* ── Roll variant factory ────────────────────────────────── */
+function makeRoll(ID,title,pinStyle,notes){
+  addCard("gdough",{id:ID,icon:"🎂",H:250,title,sub:"Click to send the rolling pin across",notes});
+  const PASSES=8;
+  const INIT_H_FRAC=0.50,FINAL_H_FRAC=0.09;
+  const BASE_H_FRAC=DOUGH_BASE_H;
+
+  let g,passes,done,_raf;
+  let pinAnim=null;
+  let pinAngle=0; // accumulated rotation angle for texture
+  // Smooth height interpolation
+  let doughHTarget,doughHCurrent;
+  let doughLeft,doughRight,floorY;
+  let activeDimple=[],dir=1;
+
+  function getDoughGeom(passCount){
+    const{W,H}=g;
+    const prog=passCount/PASSES;
+    const h=(INIT_H_FRAC+(FINAL_H_FRAC-INIT_H_FRAC)*prog)*H;
+    const initHW=W*0.22,finalHW=W*0.44;
+    const hw=initHW+(finalHW-initHW)*prog;
+    return{h,leftX:W/2-hw,rightX:W/2+hw};
+  }
+
+  function init(){
+    g=IC(ID);passes=0;done=false;pinAnim=null;activeDimple=[];dir=1;pinAngle=0;
+    floorY=g.H*0.80;
+    const geom=getDoughGeom(0);
+    doughHTarget=geom.h;doughHCurrent=geom.h;
+    doughLeft=geom.leftX;doughRight=geom.rightX;
+    resetCard(ID);SP(ID,0,"0%");SS(ID,"Click to roll the pin across");
+    if(_raf)cancelAnimationFrame(_raf);tick();
+  }
+
+  function startRoll(){if(done||pinAnim)return;pinAnim={t:0};activeDimple=[];}
+
+  function tick(){
+    const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
+    drawBoard(ctx,W*0.04,floorY,W*0.92,H*0.20);
+
+    const baseH=BASE_H_FRAC*H;
+
+    // ── Animation update ──
+    if(pinAnim){
+      pinAnim.t+=0.0055; // half speed
+      if(pinAnim.t>=1){
+        // Pass complete: snap target, finish interpolation
+        passes++;
+        const geom=getDoughGeom(passes);
+        doughHTarget=geom.h;
+        // Width also updates immediately from passes count
+        doughLeft=geom.leftX;doughRight=geom.rightX;
+        pinAnim=null;activeDimple=[];dir=-dir;
+        const pct=Math.round(passes/PASSES*100);SP(ID,pct,pct+"%");
+        if(passes>=PASSES){done=true;SP(ID,100,"100%");}
+        else SS(ID,`${PASSES-passes} more pass${PASSES-passes!==1?"es":""}`);
+      } else {
+        const pinW=W*0.30;
+        const pinR=pinW*0.16; // 2× bigger
+        // Cubic ease-in/out (smoothstep): slow start, fast middle, slow end
+        const ease=pinAnim.t*pinAnim.t*(3-2*pinAnim.t);
+        // Pin starts just outside the dough edge, not far off-canvas
+        const doughWidth=doughRight-doughLeft;
+        const INSET=doughWidth*0.20; // 20% inset from each edge = 60% total travel
+        const fromX=dir>0?doughLeft+INSET:doughRight-INSET;
+        const toX=dir>0?doughRight-INSET:doughLeft+INSET;
+        const pinX=fromX+ease*(toX-fromX);
+
+        // Dimple depth: bell curve peaks at mid-pass, also drives height reduction
+        const dimpleDepth=Math.sin(pinAnim.t*Math.PI)*0.28;
+        if(pinX>doughLeft-pinW&&pinX<doughRight+pinW){
+          activeDimple=[{x:pinX,w:pinW*0.5,depth:dimpleDepth}];
+        } else {
+          activeDimple=[];
+        }
+        // doughHCurrent tracks toward target but also pushed down by dimple
+        const geomNext=getDoughGeom(passes+1);
+        const compressionFrac=Math.sin(pinAnim.t*Math.PI); // 0→1→0
+        const interpH=doughHCurrent+(geomNext.h-doughHCurrent)*compressionFrac*0.55;
+        doughHCurrent+=(interpH-doughHCurrent)*0.08;
+        // Width gradually expands as pin presses
+        const curGeom=getDoughGeom(passes);
+        doughLeft=curGeom.leftX+(geomNext.leftX-curGeom.leftX)*compressionFrac*0.7;
+        doughRight=curGeom.rightX+(geomNext.rightX-curGeom.rightX)*compressionFrac*0.7;
+
+        // Rotation: ~0.9 turns per pass (60% of 1.5, matching shorter 60% travel distance).
+        // One pass ≈ 182 frames. 0.9 rotations = 0.9*2π total → π*1.8/182 per frame.
+        pinAngle+=dir*(Math.PI*1.8/182);
+
+        // Draw pin
+        if(pinStyle==="grain"){
+          drawPinWoodGrain(ctx,pinX,floorY-doughHCurrent-baseH-pinR*0.5,pinR*1.2,pinAngle);
+        } else {
+          drawPinSpoke(ctx,pinX,floorY-doughHCurrent-baseH-pinR*0.5,pinR*1.2,pinAngle);
+        }
+      }
+    }
+
+    // Smooth settle when no animation
+    if(!pinAnim){
+      doughHCurrent+=(doughHTarget-doughHCurrent)*0.12;
+      const targ=getDoughGeom(passes);
+      doughLeft+=(targ.leftX-doughLeft)*0.12;
+      doughRight+=(targ.rightX-doughRight)*0.12;
+    }
+
+    drawDoughShape(ctx,doughLeft,doughRight,floorY,doughHCurrent,baseH,activeDimple);
+
+    // Hint
+    if(!pinAnim&&!done&&passes===0){
+      ctx.fillStyle="rgba(92,110,91,0.6)";ctx.font="bold 13px Inter,sans-serif";ctx.textAlign="center";
+      const ay=floorY-doughHCurrent-baseH-50+Math.sin(Date.now()/400)*5;
+      ctx.fillText("click to roll →",W/2,ay);
+    }
+    if(!done)_raf=requestAnimationFrame(tick);
+  }
+
+  whenReady(ID,()=>{
+    const c=document.getElementById("c-"+ID);
+    c.addEventListener("mousedown",e=>{e.preventDefault();startRoll();});
+    c.addEventListener("touchstart",e=>{e.preventDefault();startRoll();},{passive:false});
+    RB(ID,init);init();
+  });
+}
+
+makeRoll("rda","Roll Out the Dough","grain",
+  "Pin shows end-grain wood texture: concentric rings (fixed) + radial medullary rays (rotate). Natural irregularity makes rotation clearly visible. Clockwise going right, counter-clockwise going left.");
+
 </script>
 </body>
 </html>
