@@ -40,6 +40,8 @@
     --dairy-bd:    #9E7FB8;
     --tool-bg:     #E8E8E8;       /* neutral grey */
     --tool-bd:     #888888;
+    --shaper-bg:   #EDF0F5;       /* cool slate */
+    --shaper-bd:   #7A88A8;
     --radius:      8px;
     --radius-lg:   14px;
     --shadow:      0 1px 4px rgba(0,0,0,0.08);
@@ -344,6 +346,7 @@
   .req-item.satisfied.grain { background: var(--grain-bg); border-color: var(--grain-bd); }
   .req-item.satisfied.dairy { background: var(--dairy-bg); border-color: var(--dairy-bd); }
   .req-item.satisfied.tool { background: var(--tool-bg); border-color: var(--tool-bd); }
+  .req-item.satisfied.shaper { background: var(--shaper-bg); border-color: var(--shaper-bd); }
 
   .task-drop-zone {
     min-height: 72px;
@@ -470,12 +473,14 @@
   .tile.grain   { background: var(--grain-bg);   border-color: var(--grain-bd); }
   .tile.dairy   { background: var(--dairy-bg);   border-color: var(--dairy-bd); }
   .tile.tool    { background: var(--tool-bg);    border-color: var(--tool-bd); }
+  .tile.shaper  { background: var(--shaper-bg);  border-color: var(--shaper-bd); }
 
   .tile.spice   .type-badge { background: var(--spice-bd);   color: #fff; }
   .tile.protein .type-badge { background: var(--protein-bd); color: #fff; }
   .tile.grain   .type-badge { background: var(--grain-bd);   color: #fff; }
   .tile.dairy   .type-badge { background: var(--dairy-bd);   color: #fff; }
   .tile.tool    .type-badge { background: var(--tool-bd);    color: #fff; }
+  .tile.shaper  .type-badge { background: var(--shaper-bd);  color: #fff; }
 
   /* Teammates panel */
   .teammates-panel {
@@ -721,12 +726,12 @@
   #activity-modal-overlay.active { display: flex; }
   .modal {
     background: var(--surface); border-radius: var(--radius-lg);
-    width: min(480px, calc(100vw - 32px)); padding: 28px;
+    width: min(560px, calc(100vw - 24px)); padding: 24px 24px 20px;
     position: relative; box-shadow: 0 24px 60px rgba(0,0,0,0.25);
-    display: flex; flex-direction: column; gap: 16px;
+    display: flex; flex-direction: column; gap: 14px;
   }
   .modal-close {
-    position: absolute; top: 14px; right: 14px;
+    position: absolute; top: 12px; right: 12px;
     width: 28px; height: 28px; border-radius: 50%;
     border: none; background: var(--bg); color: var(--text-2);
     font-size: 16px; cursor: pointer; display: flex;
@@ -737,46 +742,43 @@
   .modal-header { display: flex; align-items: center; gap: 14px; }
   .modal-tool-icon {
     font-size: 40px; line-height: 1; display: block;
-    width: 56px; text-align: center;
+    width: 52px; text-align: center; flex-shrink: 0;
   }
-  .modal-tool-icon.slice-anim { animation: sliceAnim 0.22s ease; }
-  .modal-tool-icon.spin-anim  { animation: spinAnim  0.4s ease; }
-  .modal-title { font-size: 20px; font-weight: 700; line-height: 1.2; }
-  .modal-task  { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  .modal-title { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .modal-task  { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 
-  #gesture-canvas {
-    display: block; width: 100%; height: 200px;
-    border-radius: var(--radius);
-    border: 2px solid var(--border);
-    background: var(--bg);
-    cursor: crosshair;
+  /* Game canvas — height set by JS per activity */
+  #activity-gesture-canvas {
+    display: block; width: 100%;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: #FAFAF8;
     touch-action: none;
-    transition: border-color 0.15s;
+    cursor: crosshair;
   }
-  #gesture-canvas.active-drag { border-color: var(--accent); }
 
-  .below-canvas-text {
+  .activity-status {
     font-size: 12px; color: var(--text-2); text-align: center;
+    min-height: 16px;
   }
-  .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
-  .progress-label {
-    display: flex; justify-content: space-between;
-    font-size: 12px; color: var(--text-2); font-weight: 500;
-  }
+  .progress-wrap { display: flex; align-items: center; gap: 8px; }
   .progress-track {
-    height: 10px; background: var(--bg);
+    flex: 1; height: 8px; background: var(--bg);
     border-radius: 99px; overflow: hidden; border: 1px solid var(--border);
   }
   .progress-fill {
     height: 100%; border-radius: 99px; background: var(--accent);
-    width: 0%; transition: width 0.25s cubic-bezier(0.34,1.4,0.64,1);
+    width: 0%; transition: width 0.12s ease;
   }
-  .progress-fill.complete { background: #4a9e4a; }
+  .progress-fill.done { background: #4a9e4a; }
+  .progress-pct {
+    font-size: 11px; color: var(--text-2); min-width: 34px; text-align: right;
+  }
   .complete-banner {
     display: none; align-items: center; justify-content: center;
-    gap: 10px; padding: 14px; background: #EAF2EA;
+    gap: 10px; padding: 12px; background: #EAF2EA;
     border-radius: var(--radius); color: var(--accent);
-    font-weight: 600; font-size: 15px;
+    font-weight: 600; font-size: 14px;
   }
   .complete-banner.show { display: flex; }
   .modal-actions { display: flex; gap: 10px; }
@@ -859,7 +861,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260621.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -947,42 +949,18 @@
     <div class="modal-header">
       <span class="modal-tool-icon" id="activity-tool-icon">🔪</span>
       <div>
-        <div class="modal-title" id="activity-modal-title">Slice</div>
+        <div class="modal-title" id="activity-modal-title">Slice the Ingredients</div>
         <div class="modal-task"  id="activity-modal-task">Chef's Knife</div>
+        <div class="modal-step"  id="activity-modal-step" style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3); margin-top:3px;"></div>
       </div>
     </div>
-    <canvas id="activity-gesture-canvas" width="424" height="200"></canvas>
-    <!-- Pulse UI (food processor only) -->
-    <div id="activity-pulse-area" style="display:none; flex-direction:column; align-items:center; gap:16px; padding:8px 0;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        <svg id="activity-blade-icon" width="64" height="64" viewBox="0 0 64 64"
-             style="animation: spinBlade 0.15s linear infinite; animation-play-state:paused;">
-          <circle cx="32" cy="32" r="4" fill="#5C6E5B" opacity="0.8"/>
-          <path d="M32 28 Q40 20 52 18 Q44 28 36 32 Z" fill="#5C6E5B" opacity="0.7"/>
-          <path d="M36 32 Q44 40 46 52 Q36 44 32 36 Z" fill="#5C6E5B" opacity="0.7"/>
-          <path d="M32 36 Q24 44 12 46 Q20 36 28 32 Z" fill="#5C6E5B" opacity="0.7"/>
-          <path d="M28 32 Q20 24 18 12 Q28 20 32 28 Z" fill="#5C6E5B" opacity="0.7"/>
-        </svg>
-        <button id="activity-pulse-btn" style="padding:14px 32px; font-size:17px; font-weight:700;
-          font-family:var(--font); border-radius:var(--radius); border:2px solid var(--accent);
-          background:var(--accent-lt); color:var(--accent); cursor:pointer;
-          transition:opacity 0.2s, transform 0.1s; letter-spacing:0.05em;">
-          PULSE
-        </button>
-      </div>
-      <p style="font-size:12px; color:var(--text-2); text-align:center;">
-        Press Pulse — wait for the blade to stop — repeat
-      </p>
-    </div>
-    <p class="below-canvas-text">Each stroke counts — fill the progress bar to finish</p>
+    <canvas id="activity-gesture-canvas"></canvas>
+    <div class="activity-status" id="activity-status">Ready</div>
     <div class="progress-wrap">
-      <div class="progress-label">
-        <span>Progress</span>
-        <span id="activity-progress-count">0 / 10</span>
-      </div>
       <div class="progress-track">
         <div class="progress-fill" id="activity-progress-fill"></div>
       </div>
+      <div class="progress-pct" id="activity-progress-pct">0%</div>
     </div>
     <div class="complete-banner" id="activity-complete-banner">
       <span>✓</span><span id="activity-complete-text">Done!</span>
@@ -1029,7 +1007,7 @@
 ════════════════════════════════════════════════════════════════ -->
 <script type="module">
 import { initializeApp }                    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, update, push, onValue, off, remove }
+import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTransaction }
                                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
@@ -1041,6 +1019,7 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove }
    4. In Firebase console → Realtime Database → Create database
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
@@ -1079,53 +1058,84 @@ const RESOURCES = {
   "Cream":          { type:"ingredient", category:"dairy",   emoji:"🥛",  label:"Cream" },
   "Milk":           { type:"ingredient", category:"dairy",   emoji:"🍼",  label:"Milk" },
   "Cheese":         { type:"ingredient", category:"dairy",   emoji:"🧀",  label:"Cheese" },
-  // Tools
+  // Tools — Mixers
   "Blender":        { type:"tool", category:"mixer",     emoji:"🌀",  label:"Blender" },
   "Whisk":          { type:"tool", category:"mixer",     emoji:"🥄",  label:"Whisk" },
   "Food Processor": { type:"tool", category:"mixer",     emoji:"⚙️",  label:"Food Processor" },
-  "Chef's Knife":  { type:"tool", category:"cutter",    emoji:"🔪",  label:"Chef's Knife" },
+  // Tools — Cutters
+  "Chef's Knife":   { type:"tool", category:"cutter",    emoji:"🔪",  label:"Chef's Knife" },
   "Serrated Knife": { type:"tool", category:"cutter",    emoji:"🗡️", label:"Serrated Knife" },
-  "Mandolin":       { type:"tool", category:"cutter",    emoji:"📐",  label:"Mandolin" },
+  // Tools — Containers
   "Bowl":           { type:"tool", category:"container", emoji:"🥣",  label:"Bowl" },
   "Pan":            { type:"tool", category:"container", emoji:"🍳",  label:"Pan" },
   "Tray":           { type:"tool", category:"container", emoji:"▭",   label:"Tray" },
-  "Pot":            { type:"tool", category:"container", emoji:"🫕",  label:"Pot" },
+  // Tools — Shapers
+  "Rolling Pin":    { type:"tool", category:"shaper",    emoji:"🎂",  label:"Rolling Pin" },
+  "Mortar & Pestle":{ type:"tool", category:"shaper",    emoji:"🪨",  label:"Mortar & Pestle" },
 };
 
 /* ─── TASK POOL (16 tasks — supports up to 6-player games with headroom) ── */
+/* Every recipe requires exactly 2 tools from different categories plus 1–2 ingredients. */
+/* Tool categories: mixer (Blender, Whisk, Food Processor), cutter (Chef's Knife,        */
+/*   Serrated Knife), container (Bowl, Pan, Tray), shaper (Rolling Pin, Mortar & Pestle) */
 const ALL_TASKS = [
-  { id:"t01", name:"Spiced Rice Bowl",       description:"A warming bowl with whole grains and aromatic spice.",
-    requirements:[{resource:"Rice",qty:1},{resource:"Cumin",qty:1},{resource:"Bowl",qty:1}] },
-  { id:"t02", name:"Creamy Oat Porridge",    description:"Slow-cooked oats finished with a splash of cream.",
-    requirements:[{resource:"Oats",qty:1},{resource:"Cream",qty:1},{resource:"Pan",qty:1}] },
-  { id:"t03", name:"Herb Fish Fillet",       description:"Fresh fish, simply seasoned and precisely cut.",
-    requirements:[{resource:"Fish",qty:1},{resource:"Oregano",qty:1},{resource:"Chef's Knife",qty:1}] },
-  { id:"t04", name:"Chili Tofu Stir-fry",   description:"Firm tofu tossed with heat in a well-seasoned pan.",
-    requirements:[{resource:"Tofu",qty:1},{resource:"Chili Flakes",qty:1},{resource:"Pan",qty:1}] },
-  { id:"t05", name:"Butter Flour Roux",      description:"The base of many great sauces — patience required.",
-    requirements:[{resource:"Flour",qty:1},{resource:"Butter",qty:1},{resource:"Whisk",qty:1}] },
-  { id:"t06", name:"Pepper Chicken Breast",  description:"A classic — bold seasoning on well-handled protein.",
-    requirements:[{resource:"Chicken",qty:1},{resource:"Black Pepper",qty:1},{resource:"Tray",qty:1}] },
-  { id:"t07", name:"Milk Rice Pudding",      description:"Comforting and simple — milk, rice, and gentle heat.",
-    requirements:[{resource:"Rice",qty:1},{resource:"Milk",qty:1},{resource:"Pot",qty:1}] },
-  { id:"t08", name:"Bean and Spice Stew",    description:"Hearty legumes, aromatic heat, and slow cooking.",
-    requirements:[{resource:"Beans",qty:1},{resource:"Cumin",qty:1},{resource:"Pot",qty:1}] },
-  { id:"t09", name:"Paprika Lamb Chop",      description:"Rich meat with smoky depth and a steady hand.",
-    requirements:[{resource:"Lamb",qty:1},{resource:"Paprika",qty:1},{resource:"Tray",qty:1}] },
-  { id:"t10", name:"Thyme Egg Scramble",     description:"Simple technique, careful seasoning, and timing.",
-    requirements:[{resource:"Eggs",qty:1},{resource:"Thyme",qty:1},{resource:"Pan",qty:1}] },
-  { id:"t11", name:"Cheese Pasta Bake",      description:"Layered pasta, sharp cheese, baked until golden.",
-    requirements:[{resource:"Pasta",qty:1},{resource:"Cheese",qty:1},{resource:"Tray",qty:1}] },
-  { id:"t12", name:"Blended Cream Soup",     description:"Velvety and smooth — requires the right tools.",
-    requirements:[{resource:"Cream",qty:1},{resource:"Thyme",qty:1},{resource:"Blender",qty:1}] },
-  { id:"t13", name:"Spiced Lamb Stew",       description:"Slow-braised lamb with layers of warm spice.",
-    requirements:[{resource:"Lamb",qty:1},{resource:"Paprika",qty:1},{resource:"Pot",qty:1}] },
-  { id:"t14", name:"Egg and Cheese Frittata",description:"A classic Italian egg dish, sliced to serve.",
-    requirements:[{resource:"Eggs",qty:1},{resource:"Cheese",qty:1},{resource:"Chef's Knife",qty:1}] },
-  { id:"t15", name:"Buttered Pasta",         description:"Rich, simple, and ready in minutes.",
-    requirements:[{resource:"Pasta",qty:1},{resource:"Butter",qty:1},{resource:"Bowl",qty:1}] },
-  { id:"t16", name:"Oat and Milk Smoothie",  description:"Blended, chilled, and surprisingly filling.",
-    requirements:[{resource:"Oats",qty:1},{resource:"Milk",qty:1},{resource:"Blender",qty:1}] },
+  // mixer + cutter
+  { id:"t01", name:"Herb-Blended Dressing",
+    description:"A smooth, herb-forward dressing — ground fine, then blended silky.",
+    requirements:[{resource:"Oregano",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Blender",qty:1}] },
+  { id:"t02", name:"Spiced Fish Purée",
+    description:"Fish sliced thin, then blended with a warm spice base.",
+    requirements:[{resource:"Fish",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Blender",qty:1}] },
+  { id:"t03", name:"Ground Cumin Paste",
+    description:"Cumin pounded to a dust, then whisked into a smooth paste.",
+    requirements:[{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Whisk",qty:1}] },
+  { id:"t04", name:"Chili Butter Emulsion",
+    description:"Butter whisked vigorously, finished with knife-chopped chili.",
+    requirements:[{resource:"Butter",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Whisk",qty:1}] },
+
+  // mixer + container
+  { id:"t05", name:"Creamy Oat Bowl",
+    description:"Oats blended smooth, served in a bowl with a swirl of cream.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Blender",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t06", name:"Thyme Cream Pan Sauce",
+    description:"Cream whisked with thyme, reduced in a hot pan.",
+    requirements:[{resource:"Cream",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t07", name:"Processed Lamb Tray Bake",
+    description:"Lamb blitzed through the food processor, then spread on a tray.",
+    requirements:[{resource:"Lamb",qty:1},{resource:"Food Processor",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t08", name:"Paprika Egg Scramble",
+    description:"Eggs whisked with paprika and cooked in a warm pan.",
+    requirements:[{resource:"Eggs",qty:1},{resource:"Paprika",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
+
+  // cutter + container
+  { id:"t09", name:"Sliced Chicken Tray",
+    description:"Chicken cut into portions and roasted on the tray.",
+    requirements:[{resource:"Chicken",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t10", name:"Tofu and Cheese Bowl",
+    description:"Tofu sliced and layered with shaved cheese in a bowl.",
+    requirements:[{resource:"Tofu",qty:1},{resource:"Cheese",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t11", name:"Oregano Fish Pan",
+    description:"Fish scored with a knife and pan-fried with oregano.",
+    requirements:[{resource:"Fish",qty:1},{resource:"Oregano",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t12", name:"Pepper Pasta Tray",
+    description:"Pasta tossed with black pepper and baked golden on a tray.",
+    requirements:[{resource:"Pasta",qty:1},{resource:"Black Pepper",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Tray",qty:1}] },
+
+  // shaper + container
+  { id:"t13", name:"Rolled Flour Tray",
+    description:"Flour rolled flat, cut to shape, and laid out on the tray.",
+    requirements:[{resource:"Flour",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t14", name:"Spiced Rice Bowl",
+    description:"Cumin pounded in the mortar, stirred into rice in a bowl.",
+    requirements:[{resource:"Rice",qty:1},{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t15", name:"Rolled Oat Pan",
+    description:"Oats rolled flat with the pin, then toasted in a pan.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Pan",qty:1}] },
+
+  // shaper + cutter (cross-category bonus)
+  { id:"t16", name:"Ground Bean Patty",
+    description:"Beans crushed in the mortar, shaped by hand, then sliced.",
+    requirements:[{resource:"Beans",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Chef's Knife",qty:1}] },
 ];
 
 /* ─── EVENT NAME GENERATOR ──────────────────────────────────── */
@@ -1337,6 +1347,7 @@ function categoryClass(name) {
   if (cat === "protein")   return "protein";
   if (cat === "grain")     return "grain";
   if (cat === "dairy")     return "dairy";
+  if (cat === "shaper")    return "shaper";
   return "tool";
 }
 
@@ -1716,9 +1727,8 @@ async function completeTask() {
   // Get next task's ingredient needs so we can target useful resources
   const snap       = await get(playerRef);
   const myData     = snap.val() || {};
-  const currentIdx = myData.currentTaskIdx || 0;
-  const nextIdx    = currentIdx + 1;
-  const nextTaskId = myTaskQueue[nextIdx];
+  // taskQueue[0] is the task we just completed; [1] is next
+  const nextTaskId = myTaskQueue[1] || null;
   const nextTask   = nextTaskId ? localTaskDefs[nextTaskId] : null;
   const nextNeeded = nextTask
     ? nextTask.requirements.filter(r => RESOURCES[r.resource]?.type === "ingredient").map(r => r.resource)
@@ -1738,12 +1748,16 @@ async function completeTask() {
   });
 
   const newCompleted = (myData.tasksCompleted || 0) + 1;
+  // Advance queue by writing the tail (slice off completed task)
+  const newQueue = myTaskQueue.slice(1);
   await update(ref(db), {
     [`games/${gameCode}/players/${myPlayerId}/ingredients`]:    ingMap,
     [`games/${gameCode}/players/${myPlayerId}/tools`]:          toolMap,
     [`games/${gameCode}/players/${myPlayerId}/tasksCompleted`]: newCompleted,
-    [`games/${gameCode}/players/${myPlayerId}/currentTaskIdx`]: nextIdx,
+    [`games/${gameCode}/players/${myPlayerId}/taskQueue`]:      newQueue,
   });
+  // Sync local queue to match what we wrote
+  myTaskQueue = newQueue;
 
   // ── Step 2: Spawn ingredients into other players one at a time ──
   // Each spawn is a separate fetch-then-write on the specific ingredient key.
@@ -1758,11 +1772,9 @@ async function completeTask() {
       ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
       : myPlayerId;
 
-    // Atomically increment: read current value, write current+1
-    const ingrPath  = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
-    const existSnap = await get(ref(db, ingrPath));
-    const existing  = existSnap.val() || 0;
-    await set(ref(db, ingrPath), existing + 1);
+    // Use transaction for atomic increment — prevents race with simultaneous spawns
+    const ingrPath = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
+    await runTransaction(ref(db, ingrPath), (current) => (current || 0) + 1);
 
     // Write notification as a completely separate path — no collision risk
     const notifKey = `${Date.now()}_s${i}_${Math.random().toString(36).slice(2,5)}`;
@@ -1780,8 +1792,9 @@ async function completeTask() {
   toast(`✓ "${taskName}" complete!`, "good");
 
   // ── Advance to next task or show done state ───────────────────
-  if (nextTaskId) {
-    loadTask(nextTaskId);
+  // myTaskQueue was already sliced above; [0] is the new current task
+  if (myTaskQueue.length > 0) {
+    loadTask(myTaskQueue[0]);
   } else {
     // Player finished their personal queue — show waiting state
     document.getElementById("task-name").textContent = "All done!";
@@ -1823,19 +1836,20 @@ async function sendResource(name, targetPlayerId) {
   renderInventory();
 
   try {
-    // Read sender current value and decrement
-    const senderSnap  = await get(ref(db, senderPath));
-    const senderCount = (senderSnap.val() || 1) - 1;
-    if (senderCount <= 0) {
-      await remove(ref(db, senderPath));
-    } else {
-      await set(ref(db, senderPath), senderCount);
-    }
+    // Use Firebase transactions for atomic read-modify-write.
+    // Without transactions, two simultaneous transfers can both read
+    // the same stale value and overwrite each other, causing duplicate items.
 
-    // Read receiver current value and increment
-    const receiverSnap  = await get(ref(db, receiverPath));
-    const receiverCount = (receiverSnap.val() || 0) + 1;
-    await set(ref(db, receiverPath), receiverCount);
+    // Atomically decrement sender (remove key if reaches zero)
+    await runTransaction(ref(db, senderPath), (current) => {
+      const newVal = (current || 1) - 1;
+      return newVal <= 0 ? null : newVal; // returning null removes the key
+    });
+
+    // Atomically increment receiver
+    await runTransaction(ref(db, receiverPath), (current) => {
+      return (current || 0) + 1;
+    });
 
     // Log the transfer for the summary screen
     await push(ref(db, `games/${gameCode}/transfers`), {
@@ -2040,7 +2054,6 @@ async function startGameInFirebase(players) {
     updates[`games/${gameCode}/players/${pid}/ingredients`]  = setup.playerIngrInventory[pid] || {};
     updates[`games/${gameCode}/players/${pid}/tools`]        = setup.playerToolInventory[pid] || {};
     updates[`games/${gameCode}/players/${pid}/taskQueue`]    = setup.playerTasks[pid] || [];
-    updates[`games/${gameCode}/players/${pid}/currentTaskIdx`] = 0;
     updates[`games/${gameCode}/players/${pid}/tasksCompleted`] = 0;
   });
 
@@ -2068,12 +2081,11 @@ function enterGame() {
     // Update header event name
     document.getElementById("event-name-display").textContent = eventName;
 
-    // Load my task queue
+    // Load my task queue — taskQueue[0] is always the current task
     const myData = data.players?.[myPlayerId] || {};
     myTaskQueue  = myData.taskQueue || [];
-    const idx    = myData.currentTaskIdx || 0;
     if (myTaskQueue.length > 0) {
-      loadTask(myTaskQueue[idx] || myTaskQueue[0]);
+      loadTask(myTaskQueue[0]);
     }
     updateScoreDisplay(data.players);
   });
@@ -2493,10 +2505,12 @@ document.getElementById("btn-ready").addEventListener("click", () => {
 
 document.getElementById("btn-complete").addEventListener("click", () => {
   if (!currentTask) return;
-  // Find the tool in the current task requirements
-  const toolReq = currentTask.requirements.find(r => RESOURCES[r.resource]?.type === "tool");
-  const toolName = toolReq ? toolReq.resource : null;
-  launchCookingActivity(toolName || "Chef's Knife");
+  // Collect all tool requirements in order for the two-game sequence
+  const toolNames = currentTask.requirements
+    .filter(r => RESOURCES[r.resource]?.type === "tool")
+    .map(r => r.resource);
+  if (toolNames.length === 0) toolNames.push("Chef's Knife"); // fallback
+  launchCookingActivity(toolNames, 0);
 });
 document.getElementById("btn-end-game").addEventListener("click", endGame);
 document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
@@ -2535,953 +2549,565 @@ document.getElementById("btn-new-game").addEventListener("click", () => {
 
 
 /* ══ COOKING ACTIVITIES ══════════════════════════════════════════
-   Integrated from minigame-testbed v16
+   Integrated from minigame-testbed v12
+   11 games across 7 categories — each is a self-contained canvas
+   mini-game that calls activityDone() when complete.
 ═══════════════════════════════════════════════════════════════ */
-// Activity canvas refs (set on each launch)
-let activityCanvas = null;
-let activityCtx    = null;
+
+/* ─── SHARED HELPERS (adapted from testbed) ─────────────────── */
+// Get pointer coords relative to a canvas element
+function _ep(e,cvs){const r=cvs.getBoundingClientRect(),s=e.touches?e.touches[0]:e.changedTouches?e.changedTouches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};}
+
+// whenReady / ResizeObserver pattern for reliable canvas init
+const _actPending=[];
+const _actRO=new ResizeObserver(entries=>{for(const en of entries){const c=en.target,r=c.getBoundingClientRect();if(r.width<4||r.height<4)continue;const i=_actPending.findIndex(p=>p.cvs===c);if(i===-1)continue;const{fn}=_actPending.splice(i,1)[0];_actRO.unobserve(c);fn();}});
+function _whenReady(cvs,fn){const r=cvs.getBoundingClientRect();if(r.width>4&&r.height>4){fn();}else{_actPending.push({cvs,fn});_actRO.observe(cvs);}}
+
+// Init canvas at device pixel ratio; returns {cvs,ctx,W,H}
+function _IC(cvs){const dpr=window.devicePixelRatio||1,r=cvs.getBoundingClientRect(),W=r.width||400,H=r.height||240;cvs.width=W*dpr;cvs.height=H*dpr;const ctx=cvs.getContext("2d");ctx.scale(dpr,dpr);return{cvs,ctx,W,H};}
+
+// Create off-screen canvas {c, ctx}
+function _OS(W,H){const c=document.createElement("canvas");c.width=Math.round(W);c.height=Math.round(H);return{c,ctx:c.getContext("2d")};}
+
+// Set progress bar and status text in the modal
+function _SP(pct,label){
+  const f=document.getElementById("activity-progress-fill");
+  f.style.width=Math.min(100,pct)+"%";
+  document.getElementById("activity-progress-pct").textContent=label!==undefined?label:Math.round(pct)+"%";
+  if(pct>=100){f.classList.add("done");document.getElementById("activity-complete-banner").classList.add("show");document.getElementById("activity-complete-text").textContent=_currentCompletionMsg;document.getElementById("activity-btn-done").disabled=false;}
+}
+function _SS(msg){const e=document.getElementById("activity-status");if(e)e.textContent=msg;}
+
+// Draw a stylized platter (used by seasoning games)
+function _drawPlatter(ctx,cx,cy,rx,ry){
+  ctx.fillStyle="#C8B89A";ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#EDE4D0";ctx.beginPath();ctx.ellipse(cx,cy,rx*0.88,ry*0.82,0,0,Math.PI*2);ctx.fill();
+  const sg=ctx.createRadialGradient(cx,cy,rx*0.55,cx,cy,rx*0.88);sg.addColorStop(0,"rgba(0,0,0,0)");sg.addColorStop(1,"rgba(0,0,0,0.055)");ctx.fillStyle=sg;ctx.beginPath();ctx.ellipse(cx,cy,rx*0.88,ry*0.82,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(255,255,255,0.45)";ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(cx,cy-ry*0.08,rx*0.78,ry*0.2,0,Math.PI,Math.PI*2);ctx.stroke();
+}
+
+// Draw cutting board (used by slice game)
+function _drawBoard(ctx,x,y,w,h){
+  const g=ctx.createLinearGradient(x,y,x,y+h);g.addColorStop(0,"#D4A870");g.addColorStop(0.5,"#C89858");g.addColorStop(1,"#B88848");
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.fill();
+  ctx.strokeStyle="rgba(0,0,0,0.07)";ctx.lineWidth=1;
+  for(let i=0;i<6;i++){const gy=y+h*0.12+i*(h*0.13);ctx.beginPath();ctx.moveTo(x+6,gy);ctx.lineTo(x+w-6,gy);ctx.stroke();}
+  ctx.strokeStyle="rgba(0,0,0,0.18)";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.stroke();
+}
+
+// Draw circular guide arrow (used by whisk game)
+function _drawCircleArrow(ctx,cx,cy,r,alpha=1,cw=true){
+  ctx.save();ctx.globalAlpha=alpha;
+  const gapAngle=Math.PI*0.18;
+  ctx.strokeStyle="rgba(92,110,91,0.85)";ctx.lineWidth=5;ctx.lineCap="round";
+  ctx.beginPath();
+  if(cw)ctx.arc(cx,cy,r,-Math.PI/2+gapAngle,-Math.PI/2-gapAngle+Math.PI*2,false);
+  else ctx.arc(cx,cy,r,-Math.PI/2-gapAngle,-Math.PI/2+gapAngle-Math.PI*2,true);
+  ctx.stroke();
+  const headAngle=cw?(-Math.PI/2-gapAngle+Math.PI*2):(-Math.PI/2+gapAngle-Math.PI*2);
+  const tangent=cw?headAngle+Math.PI/2:headAngle-Math.PI/2;
+  const hx=cx+Math.cos(headAngle)*r,hy=cy+Math.sin(headAngle)*r,hs=28;
+  ctx.fillStyle="rgba(92,110,91,0.85)";
+  ctx.beginPath();ctx.moveTo(hx,hy);
+  ctx.lineTo(hx-hs*Math.cos(tangent-0.5),hy-hs*Math.sin(tangent-0.5));
+  ctx.lineTo(hx-hs*Math.cos(tangent+0.5),hy-hs*Math.sin(tangent+0.5));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+// Whisk top-down bowl and whisk renderer
+function _drawWhiskTopDown(ctx,bowlCX,bowlCY,bowlR,whiskOrbitAngle,whiskHeadAngle,foamParts,offCanvas){
+  ctx.fillStyle="#C8B8D8";ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,0,Math.PI*2);ctx.fill();
+  const bg=ctx.createRadialGradient(bowlCX,bowlCY,0,bowlCX,bowlCY,bowlR*0.88);
+  bg.addColorStop(0,"#FFF8E8");bg.addColorStop(0.7,"#F8EDD8");bg.addColorStop(1,"#E8D8C0");
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.88,0,Math.PI*2);ctx.fill();
+  if(offCanvas){ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.86,0,Math.PI*2);ctx.clip();ctx.drawImage(offCanvas,0,0);ctx.restore();}
+  foamParts.forEach(f=>{f.life-=0.003;ctx.globalAlpha=Math.max(0,f.life*0.95);ctx.fillStyle="#FFFFFF";ctx.strokeStyle="rgba(120,100,80,0.7)";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,Math.PI*2);ctx.fill();ctx.stroke();});
+  ctx.globalAlpha=1;
+  const wx=bowlCX+Math.cos(whiskOrbitAngle)*bowlR*0.32,wy=bowlCY+Math.sin(whiskOrbitAngle)*bowlR*0.32;
+  ctx.save();ctx.translate(wx,wy);ctx.rotate(whiskHeadAngle);
+  ctx.strokeStyle="#6B4A2A";ctx.lineWidth=12;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-bowlR*0.68);ctx.stroke();
+  ctx.strokeStyle="rgba(160,110,60,0.4)";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(-3,-8);ctx.lineTo(-3,-bowlR*0.64);ctx.stroke();
+  ctx.strokeStyle="#B0A898";ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(0,0,22,26,0,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=2.4;ctx.strokeStyle="#C0B8B0";
+  for(let t=0;t<4;t++){const ta=t*Math.PI/4;ctx.beginPath();ctx.moveTo(Math.cos(ta)*22,Math.sin(ta)*26);ctx.lineTo(Math.cos(ta+Math.PI)*22,Math.sin(ta+Math.PI)*26);ctx.stroke();}
+  ctx.fillStyle="#9A9080";ctx.beginPath();ctx.arc(0,0,8,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+
+// Food Processor: food particle shapes and blade
+const _FP_SHAPES=[
+  function(ctx,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-r*0.55,-r*0.4,r*1.1,r*0.85,r*0.18);ctx.fill();ctx.strokeStyle="rgba(200,120,20,0.35)";ctx.lineWidth=0.7;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-r*0.35+i*r*0.3,-r*0.38);ctx.lineTo(-r*0.38+i*r*0.32,r*0.42);ctx.stroke();}},
+  function(ctx,r,color){ctx.fillStyle=color;ctx.save();ctx.rotate(Math.PI*0.12);ctx.beginPath();ctx.ellipse(0,0,r*0.42,r*0.85,0,0,Math.PI*2);ctx.fill();ctx.restore();ctx.strokeStyle="rgba(30,80,10,0.35)";ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(0,-r*0.8);ctx.lineTo(0,r*0.8);ctx.stroke();},
+  function(ctx,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,0,r*0.5,r*0.75,0.2,0,Math.PI*2);ctx.fill();ctx.strokeStyle="rgba(40,25,10,0.4)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-r*0.1,-r*0.6);ctx.quadraticCurveTo(-r*0.4,0,-r*0.1,r*0.6);ctx.stroke();},
+  function(ctx,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(0,-r*0.8);ctx.bezierCurveTo(r*0.6,-r*0.7,r*0.65,r*0.3,r*0.1,r*0.8);ctx.bezierCurveTo(-r*0.55,r*0.75,-r*0.65,r*0.2,-r*0.05,-r*0.8);ctx.closePath();ctx.fill();ctx.strokeStyle="rgba(100,70,20,0.3)";ctx.lineWidth=0.8;ctx.stroke();}
+];
+const _FP_COLORS=["#C8641A","#3A7818","#4A2E10","#8B6030","#2A5C14"];
+const _FP_COLOR_FOR_SHAPE=[0,2,3,4,1];
+function _drawCrescentBlade(ctx,cx,cy,R,angle,speed){
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);const op=0.55+speed*0.45;
+  for(let side=0;side<2;side++){
+    ctx.save();ctx.rotate(side*Math.PI);
+    const outer=R*0.78,inner=R*0.56,sweep=Math.PI*0.72,startA=-sweep/2,endA=sweep/2;
+    const bladeGrad=ctx.createLinearGradient(0,0,outer,0);
+    bladeGrad.addColorStop(0,`rgba(140,132,122,${op})`);bladeGrad.addColorStop(0.4,`rgba(200,194,186,${op})`);bladeGrad.addColorStop(0.75,`rgba(185,178,170,${op})`);bladeGrad.addColorStop(1,`rgba(160,152,142,${op*0.7})`);
+    ctx.fillStyle=bladeGrad;ctx.beginPath();ctx.arc(0,0,outer,startA-0.15,endA+0.08,false);ctx.arc(R*0.12,R*0.06,inner,endA+0.12,startA-0.12,true);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=`rgba(230,224,218,${op*0.7})`;ctx.lineWidth=1.5;ctx.lineCap="round";ctx.beginPath();ctx.arc(0,0,outer,startA-0.12,endA+0.05,false);ctx.stroke();ctx.restore();
+  }
+  const hg=ctx.createRadialGradient(0,0,0,0,0,R*0.10);hg.addColorStop(0,`rgba(200,192,182,${op})`);hg.addColorStop(1,`rgba(150,142,132,${op})`);ctx.fillStyle=hg;ctx.strokeStyle=`rgba(120,112,102,${op*0.6})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,R*0.10,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+}
+
+// Dough rendering helpers
+const _DOUGH_COLOR="#EDE8D8";const _DOUGH_BASE_H=0.055;
+function _drawDoughShape(ctx,leftX,rightX,floorY,archH,baseH,dimples){
+  const cx=(leftX+rightX)/2,halfW=(rightX-leftX)/2,N=60,topPts=[];
+  for(let i=0;i<=N;i++){const t=i/N,x=leftX+t*(rightX-leftX),nx=(x-cx)/halfW;let a=Math.pow(Math.max(0,Math.cos(nx*Math.PI*0.5)),1.5);dimples.forEach(d=>{const dx=(x-d.x)/d.w;a-=d.depth*Math.exp(-dx*dx*2.5);});a=Math.max(0,a);topPts.push({x,y:floorY-baseH-archH*a});}
+  const baseMargin=(rightX-leftX)*0.06,baseLeft=leftX-baseMargin,baseRight=rightX+baseMargin,cornerR=Math.min(12,(rightX-leftX)*0.04);
+  ctx.beginPath();ctx.moveTo(baseLeft+cornerR,floorY);ctx.lineTo(baseRight-cornerR,floorY);ctx.quadraticCurveTo(baseRight,floorY,baseRight,floorY-cornerR);ctx.lineTo(topPts[N].x,topPts[N].y);
+  for(let i=N-1;i>=0;i--){const mx=(topPts[i].x+topPts[i+1].x)/2,my=(topPts[i].y+topPts[i+1].y)/2;ctx.quadraticCurveTo(topPts[i+1].x,topPts[i+1].y,mx,my);}
+  ctx.lineTo(baseLeft,floorY-cornerR);ctx.quadraticCurveTo(baseLeft,floorY,baseLeft+cornerR,floorY);ctx.closePath();ctx.fillStyle=_DOUGH_COLOR;ctx.fill();
+  const sg=ctx.createLinearGradient(cx,floorY-baseH-archH,cx,floorY);sg.addColorStop(0,"rgba(255,255,255,0.22)");sg.addColorStop(0.35,"rgba(255,255,255,0.08)");sg.addColorStop(1,"rgba(0,0,0,0.06)");ctx.fillStyle=sg;
+  ctx.beginPath();ctx.moveTo(baseLeft+cornerR,floorY);ctx.lineTo(baseRight-cornerR,floorY);ctx.quadraticCurveTo(baseRight,floorY,baseRight,floorY-cornerR);ctx.lineTo(topPts[N].x,topPts[N].y);for(let i=N-1;i>=0;i--){const mx=(topPts[i].x+topPts[i+1].x)/2,my=(topPts[i].y+topPts[i+1].y)/2;ctx.quadraticCurveTo(topPts[i+1].x,topPts[i+1].y,mx,my);}ctx.lineTo(baseLeft,floorY-cornerR);ctx.quadraticCurveTo(baseLeft,floorY,baseLeft+cornerR,floorY);ctx.closePath();ctx.fill();
+}
+function _drawPinWoodGrain(ctx,pinX,pinY,pinR,angle){
+  ctx.save();ctx.translate(pinX,pinY);
+  ctx.fillStyle="rgba(0,0,0,0.10)";ctx.beginPath();ctx.ellipse(3,pinR*0.28,pinR,pinR*0.28,0,0,Math.PI*2);ctx.fill();
+  const bg=ctx.createRadialGradient(-pinR*0.18,-pinR*0.2,0,0,0,pinR);bg.addColorStop(0,"#F2DC9A");bg.addColorStop(0.45,"#D4A050");bg.addColorStop(0.82,"#B07828");bg.addColorStop(1,"#8A5818");ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,pinR,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.arc(0,0,pinR*0.98,0,Math.PI*2);ctx.clip();
+  const rings=[0.22,0.38,0.52,0.64,0.74,0.83,0.91];rings.forEach((r,i)=>{const ox=Math.sin(i*1.4)*pinR*0.06,oy=Math.cos(i*2.1)*pinR*0.05;ctx.strokeStyle=`rgba(90,45,8,${0.18+i*0.04})`;ctx.lineWidth=1.2+i*0.3;ctx.beginPath();ctx.arc(ox,oy,r*pinR,0,Math.PI*2);ctx.stroke();});
+  ctx.rotate(angle);const rayAngles=[0,0.55,1.0,1.62,2.3,2.85,3.5,4.2,4.9,5.6];rayAngles.forEach(ra=>{ctx.strokeStyle="rgba(80,38,6,0.22)";ctx.lineWidth=0.9;ctx.beginPath();ctx.moveTo(Math.cos(ra)*pinR*0.06,Math.sin(ra)*pinR*0.06);ctx.lineTo(Math.cos(ra)*pinR*0.94,Math.sin(ra)*pinR*0.94);ctx.stroke();});[0.3,2.1,4.0].forEach(ra=>{ctx.strokeStyle="rgba(70,30,4,0.38)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(Math.cos(ra)*pinR*0.08,Math.sin(ra)*pinR*0.08);ctx.lineTo(Math.cos(ra)*pinR*0.90,Math.sin(ra)*pinR*0.90);ctx.stroke();});
+  ctx.restore();
+  // End caps (left and right)
+  const halfLen=pinR*3.2;
+  const lcg=ctx.createRadialGradient(-halfLen+pinR*0.3,-pinR*0.3,0,-halfLen,0,pinR);lcg.addColorStop(0,"#E8D098");lcg.addColorStop(0.6,"#B88838");lcg.addColorStop(1,"#806018");ctx.fillStyle=lcg;ctx.beginPath();ctx.ellipse(-halfLen,0,pinR*0.28,pinR,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#B8882A";ctx.beginPath();ctx.moveTo(-halfLen,pinR);ctx.lineTo(halfLen,pinR);ctx.lineTo(halfLen,-pinR);ctx.lineTo(-halfLen,-pinR);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#806018";ctx.beginPath();ctx.moveTo(-halfLen,pinR);ctx.ellipse(-halfLen,0,pinR*0.28,pinR,0,Math.PI/2,-Math.PI/2,false);ctx.lineTo(halfLen,-pinR);ctx.ellipse(halfLen,0,pinR*0.28,pinR,0,-Math.PI/2,Math.PI/2,false);ctx.closePath();ctx.fill();
+  const rcg=ctx.createRadialGradient(halfLen-pinR*0.3,-pinR*0.3,0,halfLen,0,pinR);rcg.addColorStop(0,"#E8D098");rcg.addColorStop(0.6,"#B88838");rcg.addColorStop(1,"#806018");ctx.fillStyle=rcg;ctx.beginPath();ctx.ellipse(halfLen,0,pinR*0.28,pinR,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(255,245,210,0.5)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-halfLen+2,0-pinR*0.55);ctx.lineTo(halfLen-2,0-pinR*0.55);ctx.stroke();
+  const hL=halfLen*0.22;[-halfLen-hL,halfLen].forEach(hx=>{ctx.fillStyle="#6A3E18";ctx.strokeStyle="#4A2A08";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(hx,0-pinR*0.5,hL,pinR*1.0,4);ctx.fill();ctx.stroke();ctx.strokeStyle="#3A1A04";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(hx+(hx<0?0:hL),0,3,pinR*0.5,0,0,Math.PI*2);ctx.stroke();});
+  ctx.restore();
+}
+
+/* ─── ACTIVITY REGISTRY ─────────────────────────────────────── */
+// Each entry: { icon, title, task, completionMsg, canvasH, launch(cvs), cleanup() }
+// launch() sets up the game and starts the RAF loop.
+// cleanup() stops the RAF and removes listeners.
+// When complete, call activityDone().
+let _currentActivityKey    = null;
+let _currentCompletionMsg  = "";
+let _activityCleanupFn     = null;
+// Two-game sequencing: array of tool names for this task; index of current game
+let _activityToolQueue     = [];   // e.g. ["Chef's Knife", "Bowl"]
+let _activityStepIdx       = 0;    // 0 = first game, 1 = second game
+
+function activityDone(){
+  // Show complete state in modal
+  document.getElementById("activity-progress-fill").style.width="100%";
+  document.getElementById("activity-progress-fill").classList.add("done");
+  document.getElementById("activity-complete-banner").classList.add("show");
+  document.getElementById("activity-complete-text").textContent=_currentCompletionMsg;
+  document.getElementById("activity-btn-done").disabled=false;
+  _SS("");
+}
+
+/* ─── TOOL → ACTIVITY MAP ───────────────────────────────────── */
+// Maps resource names to activity keys
+const TOOL_TO_ACTIVITY = {
+  "Chef's Knife":    "slice",
+  "Serrated Knife":  "slice",
+  "Whisk":           "whisk",
+  "Blender":         "shake-season",
+  "Food Processor":  "food-processor",
+  "Bowl":            "coat-toss",
+  "Pan":             "butter-pan",
+  "Tray":            "oil-drizzle",
+  "Rolling Pin":     "roll-dough",
+  "Mortar & Pestle": "mortar-pestle",
+};
 
 /* ─── ACTIVITY DEFINITIONS ──────────────────────────────────── */
-const ACTIVITIES = {
-  "chefs-knife":    { icon:"🔪", title:"Slice the ingredients",       task:"Chef's Knife",   type:"slice",  target:12, completionMsg:"Clean cuts. Well done." },
-  "serrated-knife": { icon:"🗡️", title:"Saw through it",              task:"Serrated Knife", type:"slice",  target:12, completionMsg:"Good work with the serrated edge." },
-  "mandolin":       { icon:"📐", title:"Run it through the mandolin", task:"Mandolin",       type:"slice",  target:12, completionMsg:"Perfectly thin slices." },
-  "whisk":          { icon:"🥄", title:"Whisk it together",           task:"Whisk",          type:"circle", target:8,  completionMsg:"Smooth and well incorporated." },
-  "blender":        { icon:"🌀", title:"Blend until smooth",          task:"Blender",        type:"circle", target:8,  completionMsg:"Perfectly blended." },
-  // Food processor — pulse button
-  "food-processor": { icon:"⚙️",  title:"Pulse the processor",         task:"Food Processor",  type:"pulse",  target:5,  completionMsg:"Perfectly processed." },
-  // Containers — shake
-  "bowl":           { icon:"🥣", title:"Shake the bowl",               task:"Bowl",            type:"shake",  target:10, completionMsg:"Well shaken." },
-  "pan":            { icon:"🍳", title:"Shake the pan",                task:"Pan",             type:"shake",  target:10, completionMsg:"Nicely tossed." },
-  "tray":           { icon:"▭",  title:"Shake the tray",               task:"Tray",            type:"shake",  target:10, completionMsg:"Evenly distributed." },
-  "pot":            { icon:"🫕", title:"Shake the pot",                task:"Pot",             type:"shake",  target:10, completionMsg:"Well stirred." },
-};
+const ACTIVITY_DEFS = {
 
-// Slice directions: angle in radians + label
-const SLICE_DIRS = [
-  { angle: 0,              label: "→", dx: 1,  dy: 0  },  // right
-  { angle: Math.PI,        label: "←", dx: -1, dy: 0  },  // left
-  { angle: Math.PI*1.5,    label: "↑", dx: 0,  dy: -1 },  // up
-  { angle: Math.PI*0.5,    label: "↓", dx: 0,  dy: 1  },  // down
-];
-
-// Circle directions
-const CIRCLE_DIRS = [
-  { cw: true,  label: "↻", name: "clockwise" },
-  { cw: false, label: "↺", name: "counter-clockwise" },
-];
-
-// Shake directions: axis (h=horizontal, v=vertical) and first direction
-const SHAKE_DIRS = [
-  { axis:"h", first:"right", label:"→ ←", arrowA:"→", arrowB:"←" },
-  { axis:"h", first:"left",  label:"← →", arrowA:"←", arrowB:"→" },
-];
-
-/* ─── STATE ─────────────────────────────────────────────────── */
-let currentActivity = null;
-let progress        = 0;
-let isComplete      = false;
-let logEntries      = [];
-
-// Current required direction for this stroke/loop
-let currentSliceDir   = null;  // one of SLICE_DIRS
-let currentCircleDir  = null;  // one of CIRCLE_DIRS
-
-// Slice tracking
-let sliceDown = false;
-let sliceSX = 0, sliceSY = 0, sliceLX = 0, sliceLY = 0, sliceDist = 0;
-// How far the stroke has progressed along the required axis (0–1)
-let sliceProgress = 0;
-const SLICE_MIN_DIST  = 50;   // px to count as a valid stroke
-const SLICE_DIR_THRESH = 0.45; // cosine similarity — how aligned with required direction
-
-// Circle tracking — closed-loop detection
-// A loop counts when: the path travels far enough AND comes back near its start
-// AND the bounding box has a reasonable aspect ratio (not a thin up-down stroke).
-let circlePoints   = [];
-let circleDown     = false;
-let circleCooldown = false;
-let circlePathLen  = 0;    // total distance traveled so far this gesture
-let circleStartX   = 0;
-let circleStartY   = 0;
-// Bounding box of gesture (used to reject thin back-and-forth strokes)
-let circleBboxMinX = 0, circleBboxMaxX = 0;
-let circleBboxMinY = 0, circleBboxMaxY = 0;
-// Signed angle accumulator for direction validation
-// Positive = CCW in screen coords (Y-down), Negative = CW
-let circleSignedAngle = 0;
-
-/* ── SHAKE STATE ──────────────────────────────────────────── */
-let currentShakeDir    = null;  // one of SHAKE_DIRS
-let lastShakeDirIdx    = -1;
-let shakeDown          = false;
-let shakePhase         = 0;     // 0=awaiting first stroke, 1=awaiting return stroke
-let shakePhaseStartX   = 0;
-let shakePhaseStartY   = 0;
-let shakePhaseDist     = 0;
-let shakeLastX         = 0;
-let shakeLastY         = 0;
-const SHAKE_MIN_DIST   = 140;   // px per stroke leg to count
-
-/* ── PULSE STATE ──────────────────────────────────────────── */
-let pulseCount         = 0;
-let pulseCooldown      = false;
-const PULSE_CYCLE_MS   = 2000;  // ms per pulse cycle
-const CIRCLE_MIN_PATHLEN  = 80;   // px — minimum path length before checking closure
-const CIRCLE_CLOSE_RATIO  = 0.42; // return-to-start distance / path-length threshold
-                                   // higher = more forgiving (larger acceptable return radius)
-const CIRCLE_MIN_ASPECT   = 0.35; // shorter bbox side / longer side — rejects thin up-down strokes
-                                   // 0.35 = must be at least 35% as wide as tall (or vice versa)
-
-/* ─── CANVAS ────────────────────────────────────────────────── */
-// activityCanvas and activityCtx are initialized in launchCookingActivity
-
-function getActivityCanvasSize() {
-  const rect = activityCanvas.getBoundingClientRect();
-  return { W: rect.width, H: rect.height };
-}
-
-function resizeActivityCanvas() {
-  const rect = activityCanvas.getBoundingClientRect();
-  const dpr  = window.devicePixelRatio || 1;
-  activityCanvas.width  = rect.width  * dpr;
-  activityCanvas.height = rect.height * dpr;
-  activityCtx.scale(dpr, dpr);
-  drawGuide(0);
-}
-window.addEventListener("resize", resizeActivityCanvas);
-
-function getPos(e) {
-  const rect = activityCanvas.getBoundingClientRect();
-  const src  = e.touches ? e.touches[0] : e;
-  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
-}
-
-/* ─── GUIDE DRAWING ─────────────────────────────────────────── */
-// sliceFill: 0–1 representing progress within this single stroke
-// circleFill: 0–1 representing how far around the current loop
-
-function drawGuide(fillFraction, shakePhaseArg, shakePhaseFracArg) {
-  if (!currentActivity) return;
-  const { W, H } = getActivityCanvasSize();
-  activityCtx.clearRect(0, 0, W, H);
-
-  if (currentActivity.type === "slice") {
-    drawSliceGuide(W, H, fillFraction);
-  } else if (currentActivity.type === "circle") {
-    drawCircleGuide(W, H, fillFraction);
-  } else if (currentActivity.type === "shake") {
-    drawShakeGuide(W, H, shakePhaseArg || 0, shakePhaseFracArg || 0);
-  }
-  // pulse type: no canvas guide — handled by HTML button
-}
-
-// Draw a bold arrow from tail to head, filled `fraction` of the way
-function drawSliceGuide(W, H, fraction) {
-  const dir  = currentSliceDir;
-  if (!dir) return;
-
-  const cx = W / 2, cy = H / 2;
-  const len = Math.min(W, H) * 0.52; // arrow length
-  const tailX = cx - dir.dx * len / 2;
-  const tailY = cy - dir.dy * len / 2;
-  const headX = cx + dir.dx * len / 2;
-  const headY = cy + dir.dy * len / 2;
-
-  // Ghost arrow (full, light)
-  drawArrow(tailX, tailY, headX, headY, "rgba(160,152,144,0.25)", 6, 36);
-
-  // Filled portion (based on how far along the gesture has traveled)
-  if (fraction > 0) {
-    const fx = tailX + (headX - tailX) * fraction;
-    const fy = tailY + (headY - tailY) * fraction;
-    drawArrow(tailX, tailY, fx, fy, "rgba(92,110,91,0.75)", 6, fraction > 0.75 ? 36 : 0);
-  }
-
-    // No corner label — the arrow itself is the guide
-}
-
-function drawArrow(x1, y1, x2, y2, color, lineWidth, headSize) {
-  // Draw the shaft — stop it slightly short so the head tip sits at x2,y2
-  const angle  = Math.atan2(y2 - y1, x2 - x1);
-  const shaftEndX = x2 - headSize * 0.6 * Math.cos(angle);
-  const shaftEndY = y2 - headSize * 0.6 * Math.sin(angle);
-
-  activityCtx.beginPath();
-  activityCtx.moveTo(x1, y1);
-  activityCtx.lineTo(headSize > 0 ? shaftEndX : x2, headSize > 0 ? shaftEndY : y2);
-  activityCtx.strokeStyle = color;
-  activityCtx.lineWidth   = lineWidth;
-  activityCtx.lineCap     = "round";
-  activityCtx.stroke();
-
-  // Filled triangle arrowhead — same style as circle guide
-  if (headSize > 0) {
-    const spread = 0.50;
-    const tip   = { x: x2, y: y2 };
-    const left  = {
-      x: x2 - headSize * Math.cos(angle - spread),
-      y: y2 - headSize * Math.sin(angle - spread)
-    };
-    const right = {
-      x: x2 - headSize * Math.cos(angle + spread),
-      y: y2 - headSize * Math.sin(angle + spread)
-    };
-    activityCtx.beginPath();
-    activityCtx.moveTo(tip.x,   tip.y);
-    activityCtx.lineTo(left.x,  left.y);
-    activityCtx.lineTo(right.x, right.y);
-    activityCtx.closePath();
-    activityCtx.fillStyle = color;
-    activityCtx.fill();
-  }
-}
-
-function drawCircleGuide(W, H, fraction) {
-  const dir = currentCircleDir;
-  if (!dir) return;
-
-  const cx = W / 2, cy = H / 2;
-  const R  = Math.min(W, H) * 0.33;
-
-  // The guide is an open arc (~80% of a full circle) with a gap at the top.
-  // Gap: 20% of the circle (36°), centered at the top (−π/2).
-  // The arc runs from gapEnd to gapStart in the travel direction.
-  //
-  // For CW travel:
-  //   tail = gapEnd   (just past the gap, clockwise side)  = -π/2 + gapHalf
-  //   head = gapStart (just before the gap, arrives here)  = -π/2 - gapHalf  (+2π)
-  //   arc goes CW from tail to head
-  //
-  // For CCW travel: mirror image.
-
-  const gapHalf  = Math.PI * 0.12;  // 21.6° each side → 43.2° total gap
-  const arcSweep = 2 * Math.PI - 2 * gapHalf; // ~318° of arc
-
-  const tailAngle = dir.cw
-    ? -Math.PI/2 + gapHalf          // CW tail: right side of gap
-    : -Math.PI/2 - gapHalf;         // CCW tail: left side of gap
-
-  const headAngle = dir.cw
-    ? -Math.PI/2 - gapHalf + 2*Math.PI   // CW head: left side of gap (after full sweep)
-    : -Math.PI/2 + gapHalf - 2*Math.PI;  // CCW head: right side of gap
-
-  // ── Ghost arc (full open ring, light) ──
-  activityCtx.beginPath();
-  if (dir.cw) {
-    activityCtx.arc(cx, cy, R, tailAngle, tailAngle + arcSweep, false);
-  } else {
-    activityCtx.arc(cx, cy, R, tailAngle, tailAngle - arcSweep, true);
-  }
-  activityCtx.strokeStyle = "rgba(160,152,144,0.25)";
-  activityCtx.lineWidth   = 10;
-  activityCtx.lineCap     = "round";
-  activityCtx.stroke();
-
-  // ── Filled arc: fills from tail toward head as fraction increases ──
-  if (fraction > 0.01) {
-    const filledSweep = arcSweep * Math.min(fraction, 1);
-    activityCtx.beginPath();
-    if (dir.cw) {
-      activityCtx.arc(cx, cy, R, tailAngle, tailAngle + filledSweep, false);
-    } else {
-      activityCtx.arc(cx, cy, R, tailAngle, tailAngle - filledSweep, true);
-    }
-    activityCtx.strokeStyle = "rgba(92,110,91,0.80)";
-    activityCtx.lineWidth   = 10;
-    activityCtx.lineCap     = "round";
-    activityCtx.stroke();
-  }
-
-  // ── Arrowhead at the HEAD end of the ghost arc ──
-  // The arc stroke has rounded caps that extend slightly past the endpoint.
-  // We push the arrowhead tip FORWARD along the tangent by a few px so the
-  // stroke terminates inside the arrowhead rather than protruding past it.
-  const normHead  = dir.cw ? tailAngle + arcSweep : tailAngle - arcSweep;
-  const arcEndX   = cx + R * Math.cos(normHead);
-  const arcEndY   = cy + R * Math.sin(normHead);
-  const tangent   = dir.cw ? normHead + Math.PI/2 : normHead - Math.PI/2;
-  const nudge     = 12; // px forward push to cover rounded cap + larger head
-  const arrowX    = arcEndX + nudge * Math.cos(tangent);
-  const arrowY    = arcEndY + nudge * Math.sin(tangent);
-
-  const hs     = 30;   // 50% larger than previous 20
-  const spread = 0.50;
-  const tip   = { x: arrowX, y: arrowY };
-  const left  = {
-    x: arrowX - hs * Math.cos(tangent - spread),
-    y: arrowY - hs * Math.sin(tangent - spread)
-  };
-  const right = {
-    x: arrowX - hs * Math.cos(tangent + spread),
-    y: arrowY - hs * Math.sin(tangent + spread)
-  };
-
-  activityCtx.beginPath();
-  activityCtx.moveTo(tip.x,   tip.y);
-  activityCtx.lineTo(left.x,  left.y);
-  activityCtx.lineTo(right.x, right.y);
-  activityCtx.closePath();
-  activityCtx.fillStyle = "rgba(92,110,91,0.65)";
-  activityCtx.fill();
-}
-
-function drawShakeGuide(W, H, phase, phaseFrac) {
-  // Two independent horizontal arrows stacked vertically.
-  // Arrow 1 (top): first required direction.
-  // Arrow 2 (bottom): opposite direction, locked until arrow 1 is complete.
-  // Each arrow fills independently like the slice guide.
-  // A numbered circle (1 or 2) at the tail indicates order.
-  const dir = currentShakeDir;
-  if (!dir) return;
-
-  const margin  = 60;           // horizontal inset — keeps numbers well inside
-  const arrowW  = W - margin * 2 - 40; // shorter arrows, centered
-  const cx      = W / 2;
-  const row1Y   = H * 0.35;
-  const row2Y   = H * 0.65;
-  const goRight = dir.first === "right";
-
-  // Arrow 1: goes in first direction
-  const a1tail = { x: goRight ? cx - arrowW/2 : cx + arrowW/2, y: row1Y };
-  const a1head = { x: goRight ? cx + arrowW/2 : cx - arrowW/2, y: row1Y };
-
-  // Arrow 2: opposite direction
-  const a2tail = { x: goRight ? cx + arrowW/2 : cx - arrowW/2, y: row2Y };
-  const a2head = { x: goRight ? cx - arrowW/2 : cx + arrowW/2, y: row2Y };
-
-  const locked2 = phase === 0; // arrow 2 is locked until phase 1
-
-  // Helper: draw one arrow (ghost + optional fill fraction + numbered badge)
-  function drawArrowRow(tail, head, frac, num, locked) {
-    const angle   = Math.atan2(head.y - tail.y, head.x - tail.x);
-    const fullLen = Math.sqrt((head.x-tail.x)**2 + (head.y-tail.y)**2);
-    const hs      = 24;  // arrowhead size
-    const spread  = 0.50;
-
-    // Shorten ghost shaft to leave room for arrowhead
-    const shaftEndX = head.x - hs * 0.55 * Math.cos(angle);
-    const shaftEndY = head.y - hs * 0.55 * Math.sin(angle);
-
-    // Ghost (full arrow, light)
-    const ghostColor = locked ? "rgba(180,172,164,0.18)" : "rgba(160,152,144,0.28)";
-    activityCtx.beginPath();
-    activityCtx.moveTo(tail.x, tail.y);
-    activityCtx.lineTo(shaftEndX, shaftEndY);
-    activityCtx.strokeStyle = ghostColor;
-    activityCtx.lineWidth   = 6;
-    activityCtx.lineCap     = "round";
-    activityCtx.stroke();
-
-    // Ghost arrowhead
-    activityCtx.beginPath();
-    activityCtx.moveTo(head.x, head.y);
-    activityCtx.lineTo(head.x - hs*Math.cos(angle-spread), head.y - hs*Math.sin(angle-spread));
-    activityCtx.lineTo(head.x - hs*Math.cos(angle+spread), head.y - hs*Math.sin(angle+spread));
-    activityCtx.closePath();
-    activityCtx.fillStyle = ghostColor;
-    activityCtx.fill();
-
-    // Fill (only if not locked and frac > 0)
-    if (!locked && frac > 0) {
-      const fillEndX = tail.x + (shaftEndX - tail.x) * Math.min(frac, 1);
-      const fillEndY = tail.y + (shaftEndY - tail.y) * Math.min(frac, 1);
-      activityCtx.beginPath();
-      activityCtx.moveTo(tail.x, tail.y);
-      activityCtx.lineTo(fillEndX, fillEndY);
-      activityCtx.strokeStyle = "rgba(92,110,91,0.85)";
-      activityCtx.lineWidth   = 6;
-      activityCtx.lineCap     = "round";
-      activityCtx.stroke();
-
-      // Filled arrowhead when near completion
-      if (frac > 0.82) {
-        activityCtx.beginPath();
-        activityCtx.moveTo(head.x, head.y);
-        activityCtx.lineTo(head.x - hs*Math.cos(angle-spread), head.y - hs*Math.sin(angle-spread));
-        activityCtx.lineTo(head.x - hs*Math.cos(angle+spread), head.y - hs*Math.sin(angle+spread));
-        activityCtx.closePath();
-        activityCtx.fillStyle = "rgba(92,110,91,0.85)";
-        activityCtx.fill();
+  /* ── 1. SLICE THE INGREDIENTS (Chef's Knife, Serrated Knife) ── */
+  "slice": {
+    icon:"🔪", title:"Slice the Ingredients", task:"Chef's Knife",
+    completionMsg:"Clean cuts. Well done.", canvasH:230,
+    launch(cvs){
+      const SLICES_NEEDED=9,MIN_STROKE_LEN=40,MIN_VERT_RATIO=0.45;
+      let g,slices,done,_raf,cutLines,strokeStart,currentStroke,rejectFlash,successFlash;
+      let boardX,boardY,boardW,boardH,ingrX,ingrY,ingrW,ingrH;
+      function layout(){const{W,H}=g;boardX=W*0.06;boardY=H*0.35;boardW=W*0.88;boardH=H*0.54;ingrX=W*0.11;ingrY=H*0.44;ingrW=W*0.78;ingrH=H*0.28;}
+      function trySlice(sx,sy,ex,ey){
+        const dx=ex-sx,dy=ey-sy,len=Math.sqrt(dx*dx+dy*dy);
+        if(len<MIN_STROKE_LEN){_SS("Stroke too short — drag more firmly");return;}
+        if(Math.abs(dy)/len<MIN_VERT_RATIO){rejectFlash=20;_SS("Drag more downward");return;}
+        const midX=(sx+ex)/2;
+        if(midX<ingrX+ingrW*0.02||midX>ingrX+ingrW*0.98){_SS("Slice across the ingredient");return;}
+        const norm=(midX-ingrX)/ingrW;
+        if(cutLines.some(c=>Math.abs(c-norm)*ingrW<12)){_SS("Too close to a previous cut");return;}
+        cutLines.push(norm);cutLines.sort((a,b)=>a-b);slices++;successFlash=18;
+        const pct=Math.round(slices/SLICES_NEEDED*100);_SP(pct,pct+"%");
+        if(slices>=SLICES_NEEDED){done=true;activityDone();}else _SS(`${SLICES_NEEDED-slices} more cut${SLICES_NEEDED-slices!==1?"s":""}`);
       }
-    }
-
-    // Numbered badge: placed just behind the tail (opposite the travel direction)
-    const badgeR = 13;
-    const badgeX = tail.x - Math.cos(angle) * (badgeR + 8);
-    const badgeY = tail.y;
-    activityCtx.beginPath();
-    activityCtx.arc(badgeX, badgeY, badgeR, 0, Math.PI*2);
-    activityCtx.fillStyle   = locked ? "rgba(180,172,164,0.35)" : "rgba(92,110,91,0.18)";
-    activityCtx.fill();
-    activityCtx.strokeStyle = locked ? "rgba(180,172,164,0.5)"  : "rgba(92,110,91,0.55)";
-    activityCtx.lineWidth   = 1.5;
-    activityCtx.stroke();
-    activityCtx.font         = "bold 13px Inter, sans-serif";
-    activityCtx.fillStyle    = locked ? "rgba(160,152,144,0.7)"  : "rgba(92,110,91,0.9)";
-    activityCtx.textAlign    = "center";
-    activityCtx.textBaseline = "middle";
-    activityCtx.fillText(String(num), badgeX, badgeY);
-  }
-
-  // Arrow 1: fill based on phase 0 phaseFrac
-  const frac1 = phase === 0 ? phaseFrac : 1.0;
-  drawArrowRow(a1tail, a1head, frac1, 1, false);
-
-  // Arrow 2: fill based on phase 1 phaseFrac; locked during phase 0
-  const frac2 = phase === 1 ? phaseFrac : 0;
-  drawArrowRow(a2tail, a2head, frac2, 2, locked2);
-}
-
-/* ─── PROGRESS ──────────────────────────────────────────────── */
-function addProgress() {
-  if (isComplete) return;
-  progress = Math.min(progress + 1, currentActivity.target);
-
-  const pct = (progress / currentActivity.target) * 100;
-  document.getElementById("activity-progress-fill").style.width = pct + "%";
-  document.getElementById("activity-progress-count").textContent = `${progress} / ${currentActivity.target}`;
-
-  // Animate tool icon
-  const anim = currentActivity.type === "slice" ? "slice-anim" : "spin-anim";
-  const el = document.getElementById("activity-tool-icon");
-  el.classList.remove(anim);
-  void el.offsetWidth;
-  el.classList.add(anim);
-
-  // Flash canvas
-  activityCanvas.classList.remove("success-flash");
-  void activityCanvas.offsetWidth;
-  activityCanvas.classList.add("success-flash");
-
-  if (progress >= currentActivity.target) {
-    finishActivity();
-  } else {
-    // Slice: pick new direction immediately (no visual hold needed)
-    if (currentActivity.type === "slice") pickNewSliceDir();
-    // Circle: direction switch is handled by circleComplete() after cooldown
-  }
-}
-
-function finishActivity() {
-  isComplete = true;
-  document.getElementById("activity-progress-fill").classList.add("complete");
-  document.getElementById("activity-complete-banner").classList.add("show");
-  document.getElementById("activity-complete-text").textContent = currentActivity.completionMsg;
-  document.getElementById("activity-btn-done").disabled = false;
-  activityCanvas.style.pointerEvents = "none";
-  drawGuide(1);
-}
-
-/* ─── DIRECTION PICKERS ─────────────────────────────────────── */
-let lastSliceDirIdx   = -1;
-let lastCircleDirIdx  = -1;
-
-function pickNewSliceDir() {
-  // Avoid repeating same direction twice in a row
-  let idx;
-  do { idx = Math.floor(Math.random() * SLICE_DIRS.length); }
-  while (idx === lastSliceDirIdx);
-  lastSliceDirIdx = idx;
-  currentSliceDir = SLICE_DIRS[idx];
-  sliceProgress   = 0;
-  drawGuide(0);
-}
-
-function pickNewCircleDir() {
-  // Alternate: opposite of last
-  const idx = lastCircleDirIdx === 0 ? 1 : 0;
-  lastCircleDirIdx  = idx;
-  currentCircleDir  = CIRCLE_DIRS[idx];
-  drawGuide(0);
-}
-
-/* ─── SLICE HANDLERS ────────────────────────────────────────── */
-function sliceStart(e) {
-  if (isComplete) return;
-  e.preventDefault();
-  const p = getPos(e);
-  sliceDown = true;
-  sliceSX = sliceLX = p.x;
-  sliceSY = sliceLY = p.y;
-  sliceDist = 0;
-  sliceProgress = 0;
-  activityCanvas.classList.add("active-drag");
-}
-
-function sliceMove(e) {
-  if (!sliceDown || isComplete) return;
-  e.preventDefault();
-  const p  = getPos(e);
-  const dx = p.x - sliceSX, dy = p.y - sliceSY;
-  const totalDist = Math.sqrt(dx*dx + dy*dy);
-
-  // How aligned is this stroke with the required direction?
-  const dir = currentSliceDir;
-  const len = totalDist || 1;
-  const cosA = (dx * dir.dx + dy * dir.dy) / len; // dot product with unit vector
-
-  // Fill fraction: how far along the required axis, clamped 0-1
-  // Only show fill if moving in roughly right direction
-  const axialDist = dx * dir.dx + dy * dir.dy; // signed projection
-  const { W, H } = getActivityCanvasSize();
-  const maxLen = Math.min(W, H) * 0.52;
-  const fillFrac = Math.max(0, Math.min(1, axialDist / maxLen));
-
-  sliceProgress = fillFrac;
-  sliceDist     = totalDist;
-
-  // Draw freehand trace over guide
-  activityCtx.clearRect(0, 0, getActivityCanvasSize().W, getActivityCanvasSize().H);
-  drawGuide(fillFrac);
-  activityCtx.beginPath();
-  activityCtx.moveTo(sliceSX, sliceSY);
-  activityCtx.lineTo(p.x, p.y);
-  activityCtx.strokeStyle = cosA > SLICE_DIR_THRESH
-    ? "rgba(92,110,91,0.45)"
-    : "rgba(180,84,80,0.35)"; // red tint if wrong direction
-  activityCtx.lineWidth = 3;
-  activityCtx.lineCap   = "round";
-  activityCtx.stroke();
-
-  sliceLX = p.x; sliceLY = p.y;
-}
-
-function sliceEnd(e) {
-  if (!sliceDown) return;
-  sliceDown = false;
-  activityCanvas.classList.remove("active-drag");
-
-  const dir    = currentSliceDir;
-  const totalDx = sliceLX - sliceSX, totalDy = sliceLY - sliceSY;
-  const totalD  = Math.sqrt(totalDx*totalDx + totalDy*totalDy);
-  const cosA    = totalD > 0
-    ? (totalDx * dir.dx + totalDy * dir.dy) / totalD
-    : 0;
-
-  if (totalD >= SLICE_MIN_DIST && cosA >= SLICE_DIR_THRESH) {
-    addProgress();
-    setTimeout(() => drawGuide(0), 300);
-  } else {
-    // Invalid stroke — redraw clean guide
-    setTimeout(() => drawGuide(0), 200);
-  }
-  sliceProgress = 0;
-}
-
-/* ─── CIRCLE HANDLERS (closed-loop detection) ───────────────── */
-// A loop counts when the path:
-//  1. Has traveled at least CIRCLE_MIN_PATHLEN px total
-//  2. Returns to within CIRCLE_CLOSE_RATIO * pathLength of its start point
-// The guide fill reflects how much path has been traveled vs the minimum,
-// giving players feedback that they're making progress even mid-loop.
-
-function circleStart(e) {
-  if (isComplete || circleCooldown) return;
-  e.preventDefault();
-  const p = getPos(e);
-  circlePoints  = [p];
-  circleDown    = true;
-  circlePathLen = 0;
-  circleStartX  = p.x;
-  circleStartY  = p.y;
-  // Bounding box and direction tracking
-  circleBboxMinX = p.x; circleBboxMaxX = p.x;
-  circleBboxMinY = p.y; circleBboxMaxY = p.y;
-  circleSignedAngle = 0;
-  activityCanvas.classList.add("active-drag");
-}
-
-function circleMove(e) {
-  if (!circleDown || isComplete) return;
-  e.preventDefault();
-  const p    = getPos(e);
-  const last = circlePoints[circlePoints.length - 1];
-  const dx   = p.x - last.x, dy = p.y - last.y;
-  const step = Math.sqrt(dx*dx + dy*dy);
-  if (step < 2) return;
-
-  circlePoints.push(p);
-  circlePathLen += step;
-
-  // Update bounding box
-  circleBboxMinX = Math.min(circleBboxMinX, p.x);
-  circleBboxMaxX = Math.max(circleBboxMaxX, p.x);
-  circleBboxMinY = Math.min(circleBboxMinY, p.y);
-  circleBboxMaxY = Math.max(circleBboxMaxY, p.y);
-
-  // Accumulate signed angle around the running centroid for direction detection
-  // We use the last two points and an approximate centroid for efficiency.
-  // Positive total = CCW (screen Y-down), Negative = CW
-  if (circlePoints.length >= 3) {
-    const n   = circlePoints.length;
-    const cx  = (circleBboxMinX + circleBboxMaxX) / 2;
-    const cy  = (circleBboxMinY + circleBboxMaxY) / 2;
-    const pp  = circlePoints[n - 2]; // previous point
-    let da = Math.atan2(p.y - cy, p.x - cx) - Math.atan2(pp.y - cy, pp.x - cx);
-    if (da >  Math.PI) da -= 2 * Math.PI;
-    if (da < -Math.PI) da += 2 * Math.PI;
-    circleSignedAngle += da;
-  }
-
-  // Guide fill = how close are we to completing a loop?
-  // Phase 1 (not enough path yet): fill proportionally to path traveled (0→0.5)
-  // Phase 2 (enough path traveled): fill based on how close we are to the start (0.5→1)
-  // This means: straight lines fill to ~50% then stall; only curving back fills to 100%.
-  let guideFrac = 0;
-  const hasMinPath = circlePathLen >= CIRCLE_MIN_PATHLEN;
-  if (!hasMinPath) {
-    // First half of the guide fills as path grows
-    guideFrac = (circlePathLen / CIRCLE_MIN_PATHLEN) * 0.5;
-  } else {
-    // Second half fills as we return to start
-    // Max return distance that still shows progress = 60% of path length
-    const distToStart = Math.sqrt(
-      (p.x - circleStartX)**2 + (p.y - circleStartY)**2
-    );
-    const maxDist  = circlePathLen * CIRCLE_CLOSE_RATIO * 2; // twice threshold = 0% fill
-    const closeFrac = Math.max(0, 1 - (distToStart / maxDist));
-    guideFrac = 0.5 + closeFrac * 0.5;
-  }
-
-  // Redraw guide with computed fill
-  const { W, H } = getActivityCanvasSize();
-  activityCtx.clearRect(0, 0, W, H);
-  drawGuide(Math.min(1, guideFrac));
-
-  // Draw freehand trace
-  const prev = circlePoints[circlePoints.length - 2];
-  activityCtx.beginPath();
-  activityCtx.moveTo(prev.x, prev.y);
-  activityCtx.lineTo(p.x, p.y);
-  activityCtx.strokeStyle = "rgba(92,110,91,0.45)";
-  activityCtx.lineWidth   = 3;
-  activityCtx.lineCap     = "round";
-  activityCtx.stroke();
-
-  // Trigger completion when closure threshold met AND shape is loop-like
-  if (!circleCooldown && hasMinPath) {
-    const distToStart = Math.sqrt(
-      (p.x - circleStartX)**2 + (p.y - circleStartY)**2
-    );
-    const isClosed = distToStart / circlePathLen <= CIRCLE_CLOSE_RATIO;
-
-    // Bounding box aspect ratio check: reject thin back-and-forth strokes
-    const bboxW  = circleBboxMaxX - circleBboxMinX;
-    const bboxH  = circleBboxMaxY - circleBboxMinY;
-    const longer  = Math.max(bboxW, bboxH);
-    const shorter = Math.min(bboxW, bboxH);
-    const aspect  = longer > 0 ? shorter / longer : 0;
-    const isLoopShaped = aspect >= CIRCLE_MIN_ASPECT;
-
-    // Direction check: circleSignedAngle sign must match required direction.
-    // In screen coords (Y-down): CW rotation produces negative angle sum,
-    // CCW produces positive. We require the sign to roughly match.
-    // Threshold: at least 0.5 radians of net rotation in the correct direction
-    // to avoid noise from wobbly gestures near zero.
-    const dir = currentCircleDir;
-    const requiredSign = dir.cw ? 1 : -1; // sign convention: CW=positive, CCW=negative (empirically confirmed)
-    const correctDirection = (circleSignedAngle * requiredSign) > 0.5;
-
-    if (isClosed && isLoopShaped && correctDirection) {
-      circleComplete();
-    }
-  }
-}
-
-function circleEnd(e) {
-  if (!circleDown) return;
-  circleDown    = false;
-  circlePoints  = [];
-  circlePathLen = 0;
-  activityCanvas.classList.remove("active-drag");
-  if (!circleCooldown) setTimeout(() => drawGuide(0), 200);
-}
-
-function circleComplete() {
-  circleCooldown = true;
-  circleDown     = false;
-  circlePoints      = [];
-  circlePathLen     = 0;
-  circleSignedAngle = 0;
-
-  // Show full arc briefly as confirmation
-  drawGuide(1);
-  addProgress(); // increments counter, flashes icon
-
-  // After hold: switch direction and reset guide
-  setTimeout(() => {
-    circleCooldown = false;
-    if (!isComplete) {
-      pickNewCircleDir();
-      drawGuide(0);
-    }
-  }, 700);
-}
-
-/* ─── SHAKE DIRECTION PICKER ────────────────────────────────── */
-function pickNewShakeDir() {
-  let idx;
-  do { idx = Math.floor(Math.random() * SHAKE_DIRS.length); }
-  while (idx === lastShakeDirIdx && SHAKE_DIRS.length > 1);
-  lastShakeDirIdx  = idx;
-  currentShakeDir  = SHAKE_DIRS[idx];
-  shakePhase       = 0;
-  shakePhaseStartX = 0; shakePhaseStartY = 0;
-  shakePhaseDist   = 0;
-  drawGuide(0, 0, 0);
-}
-
-/* ─── SHAKE HANDLERS ─────────────────────────────────────────── */
-function shakeStart(e) {
-  if (isComplete) return;
-  e.preventDefault();
-  const p = getPos(e);
-  shakeDown        = true;
-  shakePhaseStartX = p.x;
-  shakePhaseStartY = p.y;
-  shakePhaseDist   = 0;
-  shakeLastX       = p.x;
-  shakeLastY       = p.y;
-  activityCanvas.classList.add("active-drag");
-}
-
-function shakeMove(e) {
-  if (!shakeDown || isComplete) return;
-  e.preventDefault();
-  const p  = getPos(e);
-  const dx = p.x - shakeLastX;
-  shakeLastX = p.x;
-  shakeLastY = p.y;
-
-  const dir        = currentShakeDir;
-  const phase0Sign = dir.first === "right" ? 1 : -1;
-  const reqSign    = shakePhase === 0 ? phase0Sign : -phase0Sign;
-
-  // Accumulate distance only when moving in the correct direction for this phase
-  const movingCorrectly = dx * reqSign > 0;
-  if (movingCorrectly) {
-    shakePhaseDist += Math.abs(dx);
-  }
-
-  const phaseFrac  = Math.min(1, shakePhaseDist / SHAKE_MIN_DIST);
-  const { W, H }   = getActivityCanvasSize();
-  activityCtx.clearRect(0, 0, W, H);
-  drawGuide(0, shakePhase, phaseFrac);
-
-  // Freehand trace — red tint when moving wrong way
-  activityCtx.beginPath();
-  activityCtx.moveTo(p.x - dx, p.y);
-  activityCtx.lineTo(p.x, p.y);
-  activityCtx.strokeStyle = movingCorrectly ? "rgba(92,110,91,0.40)" : "rgba(180,84,80,0.25)";
-  activityCtx.lineWidth   = 3;
-  activityCtx.lineCap     = "round";
-  activityCtx.stroke();
-
-  // Trigger when enough correct-direction travel accumulated (matches what fill shows)
-  if (shakePhaseDist >= SHAKE_MIN_DIST) {
-    if (shakePhase === 0) {
-      shakePhase     = 1;
-      shakePhaseDist = 0;   // reset for second phase
-      drawGuide(0, 1, 0);
-    } else {
-      shakeComplete();
-    }
-  }
-}
-
-function shakeEnd(e) {
-  if (!shakeDown) return;
-  shakeDown = false;
-  activityCanvas.classList.remove("active-drag");
-  // Phase persists across lifts — player can complete each stroke separately.
-  // shakePhaseDist also persists so partial progress within a phase is kept.
-  // Only shakeComplete() or a new action resets these.
-}
-
-function shakeComplete() {
-  shakeDown        = false;
-  shakePhase       = 0;
-  shakePhaseDist   = 0;
-  activityCanvas.classList.remove("active-drag");
-  addProgress();
-  if (!isComplete) {
-    pickNewShakeDir();
-  }
-}
-
-/* ─── PULSE HANDLERS ─────────────────────────────────────────── */
-function setupPulseButton() {
-  const btn   = document.getElementById("activity-pulse-btn");
-  const blade = document.getElementById("activity-blade-icon");
-  btn.disabled = false;
-  btn.style.opacity = "1";
-
-  btn.onclick = () => {
-    if (pulseCooldown || isComplete) return;
-    pulseCooldown = true;
-    btn.disabled  = true;
-    btn.style.opacity = "0.45";
-
-    // Spin up then slow down
-    blade.style.animationDuration = "0.15s";
-    blade.style.animationPlayState = "running";
-
-    // Slow down halfway through cycle
-    setTimeout(() => {
-      blade.style.animationDuration = "1.2s";
-    }, PULSE_CYCLE_MS * 0.45);
-
-    // Stop and re-enable
-    setTimeout(() => {
-      blade.style.animationPlayState = "paused";
-      blade.style.animationDuration  = "0.15s";
-      pulseCooldown = false;
-      if (!isComplete) {
-        btn.disabled      = false;
-        btn.style.opacity = "1";
+      function drawIngr(ctx){
+        const sorted=[0,...cutLines,1],GAP=3;
+        for(let i=0;i<sorted.length-1;i++){
+          const x0=ingrX+sorted[i]*ingrW+(i>0?GAP:0),x1=ingrX+sorted[i+1]*ingrW-(i<sorted.length-2?GAP:0);
+          if(x1-x0<2)continue;
+          const bg=ctx.createLinearGradient(x0,ingrY,x0,ingrY+ingrH);bg.addColorStop(0,"#8AC060");bg.addColorStop(0.35,"#5A9030");bg.addColorStop(0.7,"#3A7010");bg.addColorStop(1,"#2A5008");
+          ctx.fillStyle=bg;const topR=i===0?ingrH*0.35:ingrH*0.48,botR=i===sorted.length-2?ingrH*0.35:ingrH*0.48;
+          ctx.beginPath();ctx.moveTo(x0,ingrY+ingrH*0.5-topR);ctx.lineTo(x1,ingrY+ingrH*0.5-botR);ctx.lineTo(x1,ingrY+ingrH*0.5+botR);ctx.lineTo(x0,ingrY+ingrH*0.5+topR);ctx.closePath();ctx.fill();
+          if(i>0){ctx.fillStyle="rgba(190,230,150,0.7)";ctx.beginPath();ctx.ellipse(x0+1,ingrY+ingrH*0.5,3,ingrH*0.44,0,0,Math.PI*2);ctx.fill();}
+          ctx.strokeStyle="rgba(40,80,10,0.18)";ctx.lineWidth=1;for(let t=0;t<3;t++){const ty=ingrY+ingrH*0.5+(t-1)*ingrH*0.28;ctx.beginPath();ctx.moveTo(x0,ty);ctx.lineTo(x1,ty);ctx.stroke();}
+        }
+        if(cutLines.length===0||Math.min(...cutLines)>0.06){ctx.fillStyle="#3A6018";ctx.beginPath();ctx.ellipse(ingrX+3,ingrY+ingrH*0.5,3,ingrH*0.22,0,0,Math.PI*2);ctx.fill();}
       }
-      addProgress();
-    }, PULSE_CYCLE_MS);
-  };
-}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);_drawBoard(ctx,boardX,boardY,boardW,boardH);drawIngr(ctx);
+        if(currentStroke&&strokeStart){ctx.strokeStyle=rejectFlash>0?"rgba(200,60,60,0.5)":"rgba(80,80,80,0.35)";ctx.lineWidth=2.5;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(strokeStart.x,strokeStart.y);ctx.lineTo(currentStroke.x,currentStroke.y);ctx.stroke();}
+        if(rejectFlash>0)rejectFlash--;
+        if(successFlash>0){successFlash--;ctx.fillStyle=`rgba(92,110,91,${successFlash/18*0.18})`;ctx.beginPath();ctx.roundRect(boardX,boardY,boardW,boardH,6);ctx.fill();}
+        if(slices===0&&!strokeStart){const ax=ingrX+ingrW*0.5,ay=ingrY-38+Math.sin(Date.now()/380)*5;ctx.fillStyle="rgba(92,110,91,0.55)";ctx.font="bold 13px Inter,sans-serif";ctx.textAlign="center";ctx.fillText("drag ↓ across",ax,ay);}
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      function onStart(e){if(done)return;e.preventDefault();const p=_ep(e,cvs);if(p.x>ingrX-20&&p.x<ingrX+ingrW+20&&p.y<ingrY+ingrH+20){strokeStart={...p};currentStroke={...p};}}
+      function onMove(e){if(!strokeStart||done)return;e.preventDefault();currentStroke=_ep(e,cvs);}
+      function onEnd(e){if(!strokeStart||done)return;e.preventDefault();const p=e.changedTouches?_ep(e,cvs):currentStroke||_ep(e,cvs);trySlice(strokeStart.x,strokeStart.y,p.x,p.y);strokeStart=null;currentStroke=null;}
+      g=_IC(cvs);layout();slices=0;done=false;cutLines=[];strokeStart=null;currentStroke=null;rejectFlash=0;successFlash=0;
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);
+      cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Drag downward across the ingredient");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
 
-/* ─── LAUNCH ────────────────────────────────────────────────── */
-// Map tool resource names to activity keys
-const TOOL_TO_ACTIVITY = {
-  "Chef's Knife":   "chefs-knife",
-  "Serrated Knife": "serrated-knife",
-  "Mandolin":       "mandolin",
-  "Whisk":          "whisk",
-  "Blender":        "blender",
-  "Food Processor": "food-processor",
-  "Bowl":           "bowl",
-  "Pan":            "pan",
-  "Tray":           "tray",
-  "Pot":            "pot",
-};
+  /* ── 2. SHAKE & SEASON (Blender, Pot) ── */
+  "shake-season": {
+    icon:"🫙", title:"Shake & Season", task:"Blender",
+    completionMsg:"Well seasoned. Good coverage.", canvasH:220,
+    launch(cvs){
+      const GCOLS=14,GROWS=6,TARGET=0.72,CLR="#C84020";
+      let g,off,jarX,jarVel,jarTgt,isDrag,lastX,grid,gridMask,done,_raf,shower;
+      const dCX=W=>W*0.5,dCY=H=>H*0.73,dRX=W=>W*0.42,dRY=H=>H*0.13;
+      function spawnShower(x,speed){const count=Math.min(4,Math.floor(Math.abs(speed)*0.6+1));for(let i=0;i<count;i++){shower.push({x:x+(Math.random()-.5)*8,y:g.H*0.17,vx:(Math.random()-.5)*1.0+speed*0.025,vy:Math.random()*0.8+0.5,life:1,r:0.5+Math.random()*0.9});}}
+      function landAt(jarAboveX){
+        const{W,H}=g;const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random());const lx=dCX(W)+dRX(W)*rad*Math.cos(angle)*0.86,ly=dCY(H)+dRY(H)*rad*Math.sin(angle)*0.80;const bx=lx+(jarAboveX-dCX(W))*0.18;const ex=(bx-dCX(W))/dRX(W),ey=(ly-dCY(H))/dRY(H);if(ex*ex+ey*ey>0.88)return;
+        off.ctx.save();off.ctx.translate(bx,ly);off.ctx.rotate(Math.random()*Math.PI);off.ctx.fillStyle=CLR;off.ctx.globalAlpha=0.30+Math.random()*0.32;off.ctx.beginPath();off.ctx.ellipse(0,0,0.6+Math.random()*1.1,0.35+Math.random()*0.7,0,0,Math.PI*2);off.ctx.fill();off.ctx.restore();
+        const gc=Math.floor(((bx-(dCX(W)-dRX(W)))/(dRX(W)*2))*GCOLS),gr=Math.floor(((ly-(dCY(H)-dRY(H)))/(dRY(H)*2))*GROWS),idx=gr*GCOLS+gc;
+        if(gc>=0&&gc<GCOLS&&gr>=0&&gr<GROWS&&gridMask[idx])grid[idx]=Math.min(1,grid[idx]+0.055);
+        let total=0,sum=0;for(let i=0;i<GCOLS*GROWS;i++){if(gridMask[i]){total++;sum+=grid[i];}}const tc=total?sum/total:0;const pct=Math.min(100,Math.round(tc/TARGET*100));_SP(pct,pct+"%");
+        if(tc>=TARGET){done=true;activityDone();}else _SS("Keep going — cover the whole platter");
+      }
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);_drawPlatter(ctx,dCX(W),dCY(H),dRX(W),dRY(H));ctx.drawImage(off.c,0,0,W,H);
+        ctx.save();ctx.beginPath();ctx.ellipse(dCX(W),dCY(H),dRX(W)*0.86,dRY(H)*0.78,0,0,Math.PI*2);ctx.clip();const cellW=dRX(W)*2/GCOLS,cellH=dRY(H)*2/GROWS;
+        for(let r=0;r<GROWS;r++)for(let c=0;c<GCOLS;c++){const idx=r*GCOLS+c;if(!gridMask[idx])continue;const cx2=dCX(W)-dRX(W)+c*cellW+cellW/2,cy2=dCY(H)-dRY(H)+r*cellH+cellH/2;ctx.fillStyle=grid[idx]>0.35?"rgba(92,110,91,0.60)":"rgba(200,190,180,0.30)";ctx.beginPath();ctx.arc(cx2,cy2,1.8,0,Math.PI*2);ctx.fill();}ctx.restore();
+        jarVel+=(jarTgt-jarX)*0.2;jarVel*=0.72;jarX+=jarVel;const tilt=jarVel*0.028,jiggle=Math.sin(Date.now()/60)*Math.abs(jarVel)*0.012;
+        ctx.save();ctx.translate(jarX,H*0.11);ctx.rotate(tilt+jiggle);ctx.fillStyle="#F5ECD7";ctx.strokeStyle="#D4A853";ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(-15,-30,30,52,7);ctx.fill();ctx.stroke();ctx.fillStyle=CLR;ctx.globalAlpha=0.75;ctx.beginPath();ctx.roundRect(-13,-2,26,16,3);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle="#7A6040";ctx.beginPath();ctx.roundRect(-14,-37,28,11,4);ctx.fill();for(let h=-6;h<=6;h+=6){ctx.fillStyle="rgba(0,0,0,0.3)";ctx.beginPath();ctx.arc(h,-32,2,0,Math.PI*2);ctx.fill();}ctx.restore();
+        const dishTopY=dCY(H)-dRY(H);for(let i=shower.length-1;i>=0;i--){const p=shower[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.07;p.life-=0.013;if(p.y>=dishTopY){landAt(jarX);shower.splice(i,1);continue;}if(p.life<=0){shower.splice(i,1);continue;}const df=Math.max(0,(dishTopY-p.y)/(dishTopY-g.H*0.18));ctx.globalAlpha=p.life*df*0.75;ctx.fillStyle=CLR;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+        if(isDrag&&!done&&Math.abs(jarVel)>1.0)spawnShower(jarX,jarVel);if(!isDrag&&!done&&Math.abs(jarVel)>0.35&&Math.random()<0.08)spawnShower(jarX,jarVel*0.4);
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      function onStart(e){if(done)return;e.preventDefault();isDrag=true;lastX=_ep(e,cvs).x;}
+      function onMove(e){if(!isDrag||done)return;e.preventDefault();const x=_ep(e,cvs).x,dx=x-lastX;jarTgt=Math.max(35,Math.min(g.W-35,jarTgt+dx*0.9));jarVel+=dx*0.55;lastX=x;}
+      function onEnd(){isDrag=false;}
+      g=_IC(cvs);off=_OS(g.W,g.H);jarX=g.W/2;jarVel=0;jarTgt=jarX;isDrag=false;lastX=jarX;grid=new Float32Array(GCOLS*GROWS).fill(0);gridMask=new Uint8Array(GCOLS*GROWS).fill(0);for(let r=0;r<GROWS;r++)for(let c=0;c<GCOLS;c++){const cx2=(c+0.5)/GCOLS*2-1,cy2=(r+0.5)/GROWS*2-1;if(cx2*cx2+cy2*cy2<0.88)gridMask[r*GCOLS+c]=1;}done=false;shower=[];
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Drag the jar left and right to season");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
 
-function launchCookingActivity(toolName) {
-  const key = TOOL_TO_ACTIVITY[toolName] || "chefs-knife";
-  const act = ACTIVITIES[key];
-  if (!act) return;
+  /* ── 3. COAT & TOSS (Bowl) ── */
+  "coat-toss": {
+    icon:"🥣", title:"Coat & Toss", task:"Bowl",
+    completionMsg:"Perfectly coated. Nice toss.", canvasH:215,
+    launch(cvs){
+      const TARGET=9,MAX_ANGLE=0.38;
+      const FOODS=[{emoji:"🥕",r:14},{emoji:"🥦",r:16},{emoji:"🍅",r:13},{emoji:"🧅",r:13},{emoji:"🥒",r:15}];
+      let g,bowlA,bowlV,bowlTgt,isDrag,lastX,tossCount,done,blobs,_raf,tossCooldown,lastTossDir;
+      function makeBlobs(){blobs=FOODS.map((f,i)=>{const a=(i/FOODS.length)*Math.PI*2;return{x:Math.cos(a)*0.25,y:Math.sin(a)*0.18+0.05,vx:0,vy:0,...f};});}
+      function separateBlobs(bRX,bRY){for(let iter=0;iter<3;iter++){for(let i=0;i<blobs.length;i++)for(let j=i+1;j<blobs.length;j++){const a=blobs[i],b=blobs[j];const dx=(a.x-b.x)*bRX,dy=(a.y-b.y)*bRY*0.75;const dist=Math.sqrt(dx*dx+dy*dy)||0.01;const minDist=a.r+b.r+4;if(dist<minDist){const push=(minDist-dist)/dist*0.5;a.x+=dx/bRX*push*0.5;a.y+=dy/bRY*0.75*push*0.5;b.x-=dx/bRX*push*0.5;b.y-=dy/bRY*0.75*push*0.5;}}}}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);const bx=W/2,by=H*0.56,bRX=W*0.36,bRY=H*0.28;
+        if(!done&&tossCount<2){ctx.fillStyle="rgba(160,150,140,0.3)";ctx.font="18px sans-serif";ctx.textAlign="center";ctx.fillText("← drag →",bx,by-bRY*1.22);}
+        bowlV+=(bowlTgt-bowlA)*0.07;bowlV*=0.85;bowlA+=bowlV;bowlA=Math.max(-MAX_ANGLE,Math.min(MAX_ANGLE,bowlA));
+        if(Math.abs(bowlA)>0.04||Math.abs(bowlV)>0.005){
+          blobs.forEach(b=>{b.vx+=Math.sin(bowlA)*0.10;b.vy+=0.03;b.x+=b.vx*0.04;b.y+=b.vy*0.014;b.vx*=0.88;b.vy*=0.80;if(Math.abs(b.vx)<0.005)b.vx=0;if(Math.abs(b.vy)<0.005)b.vy=0;const ex2=b.x/(0.88-(b.r/bRX)),ey2=b.y/(0.78-(b.r/bRY));if(ex2*ex2+ey2*ey2>1){const a2=Math.atan2(b.y,b.x);b.x=Math.cos(a2)*0.78*(0.88-b.r/bRX);b.y=Math.sin(a2)*0.68*(0.78-b.r/bRY);b.vx*=-0.35;b.vy*=-0.35;}});
+          const anyMoving=blobs.some(b=>Math.abs(b.vx)>0.01||Math.abs(b.vy)>0.01);if(anyMoving)separateBlobs(bRX,bRY);
+        }
+        const currentDir=bowlA>0.30?1:bowlA<-0.30?-1:0;
+        if(!done&&tossCooldown<=0&&currentDir!==0&&currentDir!==lastTossDir&&Math.abs(bowlV)<0.02){tossCooldown=25;lastTossDir=currentDir;tossCount++;const tpct=Math.round(tossCount/TARGET*100);_SP(tpct,tpct+"%");if(tossCount>=TARGET){done=true;activityDone();}else _SS(`${TARGET-tossCount} more toss${TARGET-tossCount!==1?"es":""}`);}
+        if(tossCooldown>0)tossCooldown--;
+        ctx.save();ctx.translate(bx,by);ctx.rotate(bowlA);ctx.save();ctx.beginPath();ctx.ellipse(0,0,bRX*0.88,bRY*0.78,0,0,Math.PI*2);ctx.clip();ctx.fillStyle="#F0EDE8";ctx.fill();blobs.forEach(b=>{ctx.font=`${b.r*1.6}px serif`;ctx.textAlign="center";ctx.fillText(b.emoji,b.x*bRX,b.y*bRY+b.r*0.55);});ctx.restore();ctx.strokeStyle="#B8A888";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,bRX,bRY,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      function onStart(e){if(done)return;e.preventDefault();isDrag=true;lastX=_ep(e,cvs).x;}
+      function onMove(e){if(!isDrag||done)return;e.preventDefault();const x=_ep(e,cvs).x,dx=x-lastX;bowlTgt=Math.max(-MAX_ANGLE,Math.min(MAX_ANGLE,bowlTgt+dx*0.005));bowlV+=dx*0.003;lastX=x;}
+      function onEnd(){isDrag=false;bowlTgt=0;}
+      g=_IC(cvs);makeBlobs();const bRX=g.W*0.36,bRY=g.H*0.28;separateBlobs(bRX,bRY);bowlA=0;bowlV=0;bowlTgt=0;isDrag=false;lastX=0;tossCount=0;done=false;tossCooldown=0;lastTossDir=0;
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Drag left and right firmly — 9 tosses needed");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
 
-  // Initialize canvas references FIRST — everything below may use them
-  activityCanvas = document.getElementById("activity-gesture-canvas");
-  activityCtx    = activityCanvas.getContext("2d");
+  /* ── 4. BUTTER THE PAN (Pan) ── */
+  "butter-pan": {
+    icon:"🧈", title:"Butter the Pan", task:"Pan",
+    completionMsg:"Pan well coated. Ready to cook.", canvasH:200,
+    launch(cvs){
+      const TARGET=0.88;
+      let g,off,isDown,lastP,done,cursor,cursorA,_raf,dirty;
+      const pcx=W=>W*0.52,pcy=H=>H*0.54,prx=W=>W*0.36,pry=H=>H*0.36;
+      function paint(x,y){const dx=(x-pcx(g.W))/prx(g.W),dy=(y-pcy(g.H))/pry(g.H);if(dx*dx+dy*dy>0.88)return;const r=11;const gr=off.ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,"rgba(255,210,60,0.62)");gr.addColorStop(0.55,"rgba(240,190,40,0.26)");gr.addColorStop(1,"rgba(230,180,30,0)");off.ctx.fillStyle=gr;off.ctx.beginPath();off.ctx.arc(x,y,r,0,Math.PI*2);off.ctx.fill();dirty=true;}
+      function measure(){if(!dirty)return;dirty=false;const img=off.ctx.getImageData(0,0,Math.round(g.W),Math.round(g.H));let inside=0,coated=0;const step=5;for(let y=0;y<g.H;y+=step)for(let x=0;x<g.W;x+=step){const dx=(x-pcx(g.W))/prx(g.W),dy=(y-pcy(g.H))/pry(g.H);if(dx*dx+dy*dy>0.88)continue;inside++;if(img.data[(y*Math.round(g.W)+x)*4+3]>30)coated++;}const tc=inside?coated/inside:0;_SP(Math.min(100,Math.round(tc/TARGET*100)),Math.round(tc*100)+"%");if(tc>=TARGET){done=true;activityDone();}else _SS(`${Math.round(tc*100)}% coated — keep spreading`);}
+      function tick(){const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);ctx.fillStyle="#3A3028";ctx.beginPath();ctx.roundRect(W*0.06,H*0.44,W*0.18,H*0.16,4);ctx.fill();ctx.fillStyle="#2A2A2A";ctx.beginPath();ctx.ellipse(pcx(W),pcy(H),prx(W),pry(H),0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#1A1A1A";ctx.lineWidth=3;ctx.stroke();ctx.fillStyle="#363633";ctx.beginPath();ctx.ellipse(pcx(W),pcy(H),prx(W)*0.9,pry(H)*0.85,0,0,Math.PI*2);ctx.fill();ctx.save();ctx.beginPath();ctx.ellipse(pcx(W),pcy(H),prx(W)*0.9,pry(H)*0.85,0,0,Math.PI*2);ctx.clip();ctx.drawImage(off.c,0,0,W,H);ctx.restore();if(cursor&&!done){ctx.save();ctx.translate(cursor.x,cursor.y);ctx.rotate(cursorA);ctx.fillStyle="#8B7355";ctx.strokeStyle="#5A4030";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(-4,-28,8,40,3);ctx.fill();ctx.stroke();ctx.fillStyle="#D4A853";ctx.beginPath();ctx.roundRect(-6,8,12,18,2);ctx.fill();ctx.stroke();ctx.restore();}measure();if(!done)_raf=requestAnimationFrame(tick);}
+      function onStart(e){if(done)return;e.preventDefault();isDown=true;lastP=_ep(e,cvs);cursor={x:lastP.x,y:lastP.y};}
+      function onMove(e){if(!isDown||done)return;e.preventDefault();const p=_ep(e,cvs);if(lastP){const dx=p.x-lastP.x,dy=p.y-lastP.y;const steps=Math.ceil(Math.sqrt(dx*dx+dy*dy)/5);for(let i=1;i<=steps;i++)paint(lastP.x+dx*i/steps,lastP.y+dy*i/steps);let da=(Math.atan2(dy,dx)+Math.PI/2)-cursorA;while(da>Math.PI)da-=Math.PI*2;while(da<-Math.PI)da+=Math.PI*2;cursorA+=da*0.12;cursor={x:p.x,y:p.y};}lastP=p;}
+      function onEnd(){isDown=false;lastP=null;cursor=null;}
+      g=_IC(cvs);off=_OS(g.W,g.H);isDown=false;lastP=null;done=false;cursor=null;cursorA=0;dirty=false;
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Drag to spread butter across the pan");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
 
-  // Clean up any lingering drag listeners from game interaction
-  // (prevents a mouseup from the Cook button click triggering gesture handlers)
-  if (document._gameMoveHandler) {
-    document.removeEventListener("mousemove", document._gameMoveHandler);
-    document._gameMoveHandler = null;
+  /* ── 5. OIL DRIZZLE (Tray) ── */
+  "oil-drizzle": {
+    icon:"🫒", title:"Oil Drizzle", task:"Tray",
+    completionMsg:"Evenly drizzled. Nice work.", canvasH:210,
+    launch(cvs){
+      const TARGET=0.75;
+      let g,off,jarX,jarVel,jarTgt,isDrag,lastX,driftPhase,done,_raf,drips,dirty;
+      const panCX=W=>W*0.52,panCY=H=>H*0.64,panRX=W=>W*0.38,panRY=H=>H*0.22;
+      function bezPt(d,t){const mt=1-t;return{x:mt*mt*d.bx+2*mt*t*d.cx+t*t*d.lx,y:mt*mt*d.nozzleY+2*mt*t*d.cy+t*t*d.ly};}
+      function pourAt(bx,drift){const lx=bx+(Math.random()-.5)*6,ly=panCY(g.H)+drift+(Math.random()-.5)*panRY(g.H)*0.3,dx=(lx-panCX(g.W))/panRX(g.W),dy=(ly-panCY(g.H))/panRY(g.H);if(dx*dx+dy*dy>0.86)return;const nozzleY=g.H*0.19;drips.push({bx,nozzleY,lx,ly,t:0,cx:(bx+lx)/2+(Math.random()-.5)*20,cy:nozzleY+(ly-nozzleY)*0.55});}
+      function measure(){if(!dirty)return;dirty=false;const img=off.ctx.getImageData(0,0,Math.round(g.W),Math.round(g.H));let inside=0,coated=0;const step=5;for(let y=0;y<g.H;y+=step)for(let x=0;x<g.W;x+=step){const dx=(x-panCX(g.W))/panRX(g.W),dy=(y-panCY(g.H))/panRY(g.H);if(dx*dx+dy*dy>0.88)continue;inside++;if(img.data[(y*Math.round(g.W)+x)*4+3]>12)coated++;}const tc=inside?coated/inside:0;const pct=Math.min(100,Math.round(tc/TARGET*100));_SP(pct,pct+"%");if(tc>=TARGET){done=true;activityDone();}else _SS("Move around to cover the whole tray");}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);ctx.fillStyle="#2A2A2A";ctx.beginPath();ctx.ellipse(panCX(W),panCY(H),panRX(W),panRY(H),0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#1A1A1A";ctx.lineWidth=2;ctx.stroke();ctx.fillStyle="#363633";ctx.beginPath();ctx.ellipse(panCX(W),panCY(H),panRX(W)*0.9,panRY(H)*0.85,0,0,Math.PI*2);ctx.fill();ctx.save();ctx.beginPath();ctx.ellipse(panCX(W),panCY(H),panRX(W)*0.9,panRY(H)*0.85,0,0,Math.PI*2);ctx.clip();ctx.drawImage(off.c,0,0,W,H);ctx.restore();
+        jarVel+=(jarTgt-jarX)*0.08;jarVel*=0.82;jarX+=jarVel;jarX=Math.max(40,Math.min(W-40,jarX));driftPhase+=0.025;const drift=Math.sin(driftPhase)*panRY(H)*0.72;
+        if(!done&&Math.abs(jarVel)>0.8&&Math.random()<0.18)pourAt(jarX,drift);
+        for(let i=drips.length-1;i>=0;i--){const d=drips[i];d.t+=0.022;if(d.t>=1){const r=5+Math.random()*5;const pg=off.ctx.createRadialGradient(d.lx,d.ly,0,d.lx,d.ly,r*1.8);pg.addColorStop(0,"rgba(190,148,12,0.55)");pg.addColorStop(0.5,"rgba(175,135,8,0.28)");pg.addColorStop(1,"rgba(160,120,0,0)");off.ctx.fillStyle=pg;off.ctx.beginPath();off.ctx.arc(d.lx,d.ly,r*1.8,0,Math.PI*2);off.ctx.fill();dirty=true;drips.splice(i,1);continue;}const head=bezPt(d,d.t),tail=bezPt(d,Math.max(0,d.t-0.14));if(d.t>0.06){ctx.beginPath();ctx.moveTo(tail.x,tail.y);for(let s=1;s<=6;s++){const sp=bezPt(d,Math.max(0,d.t-0.14*(1-s/6)));ctx.lineTo(sp.x,sp.y);}ctx.strokeStyle=`rgba(190,148,12,${0.7*(1-d.t*0.3)})`;ctx.lineWidth=3;ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();}ctx.beginPath();ctx.arc(head.x,head.y,4+d.t*3,0,Math.PI*2);ctx.fillStyle=`rgba(200,158,15,${0.85*(1-d.t*0.2)})`;ctx.fill();}
+        if(isDrag&&!done&&Math.abs(jarVel)>1.5){const nozzleY=H*0.19,landX=jarX,landY=panCY(H)+drift;ctx.strokeStyle="rgba(190,148,12,0.18)";ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(jarX,nozzleY);ctx.quadraticCurveTo((jarX+landX)/2,nozzleY+(landY-nozzleY)*0.5,landX,landY);ctx.stroke();ctx.setLineDash([]);}
+        const tilt=jarVel*0.02;ctx.save();ctx.translate(jarX,H*0.12);ctx.rotate(tilt);ctx.fillStyle="#486030";ctx.strokeStyle="#304020";ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(-10,-28,20,44,5);ctx.fill();ctx.stroke();ctx.fillStyle="#3A5028";ctx.beginPath();ctx.roundRect(-5,-42,10,18,3);ctx.fill();ctx.fillStyle="rgba(255,255,255,0.12)";ctx.beginPath();ctx.roundRect(-7,-26,5,20,3);ctx.fill();ctx.fillStyle="rgba(180,140,20,0.5)";ctx.beginPath();ctx.roundRect(-8,-6,16,20,3);ctx.fill();ctx.fillStyle="#2A3A18";ctx.beginPath();ctx.roundRect(-3,16,6,8,2);ctx.fill();ctx.restore();
+        measure();if(!done||drips.length>0)_raf=requestAnimationFrame(tick);
+      }
+      function onStart(e){if(done)return;e.preventDefault();isDrag=true;lastX=_ep(e,cvs).x;}
+      function onMove(e){if(!isDrag||done)return;e.preventDefault();const x=_ep(e,cvs).x,dx=x-lastX;jarTgt=Math.max(40,Math.min(g.W-40,jarTgt+dx*0.9));jarVel+=dx*0.5;lastX=x;}
+      function onEnd(){isDrag=false;}
+      g=_IC(cvs);off=_OS(g.W,g.H);jarX=g.W/2;jarVel=0;jarTgt=jarX;isDrag=false;lastX=jarX;driftPhase=0;done=false;drips=[];dirty=false;
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Drag the bottle left and right to drizzle oil");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
+
+  /* ── 6. WHISK THE INGREDIENTS (Whisk) ── */
+  "whisk": {
+    icon:"🥄", title:"Whisk the Ingredients", task:"Whisk",
+    completionMsg:"Smooth and well incorporated.", canvasH:240,
+    launch(cvs){
+      let g,off,handle,done,isDown,_raf;
+      let whiskOrbit=0,whiskHead=0,foamParts=[],totalAngle=0;
+      let bowlCX,bowlCY,bowlR;
+      function layout(){const{W,H}=g;bowlCX=W*0.5;bowlCY=H*0.52;bowlR=Math.min(W,H)*0.42;}
+      function addFoam(){const fa=Math.random()*Math.PI*2;foamParts.push({x:bowlCX+Math.cos(fa)*bowlR*(0.68+Math.random()*0.22),y:bowlCY+Math.sin(fa)*bowlR*(0.68+Math.random()*0.22),r:5+Math.random()*8,life:1});}
+      function writeSwirl(da){const ox=bowlCX+Math.cos(whiskOrbit)*bowlR*0.32,oy=bowlCY+Math.sin(whiskOrbit)*bowlR*0.32;off.ctx.strokeStyle="rgba(220,210,180,0.18)";off.ctx.lineWidth=9+Math.random()*4;off.ctx.lineCap="round";off.ctx.beginPath();off.ctx.arc(ox,oy,bowlR*0.14,whiskHead,whiskHead+Math.PI*0.7,Math.sign(da)<0);off.ctx.stroke();}
+      function tick(){const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);foamParts=foamParts.filter(f=>f.life>0);_drawWhiskTopDown(ctx,bowlCX,bowlCY,bowlR,whiskOrbit,whiskHead,foamParts,off.c);_drawCircleArrow(ctx,bowlCX,bowlCY,bowlR*0.52,Math.max(0,1-totalAngle/(Math.PI*2*9))*0.55,true);if(!done)_raf=requestAnimationFrame(tick);}
+      function onStart(e){if(done)return;e.preventDefault();isDown=true;const p=_ep(e,cvs);handle.last=Math.atan2(p.y-bowlCY,p.x-bowlCX);}
+      function onMove(e){if(!isDown||done)return;e.preventDefault();const p=_ep(e,cvs),a=Math.atan2(p.y-bowlCY,p.x-bowlCX);if(handle.last!==null){let da=a-handle.last;if(da>Math.PI)da-=Math.PI*2;if(da<-Math.PI)da+=Math.PI*2;handle.angle+=da;whiskOrbit+=da*0.95;whiskHead+=da*1.1;writeSwirl(da);if(Math.random()<0.35)addFoam();totalAngle+=Math.abs(da);const totalNeeded=Math.PI*2*9;const pct=Math.min(100,Math.round(totalAngle/totalNeeded*100));_SP(pct,pct+"%");if(totalAngle>=totalNeeded){done=true;activityDone();}else _SS(`${Math.round((totalNeeded-totalAngle)/(Math.PI*2)*10)/10} rotations left`);}handle.last=a;}
+      function onEnd(){isDown=false;handle.last=null;}
+      g=_IC(cvs);layout();off=_OS(g.W,g.H);handle={angle:0,last:null};done=false;isDown=false;whiskOrbit=-Math.PI/2;whiskHead=0;foamParts=[];totalAngle=0;
+      cvs.addEventListener("mousedown",onStart);document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);cvs.addEventListener("touchstart",onStart,{passive:false});cvs.addEventListener("touchmove",onMove,{passive:false});cvs.addEventListener("touchend",onEnd);
+      _SS("Draw circles around the bowl center");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onStart);document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);cvs.removeEventListener("touchstart",onStart);cvs.removeEventListener("touchmove",onMove);cvs.removeEventListener("touchend",onEnd);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
+
+  /* ── 7. PROCESS THE INGREDIENTS (Food Processor) ── */
+  "food-processor": {
+    icon:"⚙️", title:"Process the Ingredients", task:"Food Processor",
+    completionMsg:"Perfectly processed.", canvasH:270,
+    launch(cvs){
+      const PULSES=5,CYCLE_FRAMES=90;
+      const N_PARTS=35;
+      let g,pulses,done,_raf,phase,pulseCooldown;
+      let particles=[],bladeAngle=0,bladeSpeed=0;
+      let bowlCX,bowlCY,bowlR,btnX,btnY,btnW,btnH;
+      let trailOff;
+      function layout(){const{W,H}=g;bowlCX=W*0.56;bowlCY=H*0.46;bowlR=Math.min(W,H)*0.36;btnW=W*0.14;btnH=H*0.44;btnX=W*0.06;btnY=(H-btnH)/2;}
+      function initParticles(){particles=[];for(let i=0;i<N_PARTS;i++){const shapeIdx=i%4,colorIdx=_FP_COLOR_FOR_SHAPE[shapeIdx],a=Math.random()*Math.PI*2,r=Math.random()*bowlR*0.68,baseR=(5+Math.random()*7)*1.5;particles.push({x:bowlCX+Math.cos(a)*r,y:bowlCY+Math.sin(a)*r,r:baseR,baseR,vx:0,vy:0,shapeIdx,color:_FP_COLORS[colorIdx],rot:Math.random()*Math.PI*2,rotV:0});}}
+      function doPulse(){if(phase!=="idle"||done)return;phase="spinning";pulseCooldown=CYCLE_FRAMES;bladeSpeed=0;trailOff.ctx.globalAlpha=0.12;trailOff.ctx.fillStyle="#F2EDE0";trailOff.ctx.fillRect(0,0,g.W,g.H);trailOff.ctx.globalAlpha=1;}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);
+        if(phase==="spinning"){pulseCooldown--;const t=(CYCLE_FRAMES-pulseCooldown)/CYCLE_FRAMES;if(t<0.18)bladeSpeed=Math.min(0.28,t/0.18*0.28);else if(t<0.65)bladeSpeed=0.28;else bladeSpeed=Math.max(0,(1-t)/0.35*0.28);bladeAngle+=bladeSpeed;particles.forEach(p=>{const dx=p.x-bowlCX,dy=p.y-bowlCY,d=Math.sqrt(dx*dx+dy*dy)||1;p.vx+=(-dy/d)*bladeSpeed*2.4-dx*0.009;p.vy+=(dx/d)*bladeSpeed*2.4-dy*0.009;p.x+=p.vx;p.y+=p.vy;p.vx*=0.90;p.vy*=0.90;p.rotV+=bladeSpeed*0.8;p.rot+=p.rotV;p.rotV*=0.85;const dx2=p.x-bowlCX,dy2=p.y-bowlCY,d2=Math.sqrt(dx2*dx2+dy2*dy2);if(d2>bowlR*0.85){const sc=bowlR*0.83/d2;p.x=bowlCX+dx2*sc;p.y=bowlCY+dy2*sc;p.vx*=-0.4;p.vy*=-0.4;}});trailOff.ctx.globalAlpha=0.05;trailOff.ctx.fillStyle="#EAE4D0";trailOff.ctx.fillRect(0,0,W,H);trailOff.ctx.globalAlpha=1;particles.forEach(p=>{trailOff.ctx.save();trailOff.ctx.translate(p.x,p.y);trailOff.ctx.rotate(p.rot);trailOff.ctx.globalAlpha=0.22;_FP_SHAPES[p.shapeIdx](trailOff.ctx,p.r*0.55,p.color);trailOff.ctx.globalAlpha=1;trailOff.ctx.restore();});if(pulseCooldown<=0){phase="idle";pulses++;const shrink=Math.pow(0.78,pulses);particles.forEach(p=>{p.r=Math.max(1.2,p.baseR*shrink);p.vx=0;p.vy=0;p.rotV=0;});const pct=Math.round(pulses/PULSES*100);_SP(pct,pct+"%");if(pulses>=PULSES){done=true;activityDone();}else _SS(`${PULSES-pulses} more pulse${PULSES-pulses!==1?"s":""}`);}};
+        ctx.fillStyle="#B8B0C8";ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR+5,0,Math.PI*2);ctx.fill();const bg=ctx.createRadialGradient(bowlCX,bowlCY,0,bowlCX,bowlCY,bowlR);bg.addColorStop(0,"#F8F2E4");bg.addColorStop(0.8,"#EAE0CE");bg.addColorStop(1,"#D8CCBA");ctx.fillStyle=bg;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,0,Math.PI*2);ctx.fill();ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.93,0,Math.PI*2);ctx.clip();ctx.drawImage(trailOff.c,0,0,W,H);ctx.restore();ctx.save();ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR*0.88,0,Math.PI*2);ctx.clip();particles.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);_FP_SHAPES[p.shapeIdx](ctx,p.r,p.color);ctx.restore();});ctx.restore();_drawCrescentBlade(ctx,bowlCX,bowlCY,bowlR*0.82,bladeAngle,bladeSpeed/0.28);ctx.strokeStyle="rgba(255,255,255,0.4)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR,Math.PI*1.1,Math.PI*1.7);ctx.stroke();ctx.strokeStyle="#9890A8";ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(bowlCX,bowlCY,bowlR+5,0,Math.PI*2);ctx.stroke();
+        const btnActive=phase==="idle"&&!done;const bc="#1A5A6A",bs="#2AAAC4";ctx.fillStyle="rgba(0,0,0,0.15)";ctx.beginPath();ctx.roundRect(btnX+2,btnY+3,btnW,btnH,10);ctx.fill();ctx.fillStyle=btnActive?bc:`rgba(${parseInt(bc.slice(1,3),16)},${parseInt(bc.slice(3,5),16)},${parseInt(bc.slice(5,7),16)},0.35)`;ctx.strokeStyle=btnActive?bs:"transparent";ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(btnX,btnY,btnW,btnH,10);ctx.fill();ctx.stroke();if(btnActive){ctx.shadowColor=bs;ctx.shadowBlur=16;ctx.beginPath();ctx.roundRect(btnX,btnY,btnW,btnH,10);ctx.stroke();ctx.shadowBlur=0;}
+        const fontSize=btnH*0.80/5;ctx.fillStyle=btnActive?"#FFFFFF":"rgba(200,220,200,0.5)";ctx.font=`bold ${fontSize}px Inter,sans-serif`;ctx.textAlign="center";"PULSE".split("").forEach((ch,i)=>{const letterH=btnH*0.80/5;ctx.fillText(ch,btnX+btnW/2,btnY+btnH*0.10+letterH*(i+0.85));});ctx.font=`${btnH*0.065}px Inter,sans-serif`;ctx.fillStyle=btnActive?"rgba(220,255,220,0.9)":"rgba(120,160,120,0.6)";ctx.fillText(`${pulses}/${PULSES}`,btnX+btnW/2,btnY+btnH*0.93);if(phase==="spinning"){const ang=Date.now()/100;ctx.strokeStyle="rgba(150,255,150,0.7)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(btnX+btnW/2,btnY+btnH*0.5,btnW*0.38,ang,ang+Math.PI*1.2);ctx.stroke();}
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      function onClick(e){e.preventDefault();if(done||phase!=="idle")return;const p=_ep(e,cvs);if(p.x>=btnX&&p.x<=btnX+btnW&&p.y>=btnY&&p.y<=btnY+btnH)doPulse();}
+      g=_IC(cvs);layout();trailOff=_OS(g.W,g.H);pulses=0;done=false;phase="idle";pulseCooldown=0;bladeAngle=0;bladeSpeed=0;initParticles();
+      cvs.addEventListener("mousedown",onClick);cvs.addEventListener("touchstart",onClick,{passive:false});
+      _SS("Press PULSE to process");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onClick);cvs.removeEventListener("touchstart",onClick);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
+
+  /* ── 8. ROLL OUT THE DOUGH (Blender fallback / future use) ── */
+  "roll-dough": {
+    icon:"🎂", title:"Roll Out the Dough", task:"Rolling Pin",
+    completionMsg:"Perfectly rolled out.", canvasH:250,
+    launch(cvs){
+      const PASSES=8,INIT_H_FRAC=0.50,FINAL_H_FRAC=0.09,BASE_H_FRAC=_DOUGH_BASE_H;
+      let g,passes,done,_raf,pinAnim,pinAngle,doughHTarget,doughHCurrent,doughLeft,doughRight,floorY,activeDimple,dir;
+      function getDoughGeom(pc){const{W,H}=g;const prog=pc/PASSES,h=(INIT_H_FRAC+(FINAL_H_FRAC-INIT_H_FRAC)*prog)*H;const initHW=W*0.22,finalHW=W*0.44;const hw=initHW+(finalHW-initHW)*prog;return{h,leftX:W/2-hw,rightX:W/2+hw};}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);_drawBoard(ctx,W*0.04,floorY,W*0.92,H*0.20);const baseH=BASE_H_FRAC*H;
+        if(pinAnim){pinAnim.t+=0.0055;if(pinAnim.t>=1){passes++;const geom=getDoughGeom(passes);doughHTarget=geom.h;doughLeft=geom.leftX;doughRight=geom.rightX;pinAnim=null;activeDimple=[];dir=-dir;const pct=Math.round(passes/PASSES*100);_SP(pct,pct+"%");if(passes>=PASSES){done=true;activityDone();}else _SS(`${PASSES-passes} more pass${PASSES-passes!==1?"es":""}`);}else{const pinW=W*0.30,pinR=pinW*0.16;const ease=pinAnim.t*pinAnim.t*(3-2*pinAnim.t);const doughWidth=doughRight-doughLeft,INSET=doughWidth*0.20,fromX=dir>0?doughLeft+INSET:doughRight-INSET,toX=dir>0?doughRight-INSET:doughLeft+INSET,pinX=fromX+ease*(toX-fromX);const dimpleDepth=Math.sin(pinAnim.t*Math.PI)*0.28;if(pinX>doughLeft-pinW&&pinX<doughRight+pinW)activeDimple=[{x:pinX,w:pinW*0.5,depth:dimpleDepth}];else activeDimple=[];const geomNext=getDoughGeom(passes+1),compressionFrac=Math.sin(pinAnim.t*Math.PI),interpH=doughHCurrent+(geomNext.h-doughHCurrent)*compressionFrac*0.55;doughHCurrent+=(interpH-doughHCurrent)*0.08;const curGeom=getDoughGeom(passes);doughLeft=curGeom.leftX+(geomNext.leftX-curGeom.leftX)*compressionFrac*0.7;doughRight=curGeom.rightX+(geomNext.rightX-curGeom.rightX)*compressionFrac*0.7;pinAngle+=dir*(Math.PI*1.8/182);_drawPinWoodGrain(ctx,pinX,floorY-doughHCurrent-baseH-pinR*0.5,pinR*1.2,pinAngle);}}
+        if(!pinAnim){doughHCurrent+=(doughHTarget-doughHCurrent)*0.12;const targ=getDoughGeom(passes);doughLeft+=(targ.leftX-doughLeft)*0.12;doughRight+=(targ.rightX-doughRight)*0.12;}
+        _drawDoughShape(ctx,doughLeft,doughRight,floorY,doughHCurrent,baseH,activeDimple);
+        if(!pinAnim&&!done&&passes===0){ctx.fillStyle="rgba(92,110,91,0.6)";ctx.font="bold 13px Inter,sans-serif";ctx.textAlign="center";const ay=floorY-doughHCurrent-baseH-50+Math.sin(Date.now()/400)*5;ctx.fillText("click to roll →",W/2,ay);}
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      function startRoll(){if(done||pinAnim)return;pinAnim={t:0};activeDimple=[];}
+      g=_IC(cvs);passes=0;done=false;pinAnim=null;activeDimple=[];dir=1;pinAngle=0;floorY=g.H*0.80;const geom0=getDoughGeom(0);doughHTarget=geom0.h;doughHCurrent=geom0.h;doughLeft=geom0.leftX;doughRight=geom0.rightX;
+      function onClick(e){e.preventDefault();startRoll();}
+      cvs.addEventListener("mousedown",onClick);cvs.addEventListener("touchstart",onClick,{passive:false});
+      _SS("Click to send the rolling pin across");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onClick);cvs.removeEventListener("touchstart",onClick);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
+
+  /* ── 9. MORTAR & PESTLE (Spice fallback / future use) ── */
+  "mortar-pestle": {
+    icon:"🪨", title:"Mortar & Pestle", task:"Mortar",
+    completionMsg:"Finely ground. Well done.", canvasH:230,
+    launch(cvs){
+      const TOTAL=18;
+      let g,pieces,pestAnim,done,_raf,cracks;
+      const MCX=W=>W*0.5,MCY=H=>H*0.56,MR=_g=>Math.min(_g.W,_g.H)*0.36;
+      function makePieces(){pieces=[];cracks=[];const mr=MR(g);const COLS=["#8B5E20","#6B4010","#A07030","#7A5018","#5A3808"];for(let i=0;i<TOTAL;){const a=Math.random()*Math.PI*2,r2=(0.12+Math.random()*0.64)*mr*0.88,x=MCX(g.W)+Math.cos(a)*r2,y=MCY(g.H)+Math.sin(a)*r2*0.72;const tooClose=pieces.some(p=>Math.sqrt((p.x-x)**2+(p.y-y)**2)<11);if(!tooClose){pieces.push({x,y,r:4+Math.random()*4.5,broken:false,frags:[],color:COLS[i%5],rot:i*0.67});i++;}}}
+      function poundAt(px,py){if(done||pestAnim.active)return;const mr=MR(g);const ddx=px-MCX(g.W),ddy=py-MCY(g.H);if(Math.sqrt(ddx*ddx+ddy*ddy)>mr*0.86)return;pestAnim={active:true,tx:px,ty:py,t:0};pieces.forEach(p=>{if(p.broken)return;if(Math.sqrt((px-p.x)**2+(py-p.y)**2)<p.r+8){p.broken=true;for(let f=0;f<2+Math.floor(Math.random()*2);f++){const fa=Math.random()*Math.PI*2,fd=p.r*(0.5+Math.random()*0.8);p.frags.push({x:p.x+Math.cos(fa)*fd,y:p.y+Math.sin(fa)*fd,r:p.r*0.28+Math.random()*p.r*0.18,rot:Math.random()*Math.PI});}for(let c=0;c<3;c++)cracks.push({x:p.x,y:p.y,a:Math.random()*Math.PI*2,len:p.r*(1+Math.random()),life:1});}});}
+      function updateProg(){const broken=pieces.filter(p=>p.broken).length;const pct=Math.round(broken/TOTAL*100);_SP(pct,pct+"%");if(broken>=TOTAL){done=true;activityDone();}else _SS(`${TOTAL-broken} pieces left`);}
+      function tick(){
+        const{ctx,W,H}=g;ctx.clearRect(0,0,W,H);const mcx=MCX(W),mcy=MCY(H),mr=MR(g);
+        const mg=ctx.createRadialGradient(mcx-mr*0.2,mcy-mr*0.3,mr*0.1,mcx,mcy,mr*1.1);mg.addColorStop(0,"#9A9088");mg.addColorStop(1,"#6A6058");ctx.fillStyle=mg;ctx.beginPath();ctx.arc(mcx,mcy,mr*1.05,0,Math.PI*2);ctx.fill();
+        const ig=ctx.createRadialGradient(mcx,mcy,mr*0.1,mcx,mcy,mr*0.9);ig.addColorStop(0,"#C8C0B4");ig.addColorStop(1,"#A8A098");ctx.fillStyle=ig;ctx.beginPath();ctx.ellipse(mcx,mcy,mr*0.84,mr*0.75,0,0,Math.PI*2);ctx.fill();
+        cracks.forEach(c=>{c.life-=0.012;ctx.globalAlpha=Math.max(0,c.life*0.6);ctx.strokeStyle="#5A3A10";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(c.x+Math.cos(c.a)*c.len,c.y+Math.sin(c.a)*c.len);ctx.stroke();});cracks=cracks.filter(c=>c.life>0);ctx.globalAlpha=1;
+        ctx.save();ctx.beginPath();ctx.ellipse(mcx,mcy,mr*0.80,mr*0.70,0,0,Math.PI*2);ctx.clip();pieces.forEach(p=>{if(!p.broken){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;ctx.beginPath();ctx.ellipse(0,0,p.r,p.r*0.70,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="rgba(255,255,255,0.16)";ctx.beginPath();ctx.ellipse(-p.r*0.25,-p.r*0.28,p.r*0.28,p.r*0.20,0,0,Math.PI*2);ctx.fill();ctx.restore();}else{p.frags.forEach(f=>{ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot);ctx.fillStyle=p.color;ctx.globalAlpha=0.82;ctx.beginPath();ctx.ellipse(0,0,f.r,f.r*0.65,0,0,Math.PI*2);ctx.fill();ctx.restore();});ctx.globalAlpha=1;}});ctx.restore();
+        const pestRestX=mcx,pestRestY=mcy-mr*0.92,PHEAD=mr*0.24,COL_W=PHEAD*2.0,SHAFT_LEN=mr*0.858;
+        if(pestAnim.active){pestAnim.t+=0.025;let px,py;if(pestAnim.t<0.45){const f=pestAnim.t/0.45,ease=f*f*(3-2*f);px=mcx+(pestAnim.tx-mcx)*ease;py=pestRestY+(pestAnim.ty-pestRestY)*ease;}else{const f=Math.min(1,(pestAnim.t-0.45)/0.55),ease=f*f*(3-2*f);px=pestAnim.tx+(mcx-pestAnim.tx)*ease;py=pestAnim.ty+(pestRestY-pestAnim.ty)*ease;if(f>=1){pestAnim.active=false;updateProg();}}ctx.fillStyle="#8A8278";ctx.strokeStyle="#6A6258";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(px-COL_W/2,py-SHAFT_LEN,COL_W,SHAFT_LEN+PHEAD*0.5,COL_W*0.15);ctx.fill();ctx.stroke();ctx.fillStyle="#9A9088";ctx.strokeStyle="#7A7068";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(px,py+PHEAD*0.35,PHEAD,PHEAD*0.50,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle="rgba(255,255,255,0.14)";ctx.beginPath();ctx.roundRect(px-COL_W*0.22,py-SHAFT_LEN*0.9,COL_W*0.2,SHAFT_LEN*0.7,COL_W*0.1);ctx.fill();}else{ctx.fillStyle="#8A8278";ctx.strokeStyle="#6A6258";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(pestRestX-COL_W/2,pestRestY-SHAFT_LEN,COL_W,SHAFT_LEN+PHEAD*0.5,COL_W*0.15);ctx.fill();ctx.stroke();ctx.fillStyle="#9A9088";ctx.strokeStyle="#7A7068";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(pestRestX,pestRestY+PHEAD*0.35,PHEAD,PHEAD*0.50,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle="rgba(255,255,255,0.14)";ctx.beginPath();ctx.roundRect(pestRestX-COL_W*0.22,pestRestY-SHAFT_LEN*0.9,COL_W*0.2,SHAFT_LEN*0.7,COL_W*0.1);ctx.fill();}
+        if(!done)_raf=requestAnimationFrame(tick);
+      }
+      g=_IC(cvs);makePieces();pestAnim={active:false,tx:0,ty:0,t:0};done=false;
+      function onClick(e){e.preventDefault();const p=_ep(e,cvs);poundAt(p.x,p.y);}
+      cvs.addEventListener("mousedown",onClick);cvs.addEventListener("touchstart",onClick,{passive:false});
+      _SS("Click each piece to pound it");_SP(0,"0%");_raf=requestAnimationFrame(tick);
+      this._cleanup=()=>{cancelAnimationFrame(_raf);cvs.removeEventListener("mousedown",onClick);cvs.removeEventListener("touchstart",onClick);};
+    },
+    cleanup(){if(this._cleanup)this._cleanup();}
+  },
+
+}; // end ACTIVITY_DEFS
+
+/* ─── TOOL → ACTIVITY LAUNCH ───────────────────────────────── */
+// toolNames: array of 1–2 tool resource names for this task (in order).
+// stepIdx:   which tool to launch (0 = first, 1 = second); defaults to 0.
+// Call with just [toolName] for single-game tasks, or [tool1, tool2] for two-game tasks.
+function launchCookingActivity(toolNames, stepIdx = 0) {
+  const toolName = toolNames[stepIdx];
+  const key = TOOL_TO_ACTIVITY[toolName] || "slice";
+  const def = ACTIVITY_DEFS[key];
+  if (!def) return;
+
+  // Abort any in-progress drag — prevents ghost tile stranding on touch
+  abortDrag();
+
+  // Store the full tool queue and current step for sequencing
+  _activityToolQueue = toolNames;
+  _activityStepIdx   = stepIdx;
+
+  // Update modal header
+  _currentActivityKey   = key;
+  _currentCompletionMsg = def.completionMsg;
+  document.getElementById("activity-tool-icon").textContent    = def.icon;
+  document.getElementById("activity-modal-title").textContent  = def.title;
+  document.getElementById("activity-modal-task").textContent   = toolName;
+
+  // Step indicator (only shown when there are 2 steps)
+  const stepEl = document.getElementById("activity-modal-step");
+  if (toolNames.length > 1) {
+    stepEl.textContent = `Step ${stepIdx + 1} of ${toolNames.length}`;
+  } else {
+    stepEl.textContent = "";
   }
-  if (document._gameUpHandler) {
-    document.removeEventListener("mouseup", document._gameUpHandler);
-    document._gameUpHandler = null;
-  }
 
-  currentActivity   = act;
-  progress          = 0;
-  isComplete        = false;
-  circleCooldown    = false;
-  circlePoints      = [];
-  circleDown        = false;
-  circlePathLen     = 0;
-  circleStartX      = 0; circleStartY      = 0;
-  circleBboxMinX    = 0; circleBboxMaxX    = 0;
-  circleBboxMinY    = 0; circleBboxMaxY    = 0;
-  circleSignedAngle = 0;
-  sliceDown         = false;
-  shakeDown         = false;
-  shakePhase        = 0;
-  shakePhaseDist    = 0;
-  pulseCooldown     = false;
-  lastSliceDirIdx   = -1;
-  lastCircleDirIdx  = -1;
-  lastShakeDirIdx   = -1;
-
-  document.getElementById("activity-tool-icon").textContent   = act.icon;
-  document.getElementById("activity-tool-icon").className     = "modal-tool-icon";
-  document.getElementById("activity-modal-title").textContent = act.title;
-  document.getElementById("activity-modal-task").textContent  = act.task;
-  document.getElementById("activity-progress-fill").style.width = "0%";
-  document.getElementById("activity-progress-fill").classList.remove("complete");
-  document.getElementById("activity-progress-count").textContent = `0 / ${act.target}`;
+  // Reset progress UI
+  const fill = document.getElementById("activity-progress-fill");
+  fill.style.width = "0%";
+  fill.classList.remove("done");
+  document.getElementById("activity-progress-pct").textContent = "0%";
   document.getElementById("activity-complete-banner").classList.remove("show");
   document.getElementById("activity-btn-done").disabled = true;
+  _SS("Ready");
 
-  // Show/hide canvas vs pulse UI
-  const pulseArea = document.getElementById("activity-pulse-area");
-  if (act.type === "pulse") {
-    activityCanvas.style.display    = "none";
-    pulseArea.style.display = "flex";
-    activityCanvas.style.pointerEvents = "none";
-    const blade = document.getElementById("activity-blade-icon");
-    blade.style.animationPlayState = "paused";
-    setupPulseButton();
-  } else {
-    activityCanvas.style.display    = "block";
-    pulseArea.style.display = "none";
-    activityCanvas.style.pointerEvents = "auto";
-  }
+  // Size the canvas to match the activity's preferred height
+  const cvs = document.getElementById("activity-gesture-canvas");
+  cvs.style.height = (def.canvasH || 220) + "px";
 
-  // Pick initial directions
-  if (act.type === "slice")  { currentSliceDir  = null; pickNewSliceDir(); }
-  if (act.type === "circle") { currentCircleDir = null;
-    lastCircleDirIdx = Math.random() < 0.5 ? 1 : 0;
-    pickNewCircleDir();
-  }
-  if (act.type === "shake")  { currentShakeDir  = null; pickNewShakeDir(); }
-
-  // Wire canvas events (not needed for pulse)
-  if (act.type !== "pulse") {
-    const startFn = act.type==="slice"  ? sliceStart  :
-                    act.type==="circle" ? circleStart : shakeStart;
-    const moveFn  = act.type==="slice"  ? sliceMove   :
-                    act.type==="circle" ? circleMove  : shakeMove;
-    const endFn   = act.type==="slice"  ? sliceEnd    :
-                    act.type==="circle" ? circleEnd   : shakeEnd;
-    activityCanvas.onmousedown  = startFn;
-    activityCanvas.ontouchstart = startFn;
-    activityCanvas.ontouchmove  = moveFn;
-    activityCanvas.ontouchend   = endFn;
-    document._gameMoveHandler = moveFn;
-    document._gameUpHandler   = endFn;
-    document.addEventListener("mousemove", document._gameMoveHandler);
-    document.addEventListener("mouseup",   document._gameUpHandler);
-  }
-
+  // Show modal (may already be visible when chaining step 2)
   document.getElementById("activity-modal-overlay").classList.add("active");
-  requestAnimationFrame(resizeActivityCanvas);
+
+  // Launch once the canvas has a real layout rect
+  _whenReady(cvs, () => {
+    def.launch(cvs);
+  });
 }
 
-/* ─── CLOSE ─────────────────────────────────────────────────── */
+/* ─── CLOSE MODAL ──────────────────────────────────────────── */
+// completed: true = player finished this mini-game successfully.
+// If there is a second tool in the queue, launch it immediately.
+// Only call completeTask() once both games are done (or cancelled).
 function closeActivityModal(completed) {
-  document.getElementById("activity-modal-overlay").classList.remove("active");
-  // Clean up canvas and listeners
-  if (activityCanvas) {
-    const { W, H } = getActivityCanvasSize();
-    activityCtx.clearRect(0, 0, W, H);
+  // Stop the active game
+  const key = _currentActivityKey;
+  if (key && ACTIVITY_DEFS[key]) {
+    ACTIVITY_DEFS[key].cleanup();
   }
-  circlePoints = []; circleDown = false; circlePathLen = 0; sliceDown = false;
-  if (document._gameMoveHandler) {
-    document.removeEventListener("mousemove", document._gameMoveHandler);
-    document._gameMoveHandler = null;
-  }
-  if (document._gameUpHandler) {
-    document.removeEventListener("mouseup", document._gameUpHandler);
-    document._gameUpHandler = null;
-  }
-  // If completed successfully, process the task
+  _currentActivityKey = null;
+
   if (completed) {
+    const nextStepIdx = _activityStepIdx + 1;
+    if (nextStepIdx < _activityToolQueue.length) {
+      // Chain: launch the next tool's mini-game without closing the modal overlay.
+      // A brief pause lets the completion banner register visually before resetting.
+      setTimeout(() => {
+        launchCookingActivity(_activityToolQueue, nextStepIdx);
+      }, 420);
+      return; // don't close yet
+    }
+    // All steps done — close modal and complete the task
+    document.getElementById("activity-modal-overlay").classList.remove("active");
+    _activityToolQueue = [];
+    _activityStepIdx   = 0;
     completeTask();
+  } else {
+    // Cancelled — close modal, return to game (no task progress)
+    document.getElementById("activity-modal-overlay").classList.remove("active");
+    _activityToolQueue = [];
+    _activityStepIdx   = 0;
   }
 }
 
-// Overlay click intentionally does NOT cancel the modal.
-// Players may release mouse outside the modal mid-gesture.
-// Use the Cancel button or ✕ to exit.
+// (old mini-game state removed — new system in ACTIVITY_DEFS above)
 
 init();
 </script>
