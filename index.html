@@ -875,7 +875,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1104,7 +1104,6 @@ const firebaseConfig = {
   messagingSenderId: "297004284280",
   appId: "1:297004284280:web:095912fd748d7dcccb308d"
 };
-
 
 /* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
 const RESOURCES = {
@@ -2116,8 +2115,9 @@ function enterLobby() {
       `${all.filter(p=>p.ready).length} of ${all.length} ready`;
 
     if (allReady && gameState.status === "lobby") {
-      // Only the host starts the round to avoid concurrent writes
-      if (amHost) {
+      // Derive host status here directly — amHost isn't set until enterGame()
+      const isHostInLobby = myPlayerId === gameState.hostPlayerId;
+      if (isHostInLobby) {
         // Resolve pending round config (set by enterBetweenRoundLobby) vs initial config
         const rt  = gameState.pendingRoundType     || gameState.roundType     || "round2";
         const dur = gameState.pendingRoundDuration || gameState.roundDuration || ROUND_DURATION;
