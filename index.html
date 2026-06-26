@@ -837,14 +837,28 @@
       <h2>Create a game</h2>
       <div class="input-group">
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3);">Round duration</label>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <label class="duration-opt"><input type="radio" name="duration" value="120"> 2 min</label>
-            <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
-            <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
-            <label class="duration-opt"><input type="radio" name="duration" value="300" checked> 5 min</label>
-            <label class="duration-opt"><input type="radio" name="duration" value="360"> 6 min</label>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <label style="font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3);">Game mode</label>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-3);">Round 1</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="duration-opt" style="opacity:0.45; cursor:not-allowed;" title="Coming soon">
+                <input type="radio" name="duration" value="round1" disabled> Onboarding
+              </label>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-3);">Round 2</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="duration-opt"><input type="radio" name="duration" value="120"> 2 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="300" checked> 5 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="360"> 6 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="420"> 7 min</label>
+            </div>
           </div>
         </div>
         <button class="btn btn-primary" id="btn-create">Create game →</button>
@@ -1020,7 +1034,6 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
       (choose "Start in test mode" for now)
 ─────────────────────────────────────────────────────────────── */
 
-
 const firebaseConfig = {
   apiKey: "AIzaSyB5AhrFrBnKc7OzcKo82j7qyKFBWGxmdS0",
   authDomain: "kitchen-5cb9a.firebaseapp.com",
@@ -1030,7 +1043,6 @@ const firebaseConfig = {
   messagingSenderId: "297004284280",
   appId: "1:297004284280:web:095912fd748d7dcccb308d"
 };
-
 
 /* ─── RESOURCE DEFINITIONS ─────────────────────────────────── */
 const RESOURCES = {
@@ -1075,67 +1087,67 @@ const RESOURCES = {
 };
 
 /* ─── TASK POOL (16 tasks — supports up to 6-player games with headroom) ── */
-/* Every recipe requires exactly 2 tools from different categories plus 1–2 ingredients. */
+/* Every recipe requires exactly 2 tools from different categories plus 2–3 ingredients. */
 /* Tool categories: mixer (Blender, Whisk, Food Processor), cutter (Chef's Knife,        */
 /*   Serrated Knife), container (Bowl, Pan, Tray), shaper (Rolling Pin, Mortar & Pestle) */
 const ALL_TASKS = [
-  // mixer + cutter
+  // mixer + shaper
   { id:"t01", name:"Herb-Blended Dressing",
-    description:"A smooth, herb-forward dressing — ground fine, then blended silky.",
-    requirements:[{resource:"Oregano",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Blender",qty:1}] },
+    description:"Oregano and cream ground fine in the mortar, then blended silky smooth.",
+    requirements:[{resource:"Oregano",qty:1},{resource:"Cream",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Blender",qty:1}] },
   { id:"t02", name:"Spiced Fish Purée",
-    description:"Fish sliced thin, then blended with a warm spice base.",
-    requirements:[{resource:"Fish",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Blender",qty:1}] },
-  { id:"t03", name:"Ground Cumin Paste",
-    description:"Cumin pounded to a dust, then whisked into a smooth paste.",
-    requirements:[{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Whisk",qty:1}] },
+    description:"Fish and cumin pounded together, then blended into a smooth purée.",
+    requirements:[{resource:"Fish",qty:1},{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Blender",qty:1}] },
+  { id:"t03", name:"Pepper and Thyme Paste",
+    description:"Black pepper and thyme pounded to a dust, then whisked into butter.",
+    requirements:[{resource:"Black Pepper",qty:1},{resource:"Thyme",qty:1},{resource:"Butter",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Whisk",qty:1}] },
   { id:"t04", name:"Chili Butter Emulsion",
-    description:"Butter whisked vigorously, finished with knife-chopped chili.",
-    requirements:[{resource:"Butter",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Whisk",qty:1}] },
+    description:"Butter and milk whisked together, finished with knife-chopped chili flakes.",
+    requirements:[{resource:"Butter",qty:1},{resource:"Milk",qty:1},{resource:"Chili Flakes",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Whisk",qty:1}] },
 
   // mixer + container
   { id:"t05", name:"Creamy Oat Bowl",
-    description:"Oats blended smooth, served in a bowl with a swirl of cream.",
-    requirements:[{resource:"Oats",qty:1},{resource:"Blender",qty:1},{resource:"Bowl",qty:1}] },
-  { id:"t06", name:"Thyme Cream Pan Sauce",
-    description:"Cream whisked with thyme, reduced in a hot pan.",
-    requirements:[{resource:"Cream",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
-  { id:"t07", name:"Processed Lamb Tray Bake",
-    description:"Lamb blitzed through the food processor, then spread on a tray.",
-    requirements:[{resource:"Lamb",qty:1},{resource:"Food Processor",qty:1},{resource:"Tray",qty:1}] },
+    description:"Oats and milk blended smooth, served in a bowl finished with cream.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Milk",qty:1},{resource:"Cream",qty:1},{resource:"Blender",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t06", name:"Thyme Chicken Pan Sauce",
+    description:"Chicken and cream whisked with thyme, reduced in a hot pan.",
+    requirements:[{resource:"Chicken",qty:1},{resource:"Thyme",qty:1},{resource:"Cream",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t07", name:"Lamb and Paprika Tray Bake",
+    description:"Lamb and paprika blitzed through the food processor, spread on a tray.",
+    requirements:[{resource:"Lamb",qty:1},{resource:"Paprika",qty:1},{resource:"Food Processor",qty:1},{resource:"Tray",qty:1}] },
   { id:"t08", name:"Paprika Egg Scramble",
-    description:"Eggs whisked with paprika and cooked in a warm pan.",
-    requirements:[{resource:"Eggs",qty:1},{resource:"Paprika",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
+    description:"Eggs and cheese whisked with paprika, cooked in a warm pan.",
+    requirements:[{resource:"Eggs",qty:1},{resource:"Cheese",qty:1},{resource:"Paprika",qty:1},{resource:"Whisk",qty:1},{resource:"Pan",qty:1}] },
 
   // cutter + container
-  { id:"t09", name:"Sliced Chicken Tray",
-    description:"Chicken cut into portions and roasted on the tray.",
-    requirements:[{resource:"Chicken",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Tray",qty:1}] },
-  { id:"t10", name:"Tofu and Cheese Bowl",
-    description:"Tofu sliced and layered with shaved cheese in a bowl.",
-    requirements:[{resource:"Tofu",qty:1},{resource:"Cheese",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Bowl",qty:1}] },
-  { id:"t11", name:"Oregano Fish Pan",
-    description:"Fish scored with a knife and pan-fried with oregano.",
-    requirements:[{resource:"Fish",qty:1},{resource:"Oregano",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Pan",qty:1}] },
-  { id:"t12", name:"Pepper Pasta Tray",
-    description:"Pasta tossed with black pepper and baked golden on a tray.",
-    requirements:[{resource:"Pasta",qty:1},{resource:"Black Pepper",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t09", name:"Pepper Chicken Tray",
+    description:"Chicken sliced into portions, seasoned with black pepper, roasted on the tray.",
+    requirements:[{resource:"Chicken",qty:1},{resource:"Black Pepper",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t10", name:"Tofu and Chili Bowl",
+    description:"Tofu sliced and layered with shaved cheese and chili flakes in a bowl.",
+    requirements:[{resource:"Tofu",qty:1},{resource:"Cheese",qty:1},{resource:"Chili Flakes",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t11", name:"Buttered Herb Fish",
+    description:"Fish scored with a knife, pan-fried with oregano and butter.",
+    requirements:[{resource:"Fish",qty:1},{resource:"Oregano",qty:1},{resource:"Butter",qty:1},{resource:"Chef's Knife",qty:1},{resource:"Pan",qty:1}] },
+  { id:"t12", name:"Pepper Pasta Bake",
+    description:"Pasta cut to length, tossed with black pepper and cheese, baked on a tray.",
+    requirements:[{resource:"Pasta",qty:1},{resource:"Black Pepper",qty:1},{resource:"Cheese",qty:1},{resource:"Serrated Knife",qty:1},{resource:"Tray",qty:1}] },
 
   // shaper + container
-  { id:"t13", name:"Rolled Flour Tray",
-    description:"Flour rolled flat, cut to shape, and laid out on the tray.",
-    requirements:[{resource:"Flour",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Tray",qty:1}] },
+  { id:"t13", name:"Rolled Flatbread",
+    description:"Flour and butter rolled flat, seasoned with thyme, laid out on the tray.",
+    requirements:[{resource:"Flour",qty:1},{resource:"Butter",qty:1},{resource:"Thyme",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Tray",qty:1}] },
   { id:"t14", name:"Spiced Rice Bowl",
-    description:"Cumin pounded in the mortar, stirred into rice in a bowl.",
-    requirements:[{resource:"Rice",qty:1},{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Bowl",qty:1}] },
-  { id:"t15", name:"Rolled Oat Pan",
-    description:"Oats rolled flat with the pin, then toasted in a pan.",
-    requirements:[{resource:"Oats",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Pan",qty:1}] },
+    description:"Cumin and paprika pounded in the mortar, stirred into rice in a bowl.",
+    requirements:[{resource:"Rice",qty:1},{resource:"Cumin",qty:1},{resource:"Paprika",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Bowl",qty:1}] },
+  { id:"t15", name:"Oat and Milk Pan",
+    description:"Oats and milk rolled flat with the pin, then toasted golden in a pan.",
+    requirements:[{resource:"Oats",qty:1},{resource:"Milk",qty:1},{resource:"Rolling Pin",qty:1},{resource:"Pan",qty:1}] },
 
-  // shaper + cutter (cross-category bonus)
+  // shaper + cutter
   { id:"t16", name:"Ground Bean Patty",
-    description:"Beans crushed in the mortar, shaped by hand, then sliced.",
-    requirements:[{resource:"Beans",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Chef's Knife",qty:1}] },
+    description:"Beans and cumin crushed in the mortar, shaped and sliced into portions.",
+    requirements:[{resource:"Beans",qty:1},{resource:"Cumin",qty:1},{resource:"Mortar & Pestle",qty:1},{resource:"Chef's Knife",qty:1}] },
 ];
 
 /* ─── EVENT NAME GENERATOR ──────────────────────────────────── */
@@ -1159,7 +1171,7 @@ function genEventName() {
 
 /* ─── CONSTANTS ─────────────────────────────────────────────── */
 const ROUND_DURATION   = 120; // seconds (default, overridden by creator choice)
-const TASKS_PER_PLAYER = 2;   // win condition: team must complete playerCount × this
+const TASKS_PER_PLAYER = 3;   // win condition: team must complete playerCount × this
 const INGREDIENT_NAMES = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "ingredient");
 const TOOL_NAMES       = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "tool");
 
@@ -1644,12 +1656,6 @@ function renderTaskZone() {
   });
   if (!hasItems) {
     zone.innerHTML = '<span class="drop-hint">Drag ingredients &amp; tools here to begin</span>';
-  } else {
-    // Add a small instruction line below the tiles
-    const hint = document.createElement("div");
-    hint.style.cssText = "width:100%; font-size:11px; color:var(--text-3); margin-top:4px; pointer-events:none;";
-    hint.textContent = "Click each tile to activate it, then press Complete Task";
-    zone.appendChild(hint);
   }
 }
 
@@ -1926,9 +1932,10 @@ async function createGame() {
   gameCode   = genCode();
   myPlayerId = genPlayerId();
 
-  // Read selected duration (seconds) from radio buttons; default 120
+  // Read selected duration (seconds) from radio buttons; default 300
   const durationEl = document.querySelector('input[name="duration"]:checked');
-  const roundDuration = durationEl ? parseInt(durationEl.value) : 120;
+  const durationVal = durationEl ? parseInt(durationEl.value) : NaN;
+  const roundDuration = (!isNaN(durationVal) && durationVal > 0) ? durationVal : 300;
 
   // Generate event name at creation time so it's visible in the lobby
   const lobbyEventName = genEventName();
