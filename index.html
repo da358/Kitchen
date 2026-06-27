@@ -875,7 +875,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2413,37 +2413,6 @@ function resetToLanding() {
 }
 
 async function showSummary() {
-  // Watch for host advancing to the next round — applies to all players on summary screens
-  // This is the only active Firebase listener while on a summary screen.
-  const summaryStatusUnsub = onValue(ref(db, `games/${gameCode}/status`), snap => {
-    const status = snap.val();
-    if (status === "lobby") {
-      // Host has initiated a new round — all players advance to the ready-check
-      off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
-      // Reset local state the same way enterBetweenRoundLobby does for the host
-      inGameEntered = false;
-      myTaskQueue   = [];
-      taskTarget    = 0;
-      eventName     = "";
-      currentTask   = null;
-      taskZoneMap   = {};
-      inventoryOrder= [];
-      localInventory= {};
-      Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
-      Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
-      Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
-      clearInterval(timerInterval);
-      timerInterval = null;
-      const btnReady = document.getElementById("btn-ready");
-      btnReady.disabled = false;
-      btnReady.textContent = "I'm ready ✓";
-      enterLobby();
-    }
-    if (status === "disbanded") {
-      off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
-      resetToLanding();
-    }
-  });
   const snap = await get(ref(db, `games/${gameCode}`));
   const data = snap.val() || {};
   const roundType  = data.roundType || "round2";
@@ -2538,6 +2507,40 @@ async function showSummary() {
     document.getElementById("summary-r2-host-actions").style.display  = isHost ? "" : "none";
     document.getElementById("summary-r2-guest-actions").style.display = isHost ? "none" : "";
   }
+
+  // Watch for host advancing to the next round — registered AFTER the screen is
+  // fully rendered so we never race with cached Firebase data during screen setup.
+  const summaryStatusUnsub = onValue(ref(db, `games/${gameCode}/status`), snap => {
+    const status = snap.val();
+    if (status === "lobby") {
+      off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
+      // Flush any stale game-screen listeners before re-entering the lobby
+      unsubscribers.forEach(fn => fn());
+      unsubscribers = [];
+      // Reset local state
+      inGameEntered = false;
+      myTaskQueue   = [];
+      taskTarget    = 0;
+      eventName     = "";
+      currentTask   = null;
+      taskZoneMap   = {};
+      inventoryOrder= [];
+      localInventory= {};
+      Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
+      Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
+      Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
+      clearInterval(timerInterval);
+      timerInterval = null;
+      const btnReady = document.getElementById("btn-ready");
+      btnReady.disabled = false;
+      btnReady.textContent = "I'm ready ✓";
+      enterLobby();
+    }
+    if (status === "disbanded") {
+      off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
+      resetToLanding();
+    }
+  });
 }
 
 function drawNetwork(players, transfers) {
