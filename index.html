@@ -792,6 +792,321 @@
   .btn-primary:disabled { background: var(--border); color: var(--text-3); cursor: default; }
   .btn-secondary { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
 
+  /* ── TASK TILES (wider for queue — used in R3) ────────────── */
+  .tile.task-tile {
+    width: 100px;
+    height: 72px;
+    cursor: grab;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-color: var(--border);
+    border-width: 1.5px;
+  }
+  .tile.task-tile .tile-emoji { font-size: 20px; }
+  .tile.task-tile .tile-label { font-size: 10px; color: var(--text-2); }
+  .tile.task-tile.active-task-tile {
+    background: #EEF2EE;
+    border-color: var(--accent);
+    border-width: 2px;
+  }
+  .tile.task-tile.inspected {
+    box-shadow: 0 0 0 2px var(--accent-2);
+  }
+
+  /* ── QUEUE BAR (Round 3) ────────────────────────────────── */
+  .queue-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 12px 20px 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .queue-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+  .queue-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .queue-section-header h4 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .queue-section-header span {
+    font-size: 10px;
+    color: var(--text-3);
+  }
+  .queue-numbers {
+    display: flex;
+    flex-direction: row-reverse; /* right=1, left=N */
+    gap: 8px;
+    padding: 0 2px;
+  }
+  .queue-number {
+    width: 100px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-3);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .queue-tiles {
+    display: flex;
+    flex-direction: row-reverse; /* rightmost = index 0 = next-up */
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    /* hide scrollbar on webkit but keep functional */
+    scrollbar-width: thin;
+  }
+  .queue-tiles::-webkit-scrollbar { height: 4px; }
+  .queue-tiles::-webkit-scrollbar-track { background: transparent; }
+  .queue-tiles::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .active-task-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .active-task-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 0 2px;
+  }
+  .active-task-slot {
+    width: 100px;
+    height: 72px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .active-task-slot.drag-over {
+    border-color: var(--accent);
+    background: #EEF2EE;
+  }
+  .active-task-slot.has-tile {
+    border-style: solid;
+    border-color: var(--accent);
+  }
+
+  /* ── TASK INSPECTOR (Round 3) ────────────────────────────── */
+  .task-inspector {
+    padding: 10px 20px 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    min-height: 44px;
+  }
+  .task-inspector-header {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .task-inspector-content {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .task-inspector-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 120px;
+  }
+  .task-inspector-desc {
+    font-size: 12px;
+    color: var(--text-2);
+    flex: 1;
+  }
+  .task-inspector-reqs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .task-inspector-req {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    background: var(--surface);
+  }
+  .inspector-hint {
+    font-size: 12px;
+    color: var(--text-3);
+    font-style: italic;
+  }
+
+  /* ── GHOST TILES in work area ────────────────────────────── */
+  .tile-ghost {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius);
+    border: 1.5px dashed var(--border);
+    background: var(--surface-2);
+    opacity: 0.55;
+    font-size: 10px;
+    font-weight: 500;
+    text-align: center;
+    padding: 4px;
+    gap: 4px;
+    transition: all 0.25s;
+    position: relative;
+    pointer-events: none;
+  }
+  .tile-ghost .tile-emoji { font-size: 22px; line-height: 1; color: var(--text-3); }
+  .tile-ghost .tile-label { font-size: 9px; color: var(--text-3); line-height: 1.2; }
+  .tile-ghost.filled {
+    opacity: 1;
+    border-style: solid;
+  }
+  .tile-ghost.filled.spice   { background: var(--spice-bg);   border-color: var(--spice-bd); }
+  .tile-ghost.filled.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
+  .tile-ghost.filled.grain   { background: var(--grain-bg);   border-color: var(--grain-bd); }
+  .tile-ghost.filled.dairy   { background: var(--dairy-bg);   border-color: var(--dairy-bd); }
+  .tile-ghost.filled.tool    { background: var(--tool-bg);    border-color: var(--tool-bd); }
+  .tile-ghost.filled.shaper  { background: var(--shaper-bg);  border-color: var(--shaper-bd); }
+  .tile-ghost .fill-check {
+    display: none;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 9px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .tile-ghost.filled .fill-check { display: block; }
+
+  @keyframes ghostFill {
+    0%   { transform: scale(1);    opacity: 0.55; }
+    40%  { transform: scale(1.18); opacity: 1; }
+    70%  { transform: scale(0.95); }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+  .tile-ghost.fill-anim { animation: ghostFill 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+  /* ── TEAMMATE STATUS ─────────────────────────────────────── */
+  .teammate-status {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .teammate-status.working  { color: var(--accent); }
+  .teammate-status.no-tasks { color: var(--text-3); }
+
+  /* ── CONFIRM MODAL ───────────────────────────────────────── */
+  #confirm-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(20,18,15,0.65);
+    backdrop-filter: blur(2px);
+    z-index: 9600;
+    align-items: center;
+    justify-content: center;
+  }
+  #confirm-modal-overlay.active { display: flex; }
+  .confirm-modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    width: min(400px, calc(100vw - 32px));
+    box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .confirm-modal h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .confirm-modal p {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+  .confirm-modal-actions { display: flex; gap: 10px; }
+
+  /* ── R3 LOBBY ORIENTATION ────────────────────────────────── */
+  .r3-orientation {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow);
+  }
+  .r3-orientation-section { margin-bottom: 14px; }
+  .r3-orientation-section:last-child { margin-bottom: 0; }
+  .r3-orientation-section h4 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 5px;
+  }
+  .r3-orientation-section p {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  /* ── ROUND 3 SUMMARY ─────────────────────────────────────── */
+  #screen-summary-r3 {
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 32px;
+    overflow-y: auto;
+  }
+  .r3-summary-diagrams {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 900px;
+    width: 100%;
+  }
+
   /* ── RESPONSIVE: iPad ──────────────────────────────────────── */
   @media (max-width: 900px) {
     .game-body {
@@ -860,6 +1175,18 @@
               <label class="duration-opt"><input type="radio" name="duration" value="420"> 7 min</label>
             </div>
           </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-3);">Round 3</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-120"> 2 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-180"> 3 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-240"> 4 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-300"> 5 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-360"> 6 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="r3-420"> 7 min</label>
+            </div>
+          </div>
         </div>
         <button class="btn btn-primary" id="btn-create">Create game →</button>
         <div class="error-msg" id="create-error"></div>
@@ -875,7 +1202,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260626.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -884,6 +1211,18 @@
     <p id="lobby-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;">Waiting for players</h2>
     <p>Share the code with your team</p>
+  </div>
+
+  <!-- Round 3 orientation — shown only when roundType === "round3" -->
+  <div id="r3-orientation-block" class="r3-orientation" style="display:none;">
+    <div class="r3-orientation-section">
+      <h4>What's new</h4>
+      <p>In Round 3, unlike Round 2, you can transfer <strong>tasks</strong> to teammates. Talk to your teammates about who has capacity and who is backlogged.</p>
+    </div>
+    <div class="r3-orientation-section">
+      <h4>What's the same</h4>
+      <p>In Round 3, just like Round 2, you can transfer <strong>resources</strong> to teammates.</p>
+    </div>
   </div>
   <div class="game-code-display">
     <div class="label">Game code</div>
@@ -921,18 +1260,42 @@
     </div>
   </div>
 
+  <!-- Round 3: queue bar (shown only in round3) -->
+  <div id="r3-queue-row" class="queue-row" style="display:none;">
+    <div class="queue-section">
+      <div class="queue-section-header">
+        <h4>Next tasks</h4>
+        <span>Drag to reorder · drag to teammate to trade</span>
+      </div>
+      <div class="queue-numbers" id="queue-numbers"></div>
+      <div class="queue-tiles" id="queue-tiles"></div>
+    </div>
+    <div class="active-task-section">
+      <h4>Current task</h4>
+      <div class="active-task-slot" id="active-task-slot">
+        <span style="font-size:11px; color:var(--text-3);">Empty</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Round 3: task inspector (shown only in round3) -->
+  <div id="r3-task-inspector" class="task-inspector" style="display:none;">
+    <div class="task-inspector-header">Tap a waiting task to see what it needs</div>
+    <div id="task-inspector-content">
+      <span class="inspector-hint">Nothing selected</span>
+    </div>
+  </div>
+
   <div class="game-body">
     <!-- Task panel -->
     <div class="task-panel" id="task-panel">
       <div class="task-panel-header">
-        <h3>Current task</h3>
+        <h3 id="task-panel-label">Current task</h3>
         <span class="task-name" id="task-name">—</span>
       </div>
       <div class="task-description" id="task-description"></div>
-      <div class="task-requirements" id="task-requirements"></div>
-      <div class="task-drop-zone" id="task-drop-zone">
-        <span class="drop-hint">Drag ingredients &amp; tools here</span>
-      </div>
+      <!-- requirements list removed — now shown as ghost tiles in the drop zone -->
+      <div class="task-drop-zone" id="task-drop-zone"></div>
       <button class="btn btn-primary complete-btn" id="btn-complete" disabled>Cook →</button>
     </div>
 
@@ -952,6 +1315,18 @@
     <div class="teammates-panel" id="teammates-panel">
       <h3>Teammates</h3>
       <div id="teammates-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM MODAL ════════════════════════════════════════════ -->
+<div id="confirm-modal-overlay">
+  <div class="confirm-modal">
+    <h3 id="confirm-modal-title">Are you sure?</h3>
+    <p id="confirm-modal-body"></p>
+    <div class="confirm-modal-actions">
+      <button class="btn btn-secondary" id="confirm-modal-cancel" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary"   id="confirm-modal-ok"     style="flex:1;">Confirm</button>
     </div>
   </div>
 </div>
@@ -1039,24 +1414,16 @@
       <h3>Tasks completed</h3>
       <div id="summary-tasks"></div>
     </div>
-    <div class="summary-card">
-      <h3>Resource transfers</h3>
-      <div id="summary-transfers"></div>
-    </div>
     <div class="summary-card" style="min-width:320px;">
-      <h3>Team network</h3>
+      <h3>Resource transfers</h3>
       <div id="network-svg-container">
         <svg id="network-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
-    <div class="summary-card" style="flex-basis:100%; max-width:900px;">
-      <h3>Transfer log</h3>
-      <div class="transfer-log" id="transfer-log"></div>
-    </div>
   </div>
 
   <!-- R2 summary — host actions -->
-  <div id="summary-r2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:480px; margin-bottom:40px;">
+  <div id="summary-r2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:560px; margin-bottom:40px;">
     <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
       <span style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-3); text-align:center;">Start Another Round 2</span>
       <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
@@ -1068,12 +1435,73 @@
         <button class="btn btn-primary btn-r2-replay" data-duration="420">7 min</button>
       </div>
     </div>
+    <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+      <span style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-3); text-align:center;">Start Round 3</span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="120">2 min</button>
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="180">3 min</button>
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="240">4 min</button>
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="300">5 min</button>
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="360">6 min</button>
+        <button class="btn btn-secondary btn-r2-to-r3" data-duration="420">7 min</button>
+      </div>
+    </div>
     <button class="btn btn-secondary" id="btn-exit-r2" style="min-width:200px;">Exit this team</button>
   </div>
 
   <!-- R2 summary — guest actions -->
   <div id="summary-r2-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
     <button class="btn btn-secondary" id="btn-exit-r2-guest" style="min-width:200px;">Exit this team</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: ROUND 3 SUMMARY ═══════════════════════════════════ -->
+<div id="screen-summary-r3" class="screen">
+  <div class="summary-header">
+    <p id="summary-r3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
+    <h2 style="margin-top:6px;">Event complete</h2>
+    <p id="summary-r3-subtitle">Here's how your team did</p>
+  </div>
+
+  <div class="r3-summary-diagrams">
+    <div class="summary-card" style="min-width:320px;">
+      <h3>Resource transfers</h3>
+      <div id="r3-network-resource-container">
+        <svg id="r3-network-resource-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+    <div class="summary-card" style="min-width:320px;">
+      <h3>Task trades</h3>
+      <div id="r3-network-task-container">
+        <svg id="r3-network-task-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary-card" style="max-width:900px; width:100%;">
+    <h3>Tasks completed</h3>
+    <div id="summary-r3-tasks"></div>
+  </div>
+
+  <!-- R3 summary — host actions -->
+  <div id="summary-r3-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:560px; margin-bottom:40px;">
+    <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+      <span style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-3); text-align:center;">Start Another Round 3</span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <button class="btn btn-primary btn-r3-replay" data-duration="120">2 min</button>
+        <button class="btn btn-primary btn-r3-replay" data-duration="180">3 min</button>
+        <button class="btn btn-primary btn-r3-replay" data-duration="240">4 min</button>
+        <button class="btn btn-primary btn-r3-replay" data-duration="300">5 min</button>
+        <button class="btn btn-primary btn-r3-replay" data-duration="360">6 min</button>
+        <button class="btn btn-primary btn-r3-replay" data-duration="420">7 min</button>
+      </div>
+    </div>
+    <button class="btn btn-secondary" id="btn-exit-r3" style="min-width:200px;">Exit this team</button>
+  </div>
+
+  <!-- R3 summary — guest actions -->
+  <div id="summary-r3-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
+    <button class="btn btn-secondary" id="btn-exit-r3-guest" style="min-width:200px;">Exit this team</button>
   </div>
 </div>
 
@@ -1276,32 +1704,66 @@ const TOOL_NAMES       = Object.keys(RESOURCES).filter(k => RESOURCES[k].type ==
 ─────────────────────────────────────────────────────────────── */
 function generateGameSetup(playerIds, roundType) {
   const isR1 = roundType === "round1";
+  const isR3 = roundType === "round3";
   const n = playerIds.length;
   const tasksPerPlayer = isR1 ? 1 : TASKS_PER_PLAYER;
   const taskPool = isR1 ? STARTER_TASKS : ALL_TASKS;
-  const taskCount = n * tasksPerPlayer;
+
+  // ── R3: Tiered task distribution ─────────────────────────────
+  // Average 3 tasks/player. Distribute unevenly: some players get more,
+  // some get fewer. Creates visible asymmetry from the start.
+  // Tiers for n players: descending from (avg + extra) to (avg - extra).
+  let playerTaskCounts; // pid → task count
+  if (isR3 && n >= 2) {
+    // Build a tier list summing to n * TASKS_PER_PLAYER
+    const total = n * TASKS_PER_PLAYER;
+    const tiers = [];
+    // Spread tasks unevenly: max player gets avg+2, min gets avg-1 (floor 1)
+    const avg = TASKS_PER_PLAYER;
+    for (let i = 0; i < n; i++) {
+      // Linear spread from avg+floor(n/2) down to max(1, avg-ceil(n/2)+1)
+      const delta = Math.floor(n / 2) - i;
+      tiers.push(Math.max(1, avg + delta));
+    }
+    // Normalize tiers to exactly hit total
+    const tierSum = tiers.reduce((a, b) => a + b, 0);
+    const diff = total - tierSum;
+    // Adjust the largest tier to compensate
+    tiers[0] += diff;
+    // Shuffle playerIds then assign tiers
+    const shuffledPids = [...playerIds].sort(() => Math.random() - 0.5);
+    playerTaskCounts = {};
+    shuffledPids.forEach((pid, i) => { playerTaskCounts[pid] = tiers[i]; });
+  } else {
+    playerTaskCounts = {};
+    playerIds.forEach(pid => { playerTaskCounts[pid] = tasksPerPlayer; });
+  }
+
+  const taskCount = Object.values(playerTaskCounts).reduce((a, b) => a + b, 0);
 
   // ── 1. Select and shuffle tasks ──────────────────────────────
   const shuffled = [...taskPool].sort(() => Math.random() - 0.5);
   const selectedTasks = shuffled.slice(0, taskCount);
 
-  // ── 2. Assign tasks to players ───────────────────────────────
-  // playerTasks[pid] = [taskId, taskId, ...]
+  // ── 2. Assign tasks to players (respecting per-player counts) ─
   const playerTasks = {};
   playerIds.forEach(pid => { playerTasks[pid] = []; });
-  selectedTasks.forEach((task, i) => {
-    playerTasks[playerIds[i % n]].push(task.id);
+  let taskIdx = 0;
+  // Sort players by task count desc so heavy players get assigned first
+  const sortedPids = [...playerIds].sort((a, b) => playerTaskCounts[b] - playerTaskCounts[a]);
+  sortedPids.forEach(pid => {
+    const count = playerTaskCounts[pid];
+    for (let i = 0; i < count && taskIdx < selectedTasks.length; i++) {
+      playerTasks[pid].push(selectedTasks[taskIdx++].id);
+    }
   });
 
   // ── 3. Build ingredient and tool pools per task ──────────────
-  // neededIngr: { ingredientName: totalNeeded }
-  // neededTools: Set of tool names needed
   const taskById = {};
   selectedTasks.forEach(t => { taskById[t.id] = t; });
 
-  // Per-player ingredient needs (for mismatch distribution)
-  const playerIngrNeeds = {}; // pid → { name: qty }
-  const playerToolNeeds = {}; // pid → Set of tool names
+  const playerIngrNeeds = {};
+  const playerToolNeeds = {};
   playerIds.forEach(pid => {
     playerIngrNeeds[pid] = {};
     playerToolNeeds[pid] = new Set();
@@ -1318,57 +1780,72 @@ function generateGameSetup(playerIds, roundType) {
     });
   });
 
-  // ── 4. Total ingredient pool with 25% buffer ─────────────────
-  const totalIngrPool = {}; // name → count
+  // ── 4. Total ingredient pool with buffer ─────────────────────
+  // R3 uses a slightly more generous buffer (25%) but primary distribution
+  // is heavily mismatched — especially for each player's first (active) task.
+  const totalIngrPool = {};
   playerIds.forEach(pid => {
     Object.entries(playerIngrNeeds[pid]).forEach(([name, qty]) => {
       totalIngrPool[name] = (totalIngrPool[name]||0) + qty;
     });
   });
-  // Add buffer: 25% more ingredients, choosing from already-needed ones
   const neededIngrNames = Object.keys(totalIngrPool);
-  const bufferCount = Math.max(1, Math.round(Object.values(totalIngrPool).reduce((a,b)=>a+b,0) * 0.25));
+  const bufferPct = isR3 ? 0.25 : 0.25;
+  const bufferCount = Math.max(1, Math.round(Object.values(totalIngrPool).reduce((a,b)=>a+b,0) * bufferPct));
   for (let i = 0; i < bufferCount; i++) {
     const pick = neededIngrNames[Math.floor(Math.random()*neededIngrNames.length)];
     totalIngrPool[pick] = (totalIngrPool[pick]||0) + 1;
   }
 
   // ── 5. Distribute ingredients with deliberate mismatch ───────
-  // For each ingredient, assign copies to players who do NOT need it for their OWN tasks.
-  // If all players need it, fall back to random other player.
-  const playerIngrInventory = {}; // pid → { name: count }
+  // For R3: ingredients needed by a player's FIRST task (their initial active task)
+  // go to OTHER players at 90% rate. Remaining ingredients use standard mismatch.
+  const playerIngrInventory = {};
   playerIds.forEach(pid => { playerIngrInventory[pid] = {}; });
 
-  Object.entries(totalIngrPool).forEach(([name, totalQty]) => {
-    // Prefer giving to players who don't need this ingredient themselves
-    const preferredReceivers = playerIds.filter(pid => !playerIngrNeeds[pid][name]);
-    const fallbackReceivers  = playerIds;
+  // Identify each player's first task needed ingredients
+  const playerFirstTaskIngr = {}; // pid → Set of ingredient names
+  playerIds.forEach(pid => {
+    playerFirstTaskIngr[pid] = new Set();
+    const firstTid = playerTasks[pid][0];
+    if (firstTid) {
+      taskById[firstTid].requirements
+        .filter(r => RESOURCES[r.resource]?.type === "ingredient")
+        .forEach(r => playerFirstTaskIngr[pid].add(r.resource));
+    }
+  });
 
+  Object.entries(totalIngrPool).forEach(([name, totalQty]) => {
     for (let i = 0; i < totalQty; i++) {
-      const pool = preferredReceivers.length > 0 ? preferredReceivers : fallbackReceivers;
+      // Find players whose first task needs this ingredient
+      const firstTaskHolders = playerIds.filter(pid => playerFirstTaskIngr[pid].has(name));
+      // For R3: strongly prefer giving to players whose first task does NOT need it
+      const preferredReceivers = playerIds.filter(pid => !playerIngrNeeds[pid][name]);
+      const midReceivers = playerIds.filter(pid => !playerFirstTaskIngr[pid].has(name));
+
+      let pool;
+      if (isR3 && firstTaskHolders.length > 0) {
+        // 90% chance: give to someone who doesn't need it for their first task
+        pool = Math.random() < 0.9
+          ? (midReceivers.length > 0 ? midReceivers : playerIds)
+          : playerIds;
+      } else {
+        pool = preferredReceivers.length > 0 ? preferredReceivers : playerIds;
+      }
       const recipient = pool[Math.floor(Math.random()*pool.length)];
       playerIngrInventory[recipient][name] = (playerIngrInventory[recipient][name]||0) + 1;
     }
   });
 
   // ── 6. Distribute tools with deliberate mismatch ─────────────
-  // Each needed tool appears twice in the pool (so there's slack).
-  // Give each copy to a player who doesn't need it for their first task.
   const allNeededTools = new Set();
   playerIds.forEach(pid => playerToolNeeds[pid].forEach(t => allNeededTools.add(t)));
 
-  const playerToolInventory = {}; // pid → { name: count }
+  const playerToolInventory = {};
   playerIds.forEach(pid => { playerToolInventory[pid] = {}; });
 
   allNeededTools.forEach(toolName => {
-    // Put 2 copies in the pool
     for (let copy = 0; copy < 2; copy++) {
-      // Give to a player who doesn't need this tool for their FIRST task
-      const firstTaskTool = (tid => {
-        const task = taskById[tid];
-        return task ? task.requirements.filter(r=>RESOURCES[r.resource]?.type==="tool").map(r=>r.resource) : [];
-      })(playerTasks[playerIds[0]]?.[0]); // not quite right — check per-player below
-
       const preferredReceivers = playerIds.filter(pid => {
         const firstTid = playerTasks[pid][0];
         if (!firstTid) return true;
@@ -1384,7 +1861,16 @@ function generateGameSetup(playerIds, roundType) {
     }
   });
 
-  return { playerTasks, playerIngrInventory, playerToolInventory, taskById, taskCount };
+  // ── 7. Compute starting counts for R3 summary ────────────────
+  const startingTaskCounts = {};
+  const startingIngrCounts = {};
+  playerIds.forEach(pid => {
+    startingTaskCounts[pid] = playerTasks[pid].length;
+    startingIngrCounts[pid] = Object.values(playerIngrInventory[pid]).reduce((a, b) => a + b, 0);
+  });
+
+  return { playerTasks, playerIngrInventory, playerToolInventory, taskById, taskCount,
+           startingTaskCounts, startingIngrCounts };
 }
 
 /* ─── GAME STATE ────────────────────────────────────────────── */
@@ -1395,22 +1881,23 @@ let gameCode       = null;
 let gameRef        = null;
 let playersRef     = null;
 let timerInterval  = null;
+let rescueInterval = null;   // R3: periodic rescue spawn, host-only
 let gameState      = {};    // mirror of Firebase state
 let localInventory = {};    // { resourceName: count } — kept in sync with Firebase
 let taskZoneItems  = [];    // resources dragged into task zone
 let transferLog    = [];    // for summary
 let unsubscribers  = [];    // Firebase listeners to detach
 let inGameEntered  = false; // guard: prevent enterGame() firing twice
-let myTaskQueue    = [];    // ordered list of task IDs assigned to me
+let myTaskQueue    = [];    // R3: queued (not active) task IDs; R1/R2: full queue
+let myActiveTaskId = null;  // R3: explicit active task ID; R1/R2: derived from queue[0]
 let taskTarget     = 0;     // team win condition: total tasks needed
 let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
-let currentRound   = "round2"; // "round1" | "round2"
+let currentRound   = "round2"; // "round1" | "round2" | "round3"
 let hostPlayerId   = null;  // player ID of game creator
 let amHost         = false; // true if this player is the host
 let inventoryOrder = [];    // ordered list of resource names for stable display
+let inspectedTaskId = null; // R3: task ID currently shown in inspector
 // Stable snapshot of last-seen Firebase inventory counts.
-// Exposed at module scope so sendResource can update it to prevent
-// the sender's own listener from re-adding an in-flight item.
 const lastKnownInventoryRef = { ingredients: {}, tools: {} };
 
 /* ─── UTILITIES ─────────────────────────────────────────────── */
@@ -1665,6 +2152,11 @@ function onTouchEnd(e) {
 
 function endPointer(cx, cy) {
   if (!draggedTile) return;
+  // Task tiles use their own drag handler — skip if dragging a task tile
+  if (draggedTile.classList.contains("task-tile")) {
+    draggedTile = null; draggedName = null; draggedSource = null; dragCommitted = false;
+    return;
+  }
 
   document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
 
@@ -1718,55 +2210,72 @@ function renderTask() {
   if (!currentTask) return;
   document.getElementById("task-name").textContent = currentTask.name;
   document.getElementById("task-description").textContent = currentTask.description;
-
-  const reqEl = document.getElementById("task-requirements");
-  reqEl.innerHTML = "";
-  currentTask.requirements.forEach(req => {
-    const have = (taskZoneMap[req.resource] || 0) >= req.qty;
-    const cls  = have ? `req-item satisfied ${categoryClass(req.resource)}` : "req-item";
-    const res  = RESOURCES[req.resource] || { emoji:"❓" };
-    reqEl.innerHTML += `
-      <div class="${cls}">
-        ${res.emoji} ${req.qty > 1 ? req.qty+"× " : ""}${req.resource}
-        ${have ? "✓" : ""}
-      </div>`;
-  });
+  // Requirements are now shown as ghost tiles in the drop zone — no separate list
 }
 
 function renderTaskZone() {
   const zone = document.getElementById("task-drop-zone");
   zone.innerHTML = "";
-  let hasItems = false;
-  Object.entries(taskZoneMap).forEach(([name, count]) => {
-    for (let i = 0; i < count; i++) {
-      hasItems = true;
-      const instanceId = `task_${name}_${i}`;
-      const tile = makeTile(name, instanceId, "task");
-      tile.classList.add("in-task");
-      // Tiles in task zone can be dragged back to inventory via drag gesture
-      setupTileDrag(tile);
-      zone.appendChild(tile);
+
+  if (!currentTask) {
+    zone.innerHTML = '<span class="drop-hint">No active task</span>';
+    return;
+  }
+
+  // Build ghost tile slots for each requirement
+  // Each requirement gets qty slots; filled slots reflect placed resources
+  currentTask.requirements.forEach(req => {
+    const res   = RESOURCES[req.resource] || { emoji:"❓", label:req.resource };
+    const cls   = categoryClass(req.resource);
+    const placed = taskZoneMap[req.resource] || 0;
+
+    for (let i = 0; i < req.qty; i++) {
+      const ghost = document.createElement("div");
+      ghost.className = "tile-ghost";
+      ghost.dataset.resource = req.resource;
+      ghost.dataset.slotIdx  = i;
+      const isFilled = i < placed;
+      ghost.innerHTML = `
+        <span class="fill-check">✓</span>
+        <span class="tile-emoji">${res.emoji}</span>
+        <span class="tile-label">${res.label}</span>
+      `;
+      if (isFilled) {
+        ghost.classList.add("filled", cls);
+      }
+      zone.appendChild(ghost);
     }
   });
-  if (!hasItems) {
-    zone.innerHTML = '<span class="drop-hint">Drag ingredients &amp; tools here to begin</span>';
+
+  // Overflow tiles (shouldn't exist with rejection logic, but safety)
+  const empty = !currentTask.requirements.some(r => (taskZoneMap[r.resource] || 0) > 0);
+  if (empty) {
+    const hint = document.createElement("span");
+    hint.className = "drop-hint";
+    hint.style.cssText = "margin-left:8px; align-self:center; pointer-events:none;";
+    hint.textContent = "Drag resources here";
+    zone.appendChild(hint);
   }
 }
 
-// onTaskTileClick removed — tiles no longer need to be clicked to activate.
-// Cook button activates automatically when all required resources are present.
-
 function dropIntoTask(name) {
-  if (!localInventory[name]) {
-    toast("You don't have that resource", "bad");
+  if (!localInventory[name]) { toast("You don't have that resource", "bad"); return; }
+  if (!currentTask) return;
+
+  // Only accept resources that are actually needed and have an unfilled slot
+  const req = currentTask.requirements.find(r => r.resource === name);
+  if (!req) {
+    // Silently reject — ghost tiles make it clear what's needed
     return;
   }
-  // Check if this resource is needed
-  const needed = currentTask?.requirements || [];
-  const neededNames = needed.map(r => r.resource);
-  // Allow any resource to be placed; let the player sort it out visually
+  const placed = taskZoneMap[name] || 0;
+  if (placed >= req.qty) {
+    // Slot already full
+    return;
+  }
+
   removeFromLocalInventory(name);
-  taskZoneMap[name] = (taskZoneMap[name] || 0) + 1;
+  taskZoneMap[name] = placed + 1;
   renderInventory();
   renderTask();
   renderTaskZone();
@@ -1799,9 +2308,9 @@ function checkTaskComplete() {
 async function completeTask() {
   if (!currentTask) return;
   const taskName = currentTask.name;
-  const playerRef = ref(db, `games/${gameCode}/players/${myPlayerId}`);
+  const isR3 = currentRound === "round3";
 
-  // ── Identify required vs excess items in task zone ────────────
+  // ── Identify required vs excess items ────────────────────────
   const reqMap = {};
   currentTask.requirements.forEach(r => { reqMap[r.resource] = r.qty; });
 
@@ -1811,100 +2320,574 @@ async function completeTask() {
 
   // Return tools and excess ingredients to local inventory
   Object.entries(taskZoneMap).forEach(([name, count]) => {
-    const res     = RESOURCES[name];
+    const res      = RESOURCES[name];
     const required = reqMap[name] || 0;
     const excess   = count - required;
-    if (res?.type === "tool") {
-      addToLocalInventory(name, count);
-    } else if (excess > 0) {
-      addToLocalInventory(name, excess);
-    }
+    if (res?.type === "tool")     addToLocalInventory(name, count);
+    else if (excess > 0)          addToLocalInventory(name, excess);
   });
+  taskZoneMap = {};
 
-  taskZoneMap  = {};
+  // ── Determine next active task ────────────────────────────────
+  let nextActiveId = null;
+  let newQueue     = myTaskQueue;
+  if (isR3) {
+    // activeTaskId is explicit; promote first queued task
+    nextActiveId = myTaskQueue[0] || null;
+    newQueue     = myTaskQueue.slice(1);
+  } else {
+    // R1/R2: queue-based, advance queue
+    newQueue     = myTaskQueue.slice(1);
+    nextActiveId = newQueue[0] || null;
+  }
 
-  // ── Spawn new ingredients into OTHER players' inventories ─────
-  // Get next task's ingredient needs so we can target useful resources
-  const snap       = await get(playerRef);
-  const myData     = snap.val() || {};
-  // taskQueue[0] is the task we just completed; [1] is next
-  const nextTaskId = myTaskQueue[1] || null;
-  const nextTask   = nextTaskId ? localTaskDefs[nextTaskId] : null;
-  const nextNeeded = nextTask
-    ? nextTask.requirements.filter(r => RESOURCES[r.resource]?.type === "ingredient").map(r => r.resource)
-    : [];
+  // ── Write player state to Firebase ───────────────────────────
+  const snap    = await get(ref(db, `games/${gameCode}/players/${myPlayerId}`));
+  const myData  = snap.val() || {};
+  const newCompleted  = (myData.tasksCompleted  || 0) + 1;
+  const newResUsed    = (myData.resourcesUsed   || 0) + requiredIngrCount;
 
-  // Get list of other players
-  const allPlayerIds = Object.keys(gameState.players || {});
-  const otherPlayers = allPlayerIds.filter(pid => pid !== myPlayerId);
+  const playerUpdate = {
+    [`games/${gameCode}/players/${myPlayerId}/tasksCompleted`]:  newCompleted,
+    [`games/${gameCode}/players/${myPlayerId}/resourcesUsed`]:   newResUsed,
+    [`games/${gameCode}/players/${myPlayerId}/taskQueue`]:        isR3 ? newQueue : newQueue,
+    [`games/${gameCode}/players/${myPlayerId}/playerStatus`]:     nextActiveId ? "working" : "no-tasks",
+  };
+  if (isR3) {
+    playerUpdate[`games/${gameCode}/players/${myPlayerId}/activeTaskId`] = nextActiveId;
+  }
 
-  // ── Step 1: Write MY inventory + progress first ─────────────
-  // Done separately from spawns to avoid any path collisions.
-  const ingMap  = {};
-  const toolMap = {};
+  // Write inventory state
+  const ingMap = {}, toolMap = {};
   Object.entries(localInventory).forEach(([k, v]) => {
     if (RESOURCES[k]?.type === "ingredient") ingMap[k]  = v;
     else                                     toolMap[k] = v;
   });
+  playerUpdate[`games/${gameCode}/players/${myPlayerId}/ingredients`] = ingMap;
+  playerUpdate[`games/${gameCode}/players/${myPlayerId}/tools`]       = toolMap;
 
-  const newCompleted = (myData.tasksCompleted || 0) + 1;
-  // Advance queue by writing the tail (slice off completed task)
-  const newQueue = myTaskQueue.slice(1);
-  await update(ref(db), {
-    [`games/${gameCode}/players/${myPlayerId}/ingredients`]:    ingMap,
-    [`games/${gameCode}/players/${myPlayerId}/tools`]:          toolMap,
-    [`games/${gameCode}/players/${myPlayerId}/tasksCompleted`]: newCompleted,
-    [`games/${gameCode}/players/${myPlayerId}/taskQueue`]:      newQueue,
-  });
-  // Sync local queue to match what we wrote
-  myTaskQueue = newQueue;
+  await update(ref(db), playerUpdate);
+  myTaskQueue    = newQueue;
+  if (isR3) myActiveTaskId = nextActiveId;
+  else       myTaskQueue   = isR3 ? [nextActiveId, ...newQueue].filter(Boolean) : newQueue;
 
-  // ── Step 2: Spawn ingredients into other players one at a time ──
-  // Each spawn is a separate fetch-then-write on the specific ingredient key.
-  // Doing them sequentially (not batched) avoids the race where two spawns
-  // to the same player/ingredient collide and one overwrites the other.
-  // Notifications are written separately so they never share a path with
-  // ingredient counts.
-  for (let i = 0; i < requiredIngrCount; i++) {
-    const candidates = nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES;
-    const resName    = candidates[Math.floor(Math.random() * candidates.length)];
-    const targetPid  = otherPlayers.length > 0
-      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
-      : myPlayerId;
+  // ── Spawn ingredients (R3: team-wide scan; R1/R2: next-task targeting) ──
+  const otherPlayers = Object.keys(gameState.players || {}).filter(pid => pid !== myPlayerId);
+  const spawnCount   = Math.max(1, requiredIngrCount - (isR3 ? 1 : 0)); // mild deficit for R3
 
-    // Use transaction for atomic increment — prevents race with simultaneous spawns
-    const ingrPath = `games/${gameCode}/players/${targetPid}/ingredients/${resName}`;
-    await runTransaction(ref(db, ingrPath), (current) => (current || 0) + 1);
+  for (let i = 0; i < spawnCount; i++) {
+    let resName, targetPid;
+    if (isR3) {
+      // Team-wide scan: find ingredient needed by any active task across team
+      const teamActiveNeeded = getTeamActiveNeededIngredients();
+      resName   = teamActiveNeeded.length > 0
+        ? teamActiveNeeded[Math.floor(Math.random() * teamActiveNeeded.length)]
+        : INGREDIENT_NAMES[Math.floor(Math.random() * INGREDIENT_NAMES.length)];
+      // Prefer player who doesn't already have this ingredient in their inventory
+      const preferredTargets = otherPlayers.filter(pid => {
+        const inv = gameState.players?.[pid]?.ingredients || {};
+        return !inv[resName];
+      });
+      targetPid = (preferredTargets.length > 0 ? preferredTargets : otherPlayers)[
+        Math.floor(Math.random() * Math.max(1, (preferredTargets.length > 0 ? preferredTargets : otherPlayers).length))
+      ] || myPlayerId;
+    } else {
+      // R1/R2: bias toward next task's ingredients
+      const nextTaskObj = nextActiveId ? (localTaskDefs[nextActiveId] || null) : null;
+      const nextNeeded  = nextTaskObj
+        ? nextTaskObj.requirements.filter(r => RESOURCES[r.resource]?.type === "ingredient").map(r => r.resource)
+        : [];
+      resName   = (nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES)[
+        Math.floor(Math.random() * Math.max(1, (nextNeeded.length > 0 ? nextNeeded : INGREDIENT_NAMES).length))
+      ];
+      targetPid = otherPlayers.length > 0
+        ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+        : myPlayerId;
+    }
 
-    // Write notification as a completely separate path — no collision risk
+    await runTransaction(ref(db, `games/${gameCode}/players/${targetPid}/ingredients/${resName}`),
+      (current) => (current || 0) + 1);
+
     const notifKey = `${Date.now()}_s${i}_${Math.random().toString(36).slice(2,5)}`;
     await set(ref(db, `games/${gameCode}/notifications/${targetPid}/${notifKey}`), {
-      resource: resName,
-      fromName: "the kitchen",
-      ts: Date.now()
+      resource: resName, fromName: "the kitchen", ts: Date.now()
     });
   }
 
-  // Flash animation
+  // Flash animation and toast
   document.getElementById("task-panel").classList.add("task-complete-anim");
   setTimeout(() => document.getElementById("task-panel").classList.remove("task-complete-anim"), 800);
-
   toast(`✓ "${taskName}" complete!`, "good");
 
-  // ── Advance to next task or show done state ───────────────────
-  // myTaskQueue was already sliced above; [0] is the new current task
-  if (myTaskQueue.length > 0) {
-    loadTask(myTaskQueue[0]);
+  // ── Advance UI ────────────────────────────────────────────────
+  if (isR3) {
+    if (nextActiveId) {
+      loadTask(nextActiveId);
+    } else {
+      renderNoActiveTask();
+    }
+    renderQueueBar();
   } else {
-    // Player finished their personal queue — show waiting state
-    document.getElementById("task-name").textContent = "All done!";
-    document.getElementById("task-description").textContent = "You've completed all your tasks. Help your teammates!";
-    document.getElementById("task-requirements").innerHTML = "";
-    document.getElementById("task-drop-zone").innerHTML = "";
-    document.getElementById("btn-complete").disabled = true;
-    currentTask = null;
+    if (nextActiveId) {
+      loadTask(nextActiveId);
+    } else {
+      renderNoActiveTask();
+    }
   }
   renderInventory();
+}
+
+// Returns list of ingredient names needed by any player's active task team-wide
+function getTeamActiveNeededIngredients() {
+  const needed = [];
+  Object.entries(gameState.players || {}).forEach(([pid, p]) => {
+    const taskId = p.activeTaskId || null;
+    if (!taskId) return;
+    const task = localTaskDefs[taskId];
+    if (!task) return;
+    task.requirements.forEach(r => {
+      if (RESOURCES[r.resource]?.type === "ingredient") needed.push(r.resource);
+    });
+  });
+  return needed;
+}
+
+// Renders the "all done" state when player has no active task
+function renderNoActiveTask() {
+  currentTask = null;
+  taskZoneMap = {};
+  document.getElementById("task-name").textContent = myTaskQueue.length > 0 ? "Pull a task" : "All done!";
+  document.getElementById("task-description").textContent =
+    myTaskQueue.length > 0
+      ? "Drag a task from the queue into the Current Task slot, or receive one from a teammate."
+      : "You've completed all your tasks. Help your teammates!";
+  document.getElementById("task-drop-zone").innerHTML =
+    '<span class="drop-hint">No active task</span>';
+  document.getElementById("btn-complete").disabled = true;
+}
+
+/* ─── R3: RESCUE SPAWN SCAN (host-only, runs periodically) ──── */
+async function runRescueScan() {
+  if (gameState.status !== "playing" || currentRound !== "round3") return;
+  const players    = gameState.players || {};
+  const playerIds  = Object.keys(players);
+  const allIngr    = {};
+  // Build team-wide ingredient inventory
+  playerIds.forEach(pid => {
+    Object.entries(players[pid].ingredients || {}).forEach(([k, v]) => {
+      allIngr[k] = (allIngr[k] || 0) + v;
+    });
+  });
+  // Find ingredients needed by active tasks that have ZERO copies team-wide
+  const missing = [];
+  playerIds.forEach(pid => {
+    const taskId = players[pid].activeTaskId;
+    if (!taskId) return;
+    const task = localTaskDefs[taskId];
+    if (!task) return;
+    task.requirements.forEach(r => {
+      if (RESOURCES[r.resource]?.type === "ingredient" && !allIngr[r.resource]) {
+        missing.push({ resource: r.resource, needingPid: pid });
+      }
+    });
+  });
+  if (missing.length === 0) return;
+
+  // Spawn each missing ingredient to a player who doesn't need it
+  for (const { resource, needingPid } of missing) {
+    const otherPlayers = playerIds.filter(pid => pid !== needingPid);
+    const targetPid    = otherPlayers.length > 0
+      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+      : needingPid;
+    await runTransaction(ref(db, `games/${gameCode}/players/${targetPid}/ingredients/${resource}`),
+      (current) => (current || 0) + 1);
+    const notifKey = `rescue_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
+    await set(ref(db, `games/${gameCode}/notifications/${targetPid}/${notifKey}`), {
+      resource, fromName: "the kitchen", ts: Date.now()
+    });
+  }
+}
+
+/* ─── R3: QUEUE BAR RENDERING ───────────────────────────────── */
+function makeTaskTile(taskId, context) {
+  const task = localTaskDefs[taskId] || { name: taskId, description: "" };
+  const div  = document.createElement("div");
+  div.className    = "tile task-tile";
+  div.dataset.taskId  = taskId;
+  div.dataset.context = context; // "queue" or "active"
+  div.innerHTML = `
+    <span class="tile-emoji">📋</span>
+    <span class="tile-label">${task.name}</span>
+  `;
+  return div;
+}
+
+function renderQueueBar() {
+  if (currentRound !== "round3") return;
+
+  const queueTilesEl  = document.getElementById("queue-tiles");
+  const queueNums     = document.getElementById("queue-numbers");
+  const activeSlot    = document.getElementById("active-task-slot");
+
+  // ── Render active task slot ──────────────────────────────────
+  activeSlot.innerHTML = "";
+  if (myActiveTaskId) {
+    const tile = makeTaskTile(myActiveTaskId, "active");
+    tile.classList.add("active-task-tile");
+    setupTaskTileDrag(tile);
+    activeSlot.classList.add("has-tile");
+    activeSlot.appendChild(tile);
+  } else {
+    activeSlot.classList.remove("has-tile");
+    activeSlot.innerHTML = '<span style="font-size:11px; color:var(--text-3);">Empty</span>';
+  }
+
+  // ── Render queue tiles (displayed right-to-left so index 0 = rightmost) ──
+  // myTaskQueue[0] is "next up" and should appear rightmost
+  queueTilesEl.innerHTML = "";
+  queueNums.innerHTML    = "";
+
+  myTaskQueue.forEach((taskId, idx) => {
+    // Position number: 1 = rightmost (next up) = index 0
+    const posNum = idx + 1;
+    const numEl  = document.createElement("div");
+    numEl.className   = "queue-number";
+    numEl.textContent = posNum;
+    queueNums.appendChild(numEl);
+
+    const tile = makeTaskTile(taskId, "queue");
+    tile.dataset.queueIdx = idx;
+    if (taskId === inspectedTaskId) tile.classList.add("inspected");
+    setupTaskTileDrag(tile);
+    // Tap = inspect (not drag)
+    tile.addEventListener("click", (e) => {
+      if (!e._wasDragged) inspectTask(taskId);
+    });
+    queueTilesEl.appendChild(tile);
+  });
+
+  // ── Update active-task-slot drop target ──────────────────────
+  activeSlot.ondragover = null; // handled by pointer events below
+}
+
+function inspectTask(taskId) {
+  inspectedTaskId = taskId === inspectedTaskId ? null : taskId;
+  renderQueueBar(); // re-render to update inspected highlight
+  const contentEl = document.getElementById("task-inspector-content");
+  if (!inspectedTaskId) {
+    contentEl.innerHTML = '<span class="inspector-hint">Nothing selected</span>';
+    return;
+  }
+  const task = localTaskDefs[taskId];
+  if (!task) { contentEl.innerHTML = '<span class="inspector-hint">Loading…</span>'; return; }
+
+  const reqHtml = task.requirements.map(r => {
+    const res = RESOURCES[r.resource] || { emoji:"❓" };
+    return `<span class="task-inspector-req">${res.emoji} ${r.resource}${r.qty > 1 ? " ×"+r.qty : ""}</span>`;
+  }).join("");
+
+  contentEl.innerHTML = `
+    <div style="flex:1;">
+      <div class="task-inspector-name">${task.name}</div>
+      <div class="task-inspector-desc">${task.description}</div>
+      <div class="task-inspector-reqs">${reqHtml}</div>
+    </div>`;
+}
+
+/* ─── R3: TASK TILE DRAG ────────────────────────────────────── */
+// Task tiles use the same pointer-event framework as resource tiles,
+// but with different drop target handling.
+function setupTaskTileDrag(tile) {
+  tile.addEventListener("mousedown",  onTaskTileMouseDown);
+  tile.addEventListener("touchstart", onTaskTileTouchStart, { passive: false });
+}
+
+let draggedTaskId     = null;
+let draggedTaskCtx    = null;  // "queue" | "active"
+let draggedTaskIdx    = -1;    // index in myTaskQueue if context=queue
+let taskDragGhost     = null;
+let taskDragStartX    = 0;
+let taskDragStartY    = 0;
+let taskDragCommitted = false;
+let taskOffX = 0, taskOffY = 0;
+
+function onTaskTileMouseDown(e) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  initTaskPointer(e.currentTarget, e.clientX, e.clientY);
+  document.addEventListener("mousemove", onTaskMouseMove);
+  document.addEventListener("mouseup",   onTaskMouseUp);
+}
+function onTaskTileTouchStart(e) {
+  const touch = e.touches[0];
+  e.preventDefault();
+  initTaskPointer(e.currentTarget, touch.clientX, touch.clientY);
+  document.addEventListener("touchmove", onTaskTouchMove, { passive: false });
+  document.addEventListener("touchend",  onTaskTouchEnd);
+}
+function initTaskPointer(tile, cx, cy) {
+  draggedTaskId     = tile.dataset.taskId;
+  draggedTaskCtx    = tile.dataset.context;
+  draggedTaskIdx    = parseInt(tile.dataset.queueIdx ?? "-1");
+  taskDragStartX    = cx; taskDragStartY = cy;
+  taskDragCommitted = false; taskDragGhost = null;
+  const rect = tile.getBoundingClientRect();
+  taskOffX = cx - rect.left; taskOffY = cy - rect.top;
+}
+function onTaskMouseMove(e)  { moveTaskPointer(e.clientX, e.clientY); }
+function onTaskTouchMove(e)  { moveTaskPointer(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
+
+function moveTaskPointer(cx, cy) {
+  if (!draggedTaskId) return;
+  const dx = cx - taskDragStartX, dy = cy - taskDragStartY;
+  if (!taskDragCommitted) {
+    if (Math.sqrt(dx*dx+dy*dy) < DRAG_THRESHOLD) return;
+    taskDragCommitted = true;
+    const srcTile = document.querySelector(`[data-task-id="${draggedTaskId}"][data-context="${draggedTaskCtx}"]`);
+    if (srcTile) {
+      const rect = srcTile.getBoundingClientRect();
+      taskDragGhost = srcTile.cloneNode(true);
+      taskDragGhost.style.cssText = `position:fixed;pointer-events:none;z-index:9001;
+        width:${rect.width}px;height:${rect.height}px;opacity:0.85;transform:scale(1.08);
+        left:${taskDragStartX-taskOffX}px;top:${taskDragStartY-taskOffY}px;
+        box-shadow:0 8px 24px rgba(0,0,0,0.18);transition:none;`;
+      document.body.appendChild(taskDragGhost);
+      srcTile.style.opacity = "0.35";
+    }
+  }
+  if (taskDragGhost) {
+    taskDragGhost.style.left = (cx - taskOffX) + "px";
+    taskDragGhost.style.top  = (cy - taskOffY) + "px";
+  }
+  // Highlight drop targets
+  document.querySelectorAll(".active-task-slot, .teammate-drop, .queue-tiles").forEach(z => z.classList.remove("drag-over"));
+  const el   = document.elementFromPoint(cx, cy);
+  const zone = el?.closest(".active-task-slot, .teammate-drop, .queue-tiles");
+  if (zone) zone.classList.add("drag-over");
+}
+
+function onTaskMouseUp(e) {
+  document.removeEventListener("mousemove", onTaskMouseMove);
+  document.removeEventListener("mouseup",   onTaskMouseUp);
+  endTaskPointer(e.clientX, e.clientY);
+}
+function onTaskTouchEnd(e) {
+  document.removeEventListener("touchmove", onTaskTouchMove);
+  document.removeEventListener("touchend",  onTaskTouchEnd);
+  endTaskPointer(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+}
+
+function endTaskPointer(cx, cy) {
+  if (!draggedTaskId) return;
+  document.querySelectorAll(".active-task-slot, .teammate-drop, .queue-tiles").forEach(z => z.classList.remove("drag-over"));
+
+  // Restore opacity on source tile
+  const srcTile = document.querySelector(`[data-task-id="${draggedTaskId}"][data-context="${draggedTaskCtx}"]`);
+  if (srcTile) srcTile.style.opacity = "";
+  if (taskDragGhost) { taskDragGhost.remove(); taskDragGhost = null; }
+
+  if (!taskDragCommitted) {
+    // Tap — inspector handled by click listener
+    draggedTaskId = null; draggedTaskCtx = null;
+    return;
+  }
+
+  const el       = document.elementFromPoint(cx, cy);
+  const activeSlot = el?.closest(".active-task-slot");
+  const tmZone     = el?.closest(".teammate-drop");
+  const queueArea  = el?.closest(".queue-tiles");
+
+  if (tmZone) {
+    // Trade task to teammate
+    const targetPid = tmZone.dataset.playerId;
+    handleTaskTrade(draggedTaskId, draggedTaskCtx, targetPid);
+  } else if (activeSlot && draggedTaskCtx === "queue") {
+    // Promote queued task to active
+    handlePromoteToActive(draggedTaskId, draggedTaskIdx);
+  } else if (queueArea && draggedTaskCtx === "active") {
+    // Demote active task to queue (drag active task to queue area)
+    handleDemoteActiveToQueue();
+  } else if (queueArea && draggedTaskCtx === "queue") {
+    // Reorder within queue — find drop position
+    handleQueueReorder(draggedTaskId, draggedTaskIdx, cx, cy);
+  }
+
+  draggedTaskId = null; draggedTaskCtx = null; draggedTaskIdx = -1; taskDragCommitted = false;
+}
+
+function handlePromoteToActive(taskId, queueIdx) {
+  if (!myActiveTaskId) {
+    // No current active task — just promote
+    doPromoteToActive(taskId, queueIdx);
+    return;
+  }
+  // Active task exists — confirm replacement
+  showConfirmModal(
+    "Replace current task?",
+    `"${localTaskDefs[myActiveTaskId]?.name || myActiveTaskId}" will move to the front of your queue.`,
+    () => doPromoteToActive(taskId, queueIdx)
+  );
+}
+
+function doPromoteToActive(taskId, queueIdx) {
+  const prevActive = myActiveTaskId;
+  myActiveTaskId   = taskId;
+  // Remove from queue, insert prev active at front if it existed
+  const newQueue = myTaskQueue.filter((_, i) => i !== queueIdx);
+  if (prevActive) newQueue.unshift(prevActive);
+  myTaskQueue = newQueue;
+
+  // Clear work area if we had a task loaded
+  if (prevActive) {
+    taskZoneMap = {};
+    // Return any loaded resources to inventory
+  }
+
+  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+    activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
+    playerStatus: "working"
+  });
+  loadTask(myActiveTaskId);
+  renderQueueBar();
+}
+
+function handleDemoteActiveToQueue() {
+  if (!myActiveTaskId) return;
+  const prevActive = myActiveTaskId;
+  // Clear work area resources back to inventory
+  Object.entries(taskZoneMap).forEach(([name, count]) => {
+    addToLocalInventory(name, count);
+  });
+  taskZoneMap    = {};
+  myTaskQueue    = [prevActive, ...myTaskQueue]; // front of queue
+  myActiveTaskId = myTaskQueue.shift() || null;  // autofill next
+  // Actually autofill: if there are queued tasks, promote the new [0]
+  // After unshift(prevActive), queue is [prevActive, ...rest]
+  // We want prevActive at front, current active cleared, then autofill
+  // Result: active = nothing, queue = [prevActive, ...rest], then autofill picks queue[0]
+  // Simplest: demote just clears active and moves it to front
+  myActiveTaskId = null;
+  myTaskQueue    = [prevActive, ...(myTaskQueue.filter(id => id !== prevActive))];
+  // Autofill
+  const nextId   = myTaskQueue[0] || null;
+  if (nextId) {
+    myActiveTaskId = nextId;
+    myTaskQueue    = myTaskQueue.slice(1);
+    loadTask(myActiveTaskId);
+  } else {
+    renderNoActiveTask();
+  }
+  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+    activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
+    playerStatus: myActiveTaskId ? "working" : "no-tasks"
+  });
+  renderInventory();
+  renderQueueBar();
+}
+
+function handleQueueReorder(taskId, fromIdx, cx, cy) {
+  // Find nearest queue tile to determine drop position
+  const tiles = [...document.querySelectorAll("#queue-tiles .task-tile")];
+  if (tiles.length === 0) return;
+  let toIdx = myTaskQueue.length - 1;
+  for (let i = 0; i < tiles.length; i++) {
+    const r = tiles[i].getBoundingClientRect();
+    if (cx < r.left + r.width / 2) { toIdx = i; break; }
+  }
+  if (toIdx === fromIdx) return;
+  const newQueue = [...myTaskQueue];
+  const [moved]  = newQueue.splice(fromIdx, 1);
+  newQueue.splice(toIdx, 0, moved);
+  myTaskQueue = newQueue;
+  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
+  renderQueueBar();
+}
+
+async function handleTaskTrade(taskId, fromCtx, targetPlayerId) {
+  const targetName = gameState.players?.[targetPlayerId]?.name || "teammate";
+  const taskDef    = localTaskDefs[taskId];
+
+  // If trading active task with items in work zone, confirm first
+  if (fromCtx === "active" && Object.keys(taskZoneMap).length > 0) {
+    const itemList = Object.entries(taskZoneMap)
+      .map(([name, count]) => `${RESOURCES[name]?.emoji || ""} ${name}${count > 1 ? " ×"+count : ""}`)
+      .join(", ");
+    showConfirmModal(
+      `Send task to ${targetName}?`,
+      `You have ${itemList} loaded. These will return to your inventory — they won't transfer with the task. You can transfer resources separately.`,
+      () => executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef)
+    );
+  } else {
+    executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef);
+  }
+}
+
+async function executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef) {
+  // Return work area items to inventory if trading active task
+  if (fromCtx === "active") {
+    Object.entries(taskZoneMap).forEach(([name, count]) => addToLocalInventory(name, count));
+    taskZoneMap    = {};
+    myActiveTaskId = null;
+    // Autofill: promote next queued task
+    const nextId = myTaskQueue[0] || null;
+    if (nextId) {
+      myActiveTaskId = nextId;
+      myTaskQueue    = myTaskQueue.slice(1);
+      setTimeout(() => {
+        loadTask(myActiveTaskId);
+        const slot = document.getElementById("active-task-slot");
+        if (slot) { slot.classList.add("tile-spring-in"); setTimeout(() => slot.classList.remove("tile-spring-in"), 600); }
+      }, 300);
+    } else {
+      renderNoActiveTask();
+    }
+  } else {
+    // Remove from queue
+    myTaskQueue = myTaskQueue.filter(id => id !== taskId);
+  }
+
+  // Write my updated state
+  const ingMap = {}, toolMap = {};
+  Object.entries(localInventory).forEach(([k, v]) => {
+    if (RESOURCES[k]?.type === "ingredient") ingMap[k] = v; else toolMap[k] = v;
+  });
+  await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+    activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
+    ingredients: ingMap, tools: toolMap,
+    playerStatus: myActiveTaskId ? "working" : "no-tasks"
+  });
+
+  // Notify receiver — append to back of their queue
+  const notifKey = `task_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  await set(ref(db, `games/${gameCode}/notifications/${targetPlayerId}/${notifKey}`), {
+    type: "task", taskId, fromName: myPlayerName, ts: Date.now()
+  });
+
+  // Log the trade
+  await push(ref(db, `games/${gameCode}/taskTrades`), {
+    from: myPlayerId, fromName: myPlayerName,
+    to: targetPlayerId, toName: targetName,
+    taskId, taskName: taskDef?.name || taskId,
+    timestamp: Date.now()
+  });
+
+  renderQueueBar();
+  renderInventory();
+  toast(`📋 Task "${taskDef?.name || taskId}" sent to ${targetName}`, "good");
+}
+
+/* ─── CONFIRM MODAL ─────────────────────────────────────────── */
+let _confirmCallback = null;
+function showConfirmModal(title, body, onConfirm) {
+  document.getElementById("confirm-modal-title").textContent = title;
+  document.getElementById("confirm-modal-body").textContent  = body;
+  _confirmCallback = onConfirm;
+  document.getElementById("confirm-modal-overlay").classList.add("active");
+}
+function closeConfirmModal(confirmed) {
+  document.getElementById("confirm-modal-overlay").classList.remove("active");
+  if (confirmed && _confirmCallback) _confirmCallback();
+  _confirmCallback = null;
 }
 
 /* ─── TRANSFERS ─────────────────────────────────────────────── */
@@ -2028,24 +3011,28 @@ async function createGame() {
 
   // Read selected game mode from radio buttons
   const durationEl = document.querySelector('input[name="duration"]:checked');
-  const durationVal = durationEl ? parseInt(durationEl.value) : NaN;
-  const isRound1 = durationEl?.value === "round1";
-  const roundDuration = (!isRound1 && !isNaN(durationVal) && durationVal > 0) ? durationVal : 300;
-  const roundType = isRound1 ? "round1" : "round2";
+  const durationVal = durationEl ? durationEl.value : "300";
+  let roundType, roundDuration;
+  if (durationVal === "round1") {
+    roundType = "round1"; roundDuration = null;
+  } else if (durationVal.startsWith("r3-")) {
+    roundType = "round3"; roundDuration = parseInt(durationVal.slice(3));
+  } else {
+    roundType = "round2"; roundDuration = parseInt(durationVal) || 300;
+  }
 
-  // Generate event name at creation time so it's visible in the lobby
   const lobbyEventName = genEventName();
 
   const gameData = {
     code:          gameCode,
     status:        "lobby",
     created:       Date.now(),
-    roundDuration: isRound1 ? null : roundDuration,
+    roundDuration: roundDuration,
     roundType:     roundType,
     hostPlayerId:  myPlayerId,
     eventName:     lobbyEventName,
     players: {
-      [myPlayerId]: { name:myPlayerName, ready:false, tasksCompleted:0 }
+      [myPlayerId]: { name:myPlayerName, ready:false, tasksCompleted:0, resourcesUsed:0 }
     }
   };
 
@@ -2136,6 +3123,13 @@ function enterLobby() {
       document.getElementById("lobby-event-name").textContent = gameState.eventName;
     }
 
+    // Show R3 orientation message
+    const r3block = document.getElementById("r3-orientation-block");
+    if (r3block) {
+      const rt = gameState.pendingRoundType || gameState.roundType || "";
+      r3block.style.display = rt === "round3" ? "block" : "none";
+    }
+
     if (gameState.status === "playing") {
       off(ref(db, `games/${gameCode}`), "value", lobbyUnsub);
       if (!inGameEntered) enterGame();
@@ -2149,16 +3143,17 @@ function enterLobby() {
 }
 
 // Core round-start logic — used for initial start AND between-round replays.
-// roundType: "round1" | "round2"
+// roundType: "round1" | "round2" | "round3"
 // duration: seconds (ignored / null for round1)
 async function startRoundInFirebase(players, roundType, duration) {
   const playerIds = Object.keys(players);
   const isR1 = roundType === "round1";
+  const isR3 = roundType === "round3";
 
   const endTime = isR1 ? null : Date.now() + duration * 1000;
   const evtName = gameState.eventName || genEventName();
   const setup   = generateGameSetup(playerIds, roundType);
-  const tgt     = playerIds.length * (isR1 ? 1 : TASKS_PER_PLAYER);
+  const tgt     = Object.values(setup.startingTaskCounts).reduce((a, b) => a + b, 0);
 
   const updates = {};
   updates[`games/${gameCode}/status`]      = "playing";
@@ -2168,22 +3163,34 @@ async function startRoundInFirebase(players, roundType, duration) {
   updates[`games/${gameCode}/eventName`]   = evtName;
   updates[`games/${gameCode}/taskTarget`]  = tgt;
   updates[`games/${gameCode}/taskDefs`]    = setup.taskById;
-  // Clear previous transfers so the new round's summary is clean
+  // Clear previous transfers and task trades
   updates[`games/${gameCode}/transfers`]   = null;
+  updates[`games/${gameCode}/taskTrades`]  = null;
 
   playerIds.forEach(pid => {
-    updates[`games/${gameCode}/players/${pid}/ingredients`]    = setup.playerIngrInventory[pid] || {};
-    updates[`games/${gameCode}/players/${pid}/tools`]          = setup.playerToolInventory[pid] || {};
-    updates[`games/${gameCode}/players/${pid}/taskQueue`]      = setup.playerTasks[pid] || [];
-    updates[`games/${gameCode}/players/${pid}/tasksCompleted`] = 0;
-    updates[`games/${gameCode}/players/${pid}/ready`]          = false;
+    const allTasks = setup.playerTasks[pid] || [];
+    // For R3: first task becomes activeTaskId, rest go into taskQueue
+    // For R1/R2: activeTaskId mirrors taskQueue[0] for compatibility
+    const activeId = allTasks[0] || null;
+    const queuedTasks = isR3 ? allTasks.slice(1) : allTasks;
+
+    updates[`games/${gameCode}/players/${pid}/ingredients`]       = setup.playerIngrInventory[pid] || {};
+    updates[`games/${gameCode}/players/${pid}/tools`]             = setup.playerToolInventory[pid] || {};
+    updates[`games/${gameCode}/players/${pid}/taskQueue`]         = queuedTasks;
+    updates[`games/${gameCode}/players/${pid}/activeTaskId`]      = activeId;
+    updates[`games/${gameCode}/players/${pid}/tasksCompleted`]    = 0;
+    updates[`games/${gameCode}/players/${pid}/resourcesUsed`]     = 0;
+    updates[`games/${gameCode}/players/${pid}/ready`]             = false;
+    updates[`games/${gameCode}/players/${pid}/startingTaskCount`] = setup.startingTaskCounts[pid] || 0;
+    updates[`games/${gameCode}/players/${pid}/startingIngrCount`] = setup.startingIngrCounts[pid] || 0;
+    updates[`games/${gameCode}/players/${pid}/playerStatus`]      = activeId ? "working" : "no-tasks";
   });
 
   await update(ref(db), updates);
 }
 
 function enterGame() {
-  if (inGameEntered) return;   // guard against double-fire from lobby listener
+  if (inGameEntered) return;
   inGameEntered = true;
 
   showScreen("game");
@@ -2198,71 +3205,63 @@ function enterGame() {
     hostPlayerId = data.hostPlayerId || null;
     amHost       = (myPlayerId === hostPlayerId);
 
-    // Store task definitions locally
-    if (data.taskDefs) {
-      Object.assign(localTaskDefs, data.taskDefs);
-    }
+    if (data.taskDefs) Object.assign(localTaskDefs, data.taskDefs);
 
-    // Update header event name and round badge
     document.getElementById("event-name-display").textContent = eventName;
 
-    // Hide timer for Round 1 (no time limit)
+    // Show/hide timer for Round 1
     const timerEl = document.getElementById("timer");
     const timerDividers = document.querySelectorAll(".header-divider");
     if (currentRound === "round1") {
       timerEl.style.display = "none";
-      // Hide just the first divider (between title and timer)
       if (timerDividers[0]) timerDividers[0].style.display = "none";
     } else {
       timerEl.style.display = "";
       if (timerDividers[0]) timerDividers[0].style.display = "";
     }
 
-    // Load my task queue — taskQueue[0] is always the current task
+    // Show/hide R3-specific UI elements
+    const isR3 = currentRound === "round3";
+    document.getElementById("r3-queue-row").style.display     = isR3 ? "flex" : "none";
+    document.getElementById("r3-task-inspector").style.display = isR3 ? "block" : "none";
+    // In R3, task panel label says "Working on" instead of "Current task"
+    const panelLabel = document.getElementById("task-panel-label");
+    if (panelLabel) panelLabel.textContent = isR3 ? "Working on" : "Current task";
+
+    // Load my task state
     const myData = data.players?.[myPlayerId] || {};
-    myTaskQueue  = myData.taskQueue || [];
-    if (myTaskQueue.length > 0) {
-      loadTask(myTaskQueue[0]);
+    if (isR3) {
+      myActiveTaskId = myData.activeTaskId || null;
+      myTaskQueue    = myData.taskQueue    || [];
+      if (myActiveTaskId) loadTask(myActiveTaskId);
+      else renderNoActiveTask();
+      renderQueueBar();
+    } else {
+      myTaskQueue = myData.taskQueue || [];
+      if (myTaskQueue.length > 0) loadTask(myTaskQueue[0]);
     }
     updateScoreDisplay(data.players);
+
+    // R3: start host-only rescue scan every 30s
+    if (isR3 && amHost) {
+      rescueInterval = setInterval(() => runRescueScan(), 30000);
+    }
   });
 
-  // ── 2. Watch MY inventory in Firebase — re-render whenever it changes ──
-  // We maintain a stable lastKnownInventory snapshot that we compare against
-  // to detect genuinely new items. This snapshot only updates AFTER we've
-  // finished processing, preventing double-count false positives when Firebase
-  // fires a listener twice (e.g. due to network latency or rapid sequential writes).
-  // applyInventoryUpdate uses the module-scoped lastKnownInventoryRef
-  // so sendResource can also update it when doing optimistic removal,
-  // preventing the sender's listener from re-adding in-flight items.
+  // ── 2. Watch MY inventory ────────────────────────────────────
   function applyInventoryUpdate(incoming, type) {
     const subkey = type === "ingredient" ? "ingredients" : "tools";
     const knownSub = lastKnownInventoryRef[subkey];
-
-    // Detect genuinely new items vs last known state
     const newlyAdded = [];
     Object.entries(incoming).forEach(([k, v]) => {
       if (RESOURCES[k]?.type !== type) return;
       const prev = knownSub[k] || 0;
-      if (v > prev) {
-        for (let i = prev; i < v; i++) newlyAdded.push(k);
-      }
+      if (v > prev) for (let i = prev; i < v; i++) newlyAdded.push(k);
     });
-
-    // Rebuild localInventory for this type from Firebase truth
-    Object.keys(localInventory).forEach(k => {
-      if (RESOURCES[k]?.type === type) delete localInventory[k];
-    });
-    Object.entries(incoming).forEach(([k, v]) => {
-      if (RESOURCES[k]?.type === type && v > 0) localInventory[k] = v;
-    });
-
-    // Update snapshot AFTER rebuilding
+    Object.keys(localInventory).forEach(k => { if (RESOURCES[k]?.type === type) delete localInventory[k]; });
+    Object.entries(incoming).forEach(([k, v]) => { if (RESOURCES[k]?.type === type && v > 0) localInventory[k] = v; });
     Object.keys(knownSub).forEach(k => delete knownSub[k]);
-    Object.entries(incoming).forEach(([k, v]) => {
-      if (RESOURCES[k]?.type === type && v > 0) knownSub[k] = v;
-    });
-
+    Object.entries(incoming).forEach(([k, v]) => { if (RESOURCES[k]?.type === type && v > 0) knownSub[k] = v; });
     renderInventory(newlyAdded);
   }
 
@@ -2276,71 +3275,90 @@ function enterGame() {
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), "value", toolUnsub));
 
-  // ── 3. Watch notifications — show toast when a resource arrives ──
-  // We track which notification keys we've already processed to avoid duplicates.
+  // ── 3. Watch notifications ───────────────────────────────────
   const seenNotifs = new Set();
   const notifUnsub = onValue(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), snap => {
     if (!snap.exists()) return;
     snap.forEach(child => {
-      if (seenNotifs.has(child.key)) return;  // already handled
+      if (seenNotifs.has(child.key)) return;
       seenNotifs.add(child.key);
       const item = child.val();
-      const res  = RESOURCES[item.resource];
-      toast(`${res?.emoji || ""} ${item.resource} received from ${item.fromName}`, "good");
-      // Flash inventory panel
-      const panel = document.getElementById("inventory-panel");
-      panel.classList.add("incoming-flash");
-      setTimeout(() => panel.classList.remove("incoming-flash"), 600);
-      // Clean up notification node
+      if (item.type === "task") {
+        // Received a traded task — append to back of queue
+        const taskDef = localTaskDefs[item.taskId];
+        if (item.taskId && !myTaskQueue.includes(item.taskId) && myActiveTaskId !== item.taskId) {
+          myTaskQueue = [...myTaskQueue, item.taskId];
+          // Write updated queue to Firebase
+          update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
+          if (currentRound === "round3") renderQueueBar();
+          toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
+        }
+      } else {
+        // Resource notification
+        const res = RESOURCES[item.resource];
+        toast(`${res?.emoji || ""} ${item.resource} received from ${item.fromName}`, "good");
+        const panel = document.getElementById("inventory-panel");
+        panel.classList.add("incoming-flash");
+        setTimeout(() => panel.classList.remove("incoming-flash"), 600);
+      }
       remove(ref(db, `games/${gameCode}/notifications/${myPlayerId}/${child.key}`));
     });
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), "value", notifUnsub));
 
-  // ── 4. Watch game-level state: teammates, score, timer, end ──
+  // ── 4. Watch R3: my own activeTaskId and taskQueue changes ──
+  if (true) { // always register — needed for cross-device sync
+    const myPlayerUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}`), snap => {
+      const pd = snap.val() || {};
+      if (currentRound === "round3") {
+        const newActiveId = pd.activeTaskId || null;
+        const newQueue    = pd.taskQueue    || [];
+        // Only re-render if values actually changed
+        if (newActiveId !== myActiveTaskId) {
+          myActiveTaskId = newActiveId;
+          if (myActiveTaskId) loadTask(myActiveTaskId);
+          else renderNoActiveTask();
+        }
+        // Sync queue (may have been updated by task trade notification handler above)
+        myTaskQueue = newQueue;
+        renderQueueBar();
+      } else {
+        myTaskQueue = pd.taskQueue || [];
+      }
+    });
+    unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}`), "value", myPlayerUnsub));
+  }
+
+  // ── 5. Watch game-level state ────────────────────────────────
   const gameUnsub = onValue(ref(db, `games/${gameCode}`), snap => {
     gameState = snap.val() || {};
     if (!gameState.players) return;
 
-    // Handle host disbanding the game
-    if (gameState.status === "disbanded") {
-      resetToLanding();
-      return;
-    }
+    if (gameState.status === "disbanded") { resetToLanding(); return; }
 
     renderTeammates();
     updateScoreDisplay(gameState.players);
 
-    // Sync event name and task target if not yet loaded
     if (!eventName && gameState.eventName) {
       eventName    = gameState.eventName;
       taskTarget   = gameState.taskTarget || 0;
       currentRound = gameState.roundType  || "round2";
       document.getElementById("event-name-display").textContent = eventName;
     }
+    if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
 
-    // Sync local task defs
-    if (gameState.taskDefs) {
-      Object.assign(localTaskDefs, gameState.taskDefs);
-    }
-
-    // Start timer only for round2 (round1 has no time limit)
     if (gameState.endTime && !timerInterval && currentRound !== "round1") {
       startTimer(gameState.endTime);
     }
 
-    // Auto-end when task target is reached
     const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     if (taskTarget > 0 && totalTasks >= taskTarget && gameState.status === "playing") {
-      // Host ends the game
-      if (amHost) {
-        update(ref(db, `games/${gameCode}`), { status: "ended" });
-      }
+      if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
     }
 
     if (gameState.status === "ended") {
-      clearInterval(timerInterval);
-      timerInterval = null;
+      clearInterval(timerInterval); timerInterval = null;
+      clearInterval(rescueInterval); rescueInterval = null;
       showSummary();
     }
   });
@@ -2353,12 +3371,25 @@ function renderTeammates() {
   if (!gameState.players) return;
   Object.entries(gameState.players).forEach(([pid, p]) => {
     if (pid === myPlayerId) return;
+    // Determine status
+    const hasActive = !!(p.activeTaskId || (p.taskQueue && p.taskQueue.length > 0));
+    const isNoTasks = !p.activeTaskId && (!p.taskQueue || p.taskQueue.length === 0);
+    let statusHtml = "";
+    if (isNoTasks && p.tasksCompleted > 0) {
+      statusHtml = `<div class="teammate-status no-tasks">No tasks</div>`;
+    } else if (!isNoTasks) {
+      statusHtml = `<div class="teammate-status working">Working</div>`;
+    }
+
     const div = document.createElement("div");
     div.className = "teammate-card";
     div.innerHTML = `
       <div class="teammate-card-header">
-        <span class="teammate-name">${p.name}</span>
-        <span class="teammate-score">${p.tasksCompleted||0} tasks</span>
+        <div>
+          <span class="teammate-name">${p.name}</span>
+          ${statusHtml}
+        </div>
+        <span class="teammate-score">${p.tasksCompleted||0} done</span>
       </div>
       <div class="teammate-drop" data-player-id="${pid}">
         Drop to send
@@ -2379,26 +3410,17 @@ function endGame() {
 function resetToLanding() {
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
-  clearInterval(timerInterval);
-  timerInterval  = null;
-  localInventory = {};
-  inventoryOrder = [];
-  taskZoneMap    = {};
-  gameState      = {};
-  gameCode       = null;
-  myPlayerId     = null;
-  inGameEntered  = false;
-  myTaskQueue    = [];
-  taskTarget     = 0;
-  eventName      = "";
-  currentRound   = "round2";
-  hostPlayerId   = null;
-  amHost         = false;
-  currentTask    = null;
+  clearInterval(timerInterval);  timerInterval  = null;
+  clearInterval(rescueInterval); rescueInterval = null;
+  localInventory = {}; inventoryOrder = []; taskZoneMap = {};
+  gameState = {}; gameCode = null; myPlayerId = null;
+  inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
+  taskTarget = 0; eventName = ""; currentRound = "round2";
+  hostPlayerId = null; amHost = false; currentTask = null;
+  inspectedTaskId = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
   Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
   Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
-  // Reset UI inputs
   document.getElementById("create-name").value = "";
   document.getElementById("join-code").value   = "";
   document.getElementById("join-name").value   = "";
@@ -2406,7 +3428,6 @@ function resetToLanding() {
   document.getElementById("join-error").textContent   = "";
   document.getElementById("btn-ready").disabled = false;
   document.getElementById("btn-ready").textContent = "I'm ready ✓";
-  // Restore timer visibility in case it was hidden for round1
   document.getElementById("timer").style.display = "";
   document.querySelectorAll(".header-divider").forEach(d => d.style.display = "");
   showScreen("landing");
@@ -2417,14 +3438,16 @@ async function showSummary() {
   const data = snap.val() || {};
   const roundType  = data.roundType || "round2";
   const isR1       = roundType === "round1";
+  const isR3       = roundType === "round3";
   const isHost     = (myPlayerId === (data.hostPlayerId || null));
   const players    = data.players   || {};
   const transfers  = data.transfers || {};
-  const transferArr = Object.values(transfers);
+  const taskTrades = data.taskTrades || {};
+  const transferArr    = Object.values(transfers);
+  const taskTradeArr   = Object.values(taskTrades);
   const evtName    = data.eventName || "";
 
   if (isR1) {
-    // ── ROUND 1: light debrief ──────────────────────────────────
     showScreen("summary-r1");
     document.getElementById("summary-r1-event-name").textContent = evtName;
     document.getElementById("summary-r1-transfers").textContent =
@@ -2433,8 +3456,46 @@ async function showSummary() {
         : `Your team made ${transferArr.length} resource transfer${transferArr.length !== 1 ? "s" : ""}.`;
     document.getElementById("summary-r1-host").style.display  = isHost ? "flex" : "none";
     document.getElementById("summary-r1-guest").style.display = isHost ? "none" : "flex";
+
+  } else if (isR3) {
+    showScreen("summary-r3");
+    document.getElementById("summary-r3-event-name").textContent = evtName;
+
+    const tgt   = data.taskTarget || 0;
+    const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
+    const won   = tgt > 0 && total >= tgt;
+    document.getElementById("summary-r3-subtitle").textContent =
+      tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
+
+    // Tasks completed table
+    const taskEl = document.getElementById("summary-r3-tasks");
+    taskEl.innerHTML = Object.values(players).map(p => `
+      <div class="stat-row">
+        <span>${p.name}</span>
+        <span class="stat-value">${p.tasksCompleted||0}</span>
+      </div>`).join("");
+    taskEl.innerHTML += `<div class="stat-row" style="border-top:2px solid var(--border); margin-top:4px;">
+      <span style="font-weight:600;">Team total</span>
+      <span class="stat-value">${total}${tgt > 0 ? " / "+tgt : ""}</span>
+    </div>`;
+    if (tgt > 0) {
+      const resultEl = document.createElement("div");
+      resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
+        background:${won?"#EAF2EA":"#FAEAEA"};color:${won?"var(--accent)":"var(--danger)"};`;
+      resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
+      taskEl.appendChild(resultEl);
+    }
+
+    // Resource transfer network with per-node annotations
+    drawNetworkR3(players, transferArr, "r3-network-resource-svg", "resource");
+    // Task trade network with per-node annotations
+    drawNetworkR3(players, taskTradeArr, "r3-network-task-svg", "task");
+
+    document.getElementById("summary-r3-host-actions").style.display  = isHost ? "flex" : "none";
+    document.getElementById("summary-r3-guest-actions").style.display = isHost ? "none" : "flex";
+
   } else {
-    // ── ROUND 2: full summary ───────────────────────────────────
+    // ── ROUND 2: summary ─────────────────────────────────────────
     showScreen("summary");
     document.getElementById("summary-event-name").textContent = evtName;
 
@@ -2442,7 +3503,6 @@ async function showSummary() {
     const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     const won   = tgt > 0 && total >= tgt;
 
-    // Tasks per player
     const taskEl = document.getElementById("summary-tasks");
     taskEl.innerHTML = Object.values(players).map(p => `
       <div class="stat-row">
@@ -2455,85 +3515,36 @@ async function showSummary() {
     </div>`;
     if (tgt > 0) {
       const resultEl = document.createElement("div");
-      resultEl.style.cssText = `margin-top:12px; padding:10px 14px; border-radius:8px; font-weight:600; font-size:14px; text-align:center;
-        background:${won?"#EAF2EA":"#FAEAEA"}; color:${won?"var(--accent)":"var(--danger)"};`;
+      resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
+        background:${won?"#EAF2EA":"#FAEAEA"};color:${won?"var(--accent)":"var(--danger)"};`;
       resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
     document.getElementById("summary-subtitle").textContent =
       tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
 
-    // Transfer counts per pair
-    const transferEl = document.getElementById("summary-transfers");
-    if (transferArr.length === 0) {
-      transferEl.innerHTML = '<p style="color:var(--text-3); font-size:13px;">No transfers recorded.</p>';
-    } else {
-      const grouped = {};
-      transferArr.forEach(t => {
-        const key = t.fromName + "→" + t.toName;
-        grouped[key] = (grouped[key]||0)+1;
-      });
-      transferEl.innerHTML = Object.entries(grouped).map(([pair,cnt]) => {
-        const [from,to] = pair.split("→");
-        return `<div class="stat-row">
-          <span>${from} → ${to}</span>
-          <span class="stat-value">${cnt}</span>
-        </div>`;
-      }).join("");
-    }
-
-    // Transfer log
-    const logEl = document.getElementById("transfer-log");
-    if (transferArr.length === 0) {
-      logEl.innerHTML = '<div class="transfer-entry" style="color:var(--text-3);">No transfers recorded.</div>';
-    } else {
-      const sorted = [...transferArr].sort((a,b) => a.timestamp - b.timestamp);
-      logEl.innerHTML = sorted.map(t => {
-        const roundDur = data.roundDuration || ROUND_DURATION;
-        const elapsed  = Math.round((t.timestamp - (data.endTime - roundDur*1000)) / 1000);
-        const ts = `${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}`;
-        return `<div class="transfer-entry">
-          <strong>${t.fromName}</strong> sent ${t.emoji} <strong>${t.resource}</strong>
-          to <strong>${t.toName}</strong>
-          <span style="color:var(--text-3); font-size:11px; margin-left:6px;">[${ts}]</span>
-        </div>`;
-      }).join("");
-    }
-
-    // Network diagram
     drawNetwork(players, transferArr);
 
-    // Host/non-host footer buttons (R2)
-    document.getElementById("summary-r2-host-actions").style.display  = isHost ? "" : "none";
-    document.getElementById("summary-r2-guest-actions").style.display = isHost ? "none" : "";
+    document.getElementById("summary-r2-host-actions").style.display  = isHost ? "flex" : "none";
+    document.getElementById("summary-r2-guest-actions").style.display = isHost ? "none" : "flex";
   }
 
-  // Watch for host advancing to the next round — registered AFTER the screen is
-  // fully rendered so we never race with cached Firebase data during screen setup.
+  // Watch for host advancing — registered AFTER screen renders
   const summaryStatusUnsub = onValue(ref(db, `games/${gameCode}/status`), snap => {
     const status = snap.val();
     if (status === "lobby") {
       off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
-      // Flush any stale game-screen listeners before re-entering the lobby
-      unsubscribers.forEach(fn => fn());
-      unsubscribers = [];
-      // Reset local state
-      inGameEntered = false;
-      myTaskQueue   = [];
-      taskTarget    = 0;
-      eventName     = "";
-      currentTask   = null;
-      taskZoneMap   = {};
-      inventoryOrder= [];
-      localInventory= {};
+      unsubscribers.forEach(fn => fn()); unsubscribers = [];
+      inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
+      taskTarget = 0; eventName = ""; currentTask = null; taskZoneMap = {};
+      inventoryOrder = []; localInventory = {}; inspectedTaskId = null;
       Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
       Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
       Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
-      clearInterval(timerInterval);
-      timerInterval = null;
+      clearInterval(timerInterval); timerInterval = null;
+      clearInterval(rescueInterval); rescueInterval = null;
       const btnReady = document.getElementById("btn-ready");
-      btnReady.disabled = false;
-      btnReady.textContent = "I'm ready ✓";
+      btnReady.disabled = false; btnReady.textContent = "I'm ready ✓";
       enterLobby();
     }
     if (status === "disbanded") {
@@ -2696,7 +3707,129 @@ function drawNetwork(players, transfers) {
   });
 }
 
-/* ─── INIT ──────────────────────────────────────────────────── */
+// R3 network diagram with per-node stat annotations
+function drawNetworkR3(players, transfers, svgId, mode) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  svg.innerHTML = "";
+  const W = 400, H = 400, cx = 200, cy = 200, R = 120;
+
+  const playerArr = Object.entries(players);
+  const n = playerArr.length;
+  if (n < 2) return;
+
+  const positions = playerArr.map(([pid, p], i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    return { pid, name: p.name, x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle),
+             startingTaskCount: p.startingTaskCount || 0,
+             startingIngrCount: p.startingIngrCount || 0,
+             tasksCompleted:    p.tasksCompleted     || 0,
+             resourcesUsed:     p.resourcesUsed      || 0 };
+  });
+
+  const edgeCounts = {};
+  let maxCount = 0;
+  transfers.forEach(t => {
+    const key = `${t.from}|||${t.to}`;
+    edgeCounts[key] = (edgeCounts[key] || 0) + 1;
+    maxCount = Math.max(maxCount, edgeCounts[key]);
+  });
+
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const markerColor = mode === "task" ? "#8B7355" : "#5C6E5B";
+  defs.innerHTML = `<marker id="arrowhead-${svgId}" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="${markerColor}" opacity="0.8"/>
+  </marker>`;
+  svg.appendChild(defs);
+
+  function bezierPoint(p0, p1, p2, t) {
+    const mt = 1 - t;
+    return { x: mt*mt*p0.x+2*mt*t*p1.x+t*t*p2.x, y: mt*mt*p0.y+2*mt*t*p1.y+t*t*p2.y };
+  }
+
+  Object.entries(edgeCounts).forEach(([key, count]) => {
+    const [fromId, toId] = key.split("|||");
+    const from = positions.find(p => p.pid === fromId);
+    const to   = positions.find(p => p.pid === toId);
+    if (!from || !to) return;
+    const strokeW = 1.5 + (count / maxCount) * 4;
+    const opacity = 0.5 + (count / maxCount) * 0.4;
+    const reverseExists = edgeCounts[`${toId}|||${fromId}`] > 0;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    const arcOffset = reverseExists ? 30 : 0;
+    const nx = -dy/len*arcOffset, ny = dx/len*arcOffset;
+    const nr = 28;
+    const p0 = { x: from.x+(dx/len)*nr, y: from.y+(dy/len)*nr };
+    const p2 = { x: to.x-(dx/len)*nr,   y: to.y-(dy/len)*nr };
+    const p1 = { x: (from.x+to.x)/2+nx, y: (from.y+to.y)/2+ny };
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M${p0.x},${p0.y} Q${p1.x},${p1.y} ${p2.x},${p2.y}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", markerColor);
+    path.setAttribute("stroke-width", strokeW);
+    path.setAttribute("stroke-opacity", opacity);
+    path.setAttribute("marker-end", `url(#arrowhead-${svgId})`);
+    svg.appendChild(path);
+
+    let lx, ly;
+    if (reverseExists) { const pt = bezierPoint(p0,p1,p2,0.72); lx=pt.x; ly=pt.y; }
+    else { const perp=11; lx=(p0.x+p2.x)/2+(-dy/len*perp); ly=(p0.y+p2.y)/2+(dx/len*perp); }
+
+    [["none","#F7F5F2","4","round"], [markerColor,null,"0",null]].forEach(([fill,stroke,sw,slj]) => {
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      t.setAttribute("x",lx); t.setAttribute("y",ly);
+      t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","middle");
+      t.setAttribute("font-size","11"); t.setAttribute("font-weight","700");
+      t.setAttribute("fill",fill); if(stroke){t.setAttribute("stroke",stroke);t.setAttribute("stroke-width",sw);t.setAttribute("stroke-linejoin",slj);}
+      t.textContent = count; svg.appendChild(t);
+    });
+  });
+
+  // Draw nodes with stat annotations
+  positions.forEach(pos => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    circle.setAttribute("cx",pos.x); circle.setAttribute("cy",pos.y); circle.setAttribute("r",22);
+    circle.setAttribute("fill", pos.pid===myPlayerId ? markerColor : "#F7F5F2");
+    circle.setAttribute("stroke",markerColor); circle.setAttribute("stroke-width","2");
+
+    const nameText = document.createElementNS("http://www.w3.org/2000/svg","text");
+    nameText.setAttribute("x",pos.x); nameText.setAttribute("y",pos.y);
+    nameText.setAttribute("text-anchor","middle"); nameText.setAttribute("dominant-baseline","middle");
+    nameText.setAttribute("font-size","8"); nameText.setAttribute("font-weight","600");
+    nameText.setAttribute("fill", pos.pid===myPlayerId ? "#fff" : "#1A1814");
+    nameText.textContent = pos.name.length>7 ? pos.name.slice(0,7)+"…" : pos.name;
+
+    g.appendChild(circle); g.appendChild(nameText);
+
+    // Annotation: determine which stats to show
+    let line1, line2;
+    if (mode === "resource") {
+      line1 = `Start: ${pos.startingIngrCount} res.`;
+      line2  = `Used: ${pos.resourcesUsed}`;
+    } else {
+      line1 = `Start: ${pos.startingTaskCount} tasks`;
+      line2  = `Done: ${pos.tasksCompleted}`;
+    }
+
+    // Position annotation above or below node based on vertical position
+    const annotY = pos.y < cy ? pos.y - 32 : pos.y + 32;
+    [line1, line2].forEach((txt, li) => {
+      const ann = document.createElementNS("http://www.w3.org/2000/svg","text");
+      ann.setAttribute("x", pos.x);
+      ann.setAttribute("y", annotY + li * 12);
+      ann.setAttribute("text-anchor","middle"); ann.setAttribute("dominant-baseline","middle");
+      ann.setAttribute("font-size","8.5"); ann.setAttribute("fill","#6B6560");
+      ann.textContent = txt;
+      g.appendChild(ann);
+    });
+
+    svg.appendChild(g);
+  });
+}
 async function init() {
   try {
     app = initializeApp(firebaseConfig);
@@ -2744,6 +3877,9 @@ document.getElementById("activity-modal-close-btn").addEventListener("click", ()
 document.getElementById("activity-btn-cancel").addEventListener("click",      () => closeActivityModal(false));
 document.getElementById("activity-btn-done").addEventListener("click",        () => closeActivityModal(true));
 
+document.getElementById("confirm-modal-cancel").addEventListener("click", () => closeConfirmModal(false));
+document.getElementById("confirm-modal-ok").addEventListener("click",     () => closeConfirmModal(true));
+
 // ── EXIT THIS TEAM (any screen) ────────────────────────────────
 function exitTeam() {
   if (amHost) {
@@ -2756,6 +3892,8 @@ document.getElementById("btn-exit-r1").addEventListener("click", exitTeam);
 document.getElementById("btn-exit-r1-host").addEventListener("click", exitTeam);
 document.getElementById("btn-exit-r2").addEventListener("click", exitTeam);
 document.getElementById("btn-exit-r2-guest").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-r3").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-r3-guest").addEventListener("click", exitTeam);
 
 // ── BETWEEN-ROUND LOBBY ────────────────────────────────────────
 // Moves all players back through the ready-check before starting the next round.
@@ -2772,19 +3910,15 @@ async function enterBetweenRoundLobby(nextRoundType, duration) {
   await update(ref(db), updates);
 
   // Reset local game state (but keep gameCode, myPlayerId, myPlayerName, hostPlayerId)
-  inGameEntered = false;
-  myTaskQueue   = [];
-  taskTarget    = 0;
-  eventName     = "";
-  currentTask   = null;
-  taskZoneMap   = {};
-  inventoryOrder= [];
-  localInventory= {};
+  inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
+  taskTarget = 0; eventName = ""; currentTask = null;
+  taskZoneMap = {}; inventoryOrder = []; localInventory = {};
+  inspectedTaskId = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
   Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
   Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
-  clearInterval(timerInterval);
-  timerInterval = null;
+  clearInterval(timerInterval);  timerInterval  = null;
+  clearInterval(rescueInterval); rescueInterval = null;
 
   // Reset the Ready button so the host (and anyone else on this device) can click it again
   const btnReady = document.getElementById("btn-ready");
@@ -2811,6 +3945,21 @@ document.querySelectorAll(".btn-r2-replay").forEach(btn => {
   btn.addEventListener("click", () => {
     const dur = parseInt(btn.dataset.duration);
     enterBetweenRoundLobby("round2", dur);
+  });
+});
+
+document.querySelectorAll(".btn-r2-to-r3").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const dur = parseInt(btn.dataset.duration);
+    enterBetweenRoundLobby("round3", dur);
+  });
+});
+
+// ── R3 DEBRIEF HOST BUTTONS ────────────────────────────────────
+document.querySelectorAll(".btn-r3-replay").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const dur = parseInt(btn.dataset.duration);
+    enterBetweenRoundLobby("round3", dur);
   });
 });
 
