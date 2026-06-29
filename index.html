@@ -1041,9 +1041,9 @@
 
   /* ── TEAMMATE STATUS ─────────────────────────────────────── */
   .teammate-status {
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-top: 2px;
   }
@@ -1223,7 +1223,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3864,26 +3864,26 @@ function drawNetworkR3(players, transfers, svgId, mode) {
       line2  = `Done: ${pos.tasksCompleted}`;
     }
 
-    // Push annotation radially outward from center, past the node circle.
-    // Compute outward unit vector from diagram center to node position.
+    // Push annotation block radially outward from center, past the node.
+    // Each line is then stacked with a fixed vertical offset (not radial),
+    // so spacing is always readable regardless of node position on circle.
     const dxA = pos.x - cx, dyA = pos.y - cy;
     const distA = Math.sqrt(dxA*dxA + dyA*dyA) || 1;
     const uxA = dxA / distA, uyA = dyA / distA;
-    // Place annotation 38px beyond the node edge (node radius = 22)
-    const annotOffset = 22 + 22; // node radius + gap
+    // Anchor block 34px beyond node edge (node r=22, gap=12)
+    const annotOffset = 22 + 12;
     const annotCX = pos.x + uxA * annotOffset;
     const annotCY = pos.y + uyA * annotOffset;
-    // Line spacing perpendicular to radial direction: stack vertically along radial
-    const lineSpacing = 11;
+    // Text anchor: left-side nodes right-align, right-side left-align, top/bottom center
+    const anchor = uxA > 0.35 ? "start" : uxA < -0.35 ? "end" : "middle";
+    // Fixed vertical line spacing so top/bottom/left/right nodes all read clearly
+    const lineH = 13;
+    // Centre the two-line block on annotCY
+    const blockTop = annotCY - lineH * 0.5;
     [line1, line2].forEach((txt, li) => {
       const ann = document.createElementNS("http://www.w3.org/2000/svg","text");
-      // Offset each line further outward
-      const lx = annotCX + uxA * (li * lineSpacing);
-      const ly = annotCY + uyA * (li * lineSpacing);
-      ann.setAttribute("x", lx);
-      ann.setAttribute("y", ly);
-      // Anchor text away from center
-      const anchor = uxA > 0.3 ? "start" : uxA < -0.3 ? "end" : "middle";
+      ann.setAttribute("x", annotCX);
+      ann.setAttribute("y", blockTop + li * lineH);
       ann.setAttribute("text-anchor", anchor);
       ann.setAttribute("dominant-baseline","middle");
       ann.setAttribute("font-size","8.5"); ann.setAttribute("fill","#6B6560");
