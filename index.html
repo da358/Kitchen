@@ -29,6 +29,9 @@
     --accent:      #5C6E5B;       /* muted sage green */
     --accent-2:    #8B7355;       /* warm walnut */
     --danger:      #B85450;
+    --active-bg:   #FDF0F0;       /* pale rose — current task zone */
+    --active-bd:   #C4706C;       /* muted rose border */
+    --active-hd:   #A85550;       /* current task header text */
     --ready:       #5C6E5B;
     --spice-bg:    #F5ECD7;       /* warm amber */
     --spice-bd:    #D4A853;
@@ -43,6 +46,7 @@
     --shaper-bg:   #EDF0F5;       /* cool slate */
     --shaper-bd:   #7A88A8;
     --radius:      8px;
+    --btn-pause:   #1A1814;       /* near-black pause button */
     --radius-lg:   14px;
     --shadow:      0 1px 4px rgba(0,0,0,0.08);
     --shadow-lg:   0 4px 20px rgba(0,0,0,0.12);
@@ -150,7 +154,16 @@
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
-  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger  { background: var(--danger);    color: #fff; }
+  .btn-pause   { background: var(--btn-pause); color: #fff; font-size: 16px; padding: 7px 12px; }
+  .paused-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--danger);
+    padding: 3px 10px; border-radius: 4px;
+    background: #FAEAEA; border: 1px solid var(--danger);
+    display: none;
+  }
+  .paused-badge.visible { display: inline-block; }
   .btn:disabled { opacity: 0.4; cursor: default; }
   .error-msg {
     color: var(--danger);
@@ -240,7 +253,7 @@
   #screen-game {
     flex-direction: column;
     height: 100vh;
-    overflow: hidden;
+    overflow-y: auto;
   }
   .game-header {
     display: flex;
@@ -285,6 +298,7 @@
     grid-template-rows: auto 1fr;
     gap: 0;
     flex: 1;
+    min-height: 500px;
     overflow: hidden;
   }
 
@@ -805,8 +819,8 @@
   .tile.task-tile .tile-emoji { font-size: 20px; }
   .tile.task-tile .tile-label { font-size: 10px; color: var(--text-2); }
   .tile.task-tile.active-task-tile {
-    background: #EEF2EE;
-    border-color: var(--accent);
+    background: var(--active-bg);
+    border-color: var(--active-bd);
     border-width: 2px;
   }
   .tile.task-tile.inspected {
@@ -885,7 +899,7 @@
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--active-hd);
     padding: 0 2px;
   }
   .active-task-slot {
@@ -908,7 +922,8 @@
   }
   .active-task-slot.has-tile {
     border-style: solid;
-    border-color: var(--accent);
+    border-color: var(--active-bd);
+    background: var(--active-bg);
   }
 
   /* ── TASK INSPECTOR (Round 3) ────────────────────────────── */
@@ -1028,6 +1043,7 @@
     margin-top: 2px;
   }
   .teammate-status.working  { color: var(--accent); }
+  .teammate-status.cooking  { color: var(--accent-2); font-style: italic; }
   .teammate-status.no-tasks { color: var(--text-3); }
 
   /* ── CONFIRM MODAL ───────────────────────────────────────── */
@@ -1202,7 +1218,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1256,6 +1272,8 @@
     </div>
     <div class="game-header-right">
       <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
+      <span class="paused-badge" id="paused-badge">Paused</span>
+      <button class="btn btn-pause" id="btn-pause" style="display:none;">⏸</button>
       <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
     </div>
   </div>
@@ -1317,6 +1335,17 @@
       <div id="teammates-list"></div>
     </div>
   </div>
+</div>
+
+<!-- ══ PAUSE MODAL (host only) ════════════════════════════════ -->
+<div id="pause-modal" style="display:none; position:fixed; z-index:9700;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:24px 28px; box-shadow:var(--shadow-lg); min-width:280px; max-width:380px;
+  top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; gap:16px;
+  flex-direction:column; cursor:move;">
+  <div style="font-size:15px; font-weight:600; color:var(--text);">Play is paused.</div>
+  <div style="font-size:13px; color:var(--text-2);">Click below to continue.</div>
+  <button class="btn btn-primary" id="btn-resume" style="margin-top:4px;">▶ Resume</button>
 </div>
 
 <!-- ══ CONFIRM MODAL ════════════════════════════════════════════ -->
@@ -2737,10 +2766,11 @@ function doPromoteToActive(taskId, queueIdx) {
   if (prevActive) newQueue.unshift(prevActive);
   myTaskQueue = newQueue;
 
-  // Clear work area if we had a task loaded
-  if (prevActive) {
+  // Return work area resources to inventory before clearing
+  if (Object.keys(taskZoneMap).length > 0) {
+    Object.entries(taskZoneMap).forEach(([name, count]) => addToLocalInventory(name, count));
     taskZoneMap = {};
-    // Return any loaded resources to inventory
+    renderInventory();
   }
 
   update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
@@ -3130,7 +3160,7 @@ function enterLobby() {
       r3block.style.display = rt === "round3" ? "block" : "none";
     }
 
-    if (gameState.status === "playing") {
+    if (gameState.status === "playing" || gameState.status === "paused") {
       off(ref(db, `games/${gameCode}`), "value", lobbyUnsub);
       if (!inGameEntered) enterGame();
     }
@@ -3219,6 +3249,9 @@ function enterGame() {
       timerEl.style.display = "";
       if (timerDividers[0]) timerDividers[0].style.display = "";
     }
+    // Show pause button to host only (R2/R3 have timers)
+    const pauseBtn = document.getElementById("btn-pause");
+    if (pauseBtn) pauseBtn.style.display = (amHost && currentRound !== "round1") ? "" : "none";
 
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
@@ -3226,7 +3259,7 @@ function enterGame() {
     document.getElementById("r3-task-inspector").style.display = isR3 ? "block" : "none";
     // In R3, task panel label says "Working on" instead of "Current task"
     const panelLabel = document.getElementById("task-panel-label");
-    if (panelLabel) panelLabel.textContent = isR3 ? "Working on" : "Current task";
+    if (panelLabel) { panelLabel.textContent = isR3 ? "Working on" : "Current task"; panelLabel.style.color = isR3 ? "var(--active-hd)" : ""; }
 
     // Load my task state
     const myData = data.players?.[myPlayerId] || {};
@@ -3356,6 +3389,14 @@ function enterGame() {
       if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
     }
 
+    if (gameState.status === "paused") {
+      clearInterval(timerInterval); timerInterval = null;
+      if (gameState.endTime) _pausedTimeRemaining = Math.max(0, gameState.endTime - Date.now());
+      applyPausedState(true);
+    } else if (gameState.status === "playing") {
+      applyPausedState(false);
+    }
+
     if (gameState.status === "ended") {
       clearInterval(timerInterval); timerInterval = null;
       clearInterval(rescueInterval); rescueInterval = null;
@@ -3371,14 +3412,14 @@ function renderTeammates() {
   if (!gameState.players) return;
   Object.entries(gameState.players).forEach(([pid, p]) => {
     if (pid === myPlayerId) return;
-    // Determine status
-    const hasActive = !!(p.activeTaskId || (p.taskQueue && p.taskQueue.length > 0));
-    const isNoTasks = !p.activeTaskId && (!p.taskQueue || p.taskQueue.length === 0);
+    // Only surface the two edge states — cooking (briefly unavailable)
+    // and no-tasks (has capacity). Working is the default and needs no label.
+    const ps = p.playerStatus || "";
     let statusHtml = "";
-    if (isNoTasks && p.tasksCompleted > 0) {
+    if (ps === "cooking") {
+      statusHtml = `<div class="teammate-status cooking">Cooking</div>`;
+    } else if (ps === "no-tasks") {
       statusHtml = `<div class="teammate-status no-tasks">No tasks</div>`;
-    } else if (!isNoTasks) {
-      statusHtml = `<div class="teammate-status working">Working</div>`;
     }
 
     const div = document.createElement("div");
@@ -3815,13 +3856,28 @@ function drawNetworkR3(players, transfers, svgId, mode) {
       line2  = `Done: ${pos.tasksCompleted}`;
     }
 
-    // Position annotation above or below node based on vertical position
-    const annotY = pos.y < cy ? pos.y - 32 : pos.y + 32;
+    // Push annotation radially outward from center, past the node circle.
+    // Compute outward unit vector from diagram center to node position.
+    const dxA = pos.x - cx, dyA = pos.y - cy;
+    const distA = Math.sqrt(dxA*dxA + dyA*dyA) || 1;
+    const uxA = dxA / distA, uyA = dyA / distA;
+    // Place annotation 38px beyond the node edge (node radius = 22)
+    const annotOffset = 22 + 22; // node radius + gap
+    const annotCX = pos.x + uxA * annotOffset;
+    const annotCY = pos.y + uyA * annotOffset;
+    // Line spacing perpendicular to radial direction: stack vertically along radial
+    const lineSpacing = 11;
     [line1, line2].forEach((txt, li) => {
       const ann = document.createElementNS("http://www.w3.org/2000/svg","text");
-      ann.setAttribute("x", pos.x);
-      ann.setAttribute("y", annotY + li * 12);
-      ann.setAttribute("text-anchor","middle"); ann.setAttribute("dominant-baseline","middle");
+      // Offset each line further outward
+      const lx = annotCX + uxA * (li * lineSpacing);
+      const ly = annotCY + uyA * (li * lineSpacing);
+      ann.setAttribute("x", lx);
+      ann.setAttribute("y", ly);
+      // Anchor text away from center
+      const anchor = uxA > 0.3 ? "start" : uxA < -0.3 ? "end" : "middle";
+      ann.setAttribute("text-anchor", anchor);
+      ann.setAttribute("dominant-baseline","middle");
       ann.setAttribute("font-size","8.5"); ann.setAttribute("fill","#6B6560");
       ann.textContent = txt;
       g.appendChild(ann);
@@ -3830,6 +3886,69 @@ function drawNetworkR3(players, transfers, svgId, mode) {
     svg.appendChild(g);
   });
 }
+/* ─── PAUSE / RESUME ────────────────────────────────────────── */
+let _pausedTimeRemaining = 0; // ms remaining when paused
+
+function pauseGame() {
+  if (!amHost || gameState.status !== "playing") return;
+  // Capture remaining time
+  if (gameState.endTime) {
+    _pausedTimeRemaining = Math.max(0, gameState.endTime - Date.now());
+  }
+  clearInterval(timerInterval); timerInterval = null;
+  update(ref(db, `games/${gameCode}`), { status: "paused", pausedAt: Date.now() });
+}
+
+function resumeGame() {
+  if (!amHost) return;
+  // Recalculate endTime from remaining ms
+  const newEndTime = _pausedTimeRemaining > 0
+    ? Date.now() + _pausedTimeRemaining
+    : null;
+  update(ref(db, `games/${gameCode}`), {
+    status: "playing",
+    endTime: newEndTime || gameState.endTime,
+    pausedAt: null
+  });
+  document.getElementById("pause-modal").style.display = "none";
+  if (newEndTime) startTimer(newEndTime);
+}
+
+function applyPausedState(paused) {
+  // Show/hide paused badge for guests
+  const badge = document.getElementById("paused-badge");
+  if (badge) badge.classList.toggle("visible", paused && !amHost);
+  // Disable/enable Cook button and task drag during pause
+  const cookBtn = document.getElementById("btn-complete");
+  if (cookBtn && paused) cookBtn.disabled = true;
+  else if (cookBtn && !paused && currentTask) checkTaskComplete();
+  // Host pause modal
+  const pauseModal = document.getElementById("pause-modal");
+  if (pauseModal && amHost) pauseModal.style.display = paused ? "flex" : "none";
+}
+
+// Make pause modal draggable
+(function() {
+  let isDragging = false, dragOX = 0, dragOY = 0;
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("pause-modal");
+    if (!modal) return;
+    modal.addEventListener("mousedown", e => {
+      if (e.target.tagName === "BUTTON") return;
+      isDragging = true;
+      const rect = modal.getBoundingClientRect();
+      dragOX = e.clientX - rect.left; dragOY = e.clientY - rect.top;
+      modal.style.transform = "none";
+    });
+    document.addEventListener("mousemove", e => {
+      if (!isDragging) return;
+      modal.style.left = (e.clientX - dragOX) + "px";
+      modal.style.top  = (e.clientY - dragOY) + "px";
+    });
+    document.addEventListener("mouseup", () => { isDragging = false; });
+  });
+})();
+
 async function init() {
   try {
     app = initializeApp(firebaseConfig);
@@ -3873,6 +3992,8 @@ document.getElementById("btn-complete").addEventListener("click", () => {
   launchCookingActivity(toolNames, 0);
 });
 document.getElementById("btn-end-game").addEventListener("click", endGame);
+document.getElementById("btn-pause").addEventListener("click", pauseGame);
+document.getElementById("btn-resume").addEventListener("click", resumeGame);
 document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
 document.getElementById("activity-btn-cancel").addEventListener("click",      () => closeActivityModal(false));
 document.getElementById("activity-btn-done").addEventListener("click",        () => closeActivityModal(true));
@@ -3901,7 +4022,7 @@ document.getElementById("btn-exit-r3-guest").addEventListener("click", exitTeam)
 async function enterBetweenRoundLobby(nextRoundType, duration) {
   // Write pending round config and reset everyone's ready state
   const playerIds = Object.keys(gameState.players || {});
-  const updates   = { [`games/${gameCode}/status`]: "lobby" };
+  const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null };
   updates[`games/${gameCode}/pendingRoundType`]     = nextRoundType;
   updates[`games/${gameCode}/pendingRoundDuration`] = duration || null;
   playerIds.forEach(pid => {
@@ -4449,6 +4570,11 @@ function launchCookingActivity(toolNames, stepIdx = 0) {
   // Abort any in-progress drag — prevents ghost tile stranding on touch
   abortDrag();
 
+  // Write cooking status to Firebase on first step only
+  if (stepIdx === 0 && gameCode && myPlayerId) {
+    update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { playerStatus: "cooking" });
+  }
+
   // Store the full tool queue and current step for sequencing
   _activityToolQueue = toolNames;
   _activityStepIdx   = stepIdx;
@@ -4522,6 +4648,12 @@ function closeActivityModal(completed) {
     document.getElementById("activity-modal-overlay").classList.remove("active");
     _activityToolQueue = [];
     _activityStepIdx   = 0;
+    // Restore working status
+    if (gameCode && myPlayerId) {
+      update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+        playerStatus: myActiveTaskId ? "working" : "no-tasks"
+      });
+    }
   }
 }
 
