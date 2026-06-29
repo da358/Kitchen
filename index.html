@@ -309,6 +309,10 @@
     padding: 16px 20px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
+    transition: background 0.2s;
+  }
+  .task-panel.r3-active {
+    background: var(--active-bg);
   }
   .task-panel-header {
     display: flex;
@@ -991,9 +995,8 @@
     width: 72px;
     height: 72px;
     border-radius: var(--radius);
-    border: 1.5px dashed var(--border);
+    border: 1.5px dashed #B0A89A;
     background: var(--surface-2);
-    opacity: 0.55;
     font-size: 10px;
     font-weight: 500;
     text-align: center;
@@ -1003,12 +1006,14 @@
     position: relative;
     pointer-events: none;
   }
-  .tile-ghost .tile-emoji { font-size: 22px; line-height: 1; color: var(--text-3); }
-  .tile-ghost .tile-label { font-size: 9px; color: var(--text-3); line-height: 1.2; }
+  .tile-ghost .tile-emoji { font-size: 22px; line-height: 1; opacity: 0.55; }
+  .tile-ghost .tile-label { font-size: 9px; color: #1A1814; line-height: 1.2; font-weight: 600; }
   .tile-ghost.filled {
-    opacity: 1;
     border-style: solid;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(92,110,91,0.25);
   }
+  .tile-ghost.filled .tile-emoji { opacity: 1; }
+  .tile-ghost.filled .tile-label { color: var(--text); }
   .tile-ghost.filled.spice   { background: var(--spice-bg);   border-color: var(--spice-bd); }
   .tile-ghost.filled.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
   .tile-ghost.filled.grain   { background: var(--grain-bg);   border-color: var(--grain-bd); }
@@ -1043,7 +1048,7 @@
     margin-top: 2px;
   }
   .teammate-status.working  { color: var(--accent); }
-  .teammate-status.cooking  { color: var(--accent-2); font-style: italic; }
+  .teammate-status.cooking  { color: var(--danger); font-weight: 700; }
   .teammate-status.no-tasks { color: var(--text-3); }
 
   /* ── CONFIRM MODAL ───────────────────────────────────────── */
@@ -1218,7 +1223,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1339,13 +1344,15 @@
 
 <!-- ══ PAUSE MODAL (host only) ════════════════════════════════ -->
 <div id="pause-modal" style="display:none; position:fixed; z-index:9700;
-  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
-  padding:24px 28px; box-shadow:var(--shadow-lg); min-width:280px; max-width:380px;
+  background:#1A1814; border:1px solid #3A3630; border-radius:var(--radius-lg);
+  padding:24px 28px; box-shadow:0 8px 40px rgba(0,0,0,0.45); min-width:280px; max-width:380px;
   top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; gap:16px;
   flex-direction:column; cursor:move;">
-  <div style="font-size:15px; font-weight:600; color:var(--text);">Play is paused.</div>
-  <div style="font-size:13px; color:var(--text-2);">Click below to continue.</div>
-  <button class="btn btn-primary" id="btn-resume" style="margin-top:4px;">▶ Resume</button>
+  <div style="font-size:15px; font-weight:600; color:#FFFFFF;">Play is paused.</div>
+  <div style="font-size:13px; color:#C0B8B0;">Click below to continue.</div>
+  <button id="btn-resume" style="margin-top:4px; padding:10px 20px; border-radius:var(--radius);
+    border:none; cursor:pointer; font-size:14px; font-weight:600; font-family:var(--font);
+    background:#FFFFFF; color:#1A1814; letter-spacing:0.01em;">▶ Resume</button>
 </div>
 
 <!-- ══ CONFIRM MODAL ════════════════════════════════════════════ -->
@@ -3256,6 +3263,7 @@ function enterGame() {
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
     document.getElementById("r3-queue-row").style.display     = isR3 ? "flex" : "none";
+    document.getElementById("task-panel").classList.toggle("r3-active", isR3);
     document.getElementById("r3-task-inspector").style.display = isR3 ? "block" : "none";
     // In R3, task panel label says "Working on" instead of "Current task"
     const panelLabel = document.getElementById("task-panel-label");
