@@ -426,6 +426,9 @@
   .ticket-main.complete {
     box-shadow: 0 0 0 3px var(--accept), 0 10px 18px rgba(43,36,28,0.12);
   }
+  .ticket-main.flash {
+    box-shadow: 0 0 0 3px var(--accent), 0 10px 18px rgba(43,36,28,0.12);
+  }
   .drop-hint {
     color: var(--text-3);
     font-size: 13px;
@@ -838,181 +841,91 @@
   .btn-primary:disabled { background: var(--border); color: var(--text-3); cursor: default; }
   .btn-secondary { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
 
-  /* ── TASK TILES (wider for queue — used in R3) ────────────── */
-  .tile.task-tile {
-    width: 100px;
-    height: 72px;
-    cursor: grab;
-    flex-shrink: 0;
-    background: var(--surface);
-    border-color: var(--border);
-    border-width: 1.5px;
-  }
-  .tile.task-tile .tile-emoji { font-size: 20px; }
-  .tile.task-tile .tile-label { font-size: 10px; color: var(--text); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-  .tile.task-tile.active-task-tile {
-    background: var(--active-bg);
-    border-color: var(--active-bd);
-    border-width: 2px;
-  }
-  .tile.task-tile.inspected {
-    box-shadow: 0 0 0 2px var(--accent-2);
-  }
-
-  /* ── QUEUE BAR (Round 3) ────────────────────────────────── */
-  .queue-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    padding: 12px 20px 0 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .queue-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-  }
-  .queue-section-header {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-  .queue-section-header h4 {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--text-3);
-  }
-  .queue-section-header span {
-    font-size: 10px;
-    color: var(--text-3);
-  }
-  .queue-numbers {
-    display: flex;
-    flex-direction: row-reverse; /* right=1, left=N */
-    gap: 8px;
-    padding: 0 2px;
-  }
-  .queue-number {
-    width: 100px;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-3);
-    letter-spacing: 0.04em;
-    flex-shrink: 0;
-  }
-  .queue-tiles {
-    display: flex;
-    flex-direction: row-reverse; /* rightmost = index 0 = next-up */
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 12px;
-    /* hide scrollbar on webkit but keep functional */
-    scrollbar-width: thin;
-  }
-  .queue-tiles::-webkit-scrollbar { height: 4px; }
-  .queue-tiles::-webkit-scrollbar-track { background: transparent; }
-  .queue-tiles::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .active-task-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .active-task-section h4 {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--active-hd);
-    padding: 0 2px;
-  }
-  .active-task-slot {
-    width: 100px;
-    height: 72px;
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: var(--text-3);
-    margin-bottom: 12px;
-    transition: border-color 0.2s, background 0.2s;
+  /* ── RAIL (Round 3) ──────────────────────────────────────────
+     Replaces the old queue-row + separate active-task-slot. Position 0
+     on the rail IS "now prepping" — there is no second mechanism (brief §3.2).
+     Leftmost = index 0, extending rightward (brief §3.1 — reversed from
+     the old right-to-left queue direction). */
+  .rail-section {
+    margin: 10px 20px 0;
     position: relative;
+    flex-shrink: 0;
   }
-  .active-task-slot.drag-over {
-    border-color: var(--accept);
-    background: #E1EDE5;
-  }
-  .active-task-slot.has-tile {
-    border-style: solid;
-    border-color: var(--active-bd);
-    background: var(--active-bg);
-  }
-
-  /* ── TASK INSPECTOR (Round 3) ────────────────────────────── */
-  .task-inspector {
-    padding: 10px 20px 12px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-    min-height: 44px;
-  }
-  .task-inspector-header {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 6px;
-  }
-  .task-inspector-content {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .task-inspector-name {
+  .rail-label {
+    font-family: var(--font-display);
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    min-width: 120px;
-  }
-  .task-inspector-desc {
-    font-size: 12px;
     color: var(--text-2);
-    flex: 1;
+    margin-bottom: 8px;
   }
-  .task-inspector-reqs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
+  .rail-label .hint { font-size: 11px; font-style: italic; opacity: 0.85; }
+  .rail-track { display: flex; align-items: center; gap: 6px; }
+  .rail-arrow {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--text-2);
+    background: var(--bg); color: var(--text-2); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
   }
-  .task-inspector-req {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-size: 11px;
-    font-weight: 500;
-    border: 1px solid var(--border);
-    color: var(--text-2);
-    background: var(--surface);
+  .rail-arrow.show { opacity: 1; pointer-events: auto; }
+  .rail-arrow:hover { background: var(--text); color: var(--bg); }
+  .rail-scroll { flex: 1; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+  .rail-scroll::-webkit-scrollbar { height: 5px; }
+  .rail-scroll::-webkit-scrollbar-thumb { background: var(--text-2); opacity: 0.3; border-radius: 3px; }
+  .rail-row { display: flex; gap: 20px; padding: 10px 6px 14px; position: relative; width: max-content; }
+  .rail-wire { position: absolute; top: 27px; left: 0; right: 0; height: 2px; background: var(--text-2); opacity: 0.35; z-index: 1; }
+  .stub-wrap { position: relative; flex-shrink: 0; z-index: 2; padding-top: 16px; }
+  .stub-tag {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    white-space: nowrap; visibility: hidden;
   }
-  .inspector-hint {
-    font-size: 12px;
-    color: var(--text-3);
-    font-style: italic;
+  .stub-wrap.is-now .stub-tag  { visibility: visible; color: var(--accent); }
+  .stub-wrap.is-next .stub-tag { visibility: visible; color: var(--text-2); }
+  /* Clip and ticket share one rotating parent — rotation pivot is the
+     clip's top-center, not the stub's own bounding-box center (brief §3.6). */
+  .stub-ticket-group { transform-origin: 50% 0; }
+  .ticket-stub {
+    width: 96px; background: var(--surface); border-radius: 2px; padding: 10px 8px; text-align: center;
+    cursor: grab; box-shadow: 0 3px 6px rgba(43,36,28,0.14); transform: rotate(-0.8deg);
+    transition: box-shadow 0.15s, transform 0.15s;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 92%, 90% 100%, 81% 93%, 73% 100%, 63% 91%, 55% 100%,
+                        47% 95%, 39% 100%, 30% 92%, 22% 100%, 13% 96%, 5% 100%, 0% 94%);
   }
+  .ticket-stub:nth-child(even) { transform: rotate(0.6deg); }
+  .stub-wrap.is-now .ticket-stub { box-shadow: 0 0 0 2px var(--accent), 0 4px 8px rgba(43,36,28,0.16); }
+  .stub-wrap.match .ticket-stub { box-shadow: 0 0 0 3px var(--accept), 0 4px 8px rgba(43,36,28,0.16); transform: scale(1.08) rotate(0deg); }
+  .stub-emoji { font-size: 20px; filter: grayscale(1) contrast(1.3); }
+  .stub-name { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 4px; line-height: 1.2; }
+  .stub-dragging { opacity: 0.25; }
+
+  /* Rail tickets get a settle-jiggle on reorder drop, isolated so the
+     Now Prepping / Next Up label above does NOT rotate with it (brief §3.6). */
+  @keyframes railSettle {
+    0% { transform: rotate(7deg); } 30% { transform: rotate(-5deg); } 55% { transform: rotate(3deg); }
+    75% { transform: rotate(-1.5deg); } 100% { transform: rotate(0deg); }
+  }
+  .settle { animation: railSettle 0.5s ease; }
+
+  /* Task-inspector → anchored preview popover (brief §3.4). Right-aligned
+     to the tapped stub, tail centered on the stub, dish name + mini icon
+     list only, no description text. */
+  .preview-pop {
+    position: absolute; top: 100%; margin-top: 6px; background: var(--bg);
+    border: 1px solid var(--text-2); border-radius: 6px; padding: 10px 14px;
+    box-shadow: var(--shadow-lg); width: 200px; z-index: 20;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s;
+  }
+  .preview-pop.show { opacity: 1; pointer-events: auto; }
+  .preview-tail {
+    position: absolute; top: -5px; width: 9px; height: 9px;
+    background: var(--bg); border-left: 1px solid var(--text-2); border-top: 1px solid var(--text-2);
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .preview-eyebrow { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); margin-bottom: 4px; }
+  .preview-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .preview-icons { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .preview-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-2); }
+  .preview-item .em { font-size: 13px; filter: grayscale(1) contrast(1.3); }
 
   /* ── GHOST TILES in work area ────────────────────────────── */
   .tile-ghost {
@@ -1255,7 +1168,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1315,29 +1228,22 @@
     </div>
   </div>
 
-  <!-- Round 3: queue bar (shown only in round3) -->
-  <div id="r3-queue-row" class="queue-row" style="display:none;">
-    <div class="queue-section">
-      <div class="queue-section-header">
-        <h4>Next tasks</h4>
-        <span>Drag to reorder · drag to teammate to trade</span>
+  <!-- Round 3: rail (shown only in round3). Position 0 IS "now prepping" —
+       no separate active-task-slot (brief §3.2). -->
+  <div id="r3-rail-section" class="rail-section" style="display:none;">
+    <div class="rail-label">On the rail <span class="hint">tap a ticket to preview · drag along the rail to reorder · drag to a teammate to send</span></div>
+    <div class="rail-track">
+      <button class="rail-arrow" id="rail-arrow-left" type="button">‹</button>
+      <div class="rail-scroll" id="rail-scroll">
+        <div class="rail-row" id="rail-row"><div class="rail-wire"></div></div>
       </div>
-      <div class="queue-numbers" id="queue-numbers"></div>
-      <div class="queue-tiles" id="queue-tiles"></div>
+      <button class="rail-arrow" id="rail-arrow-right" type="button">›</button>
     </div>
-    <div class="active-task-section">
-      <h4>Current task</h4>
-      <div class="active-task-slot" id="active-task-slot">
-        <span style="font-size:11px; color:var(--text-3);">Empty</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Round 3: task inspector (shown only in round3) -->
-  <div id="r3-task-inspector" class="task-inspector" style="display:none;">
-    <div class="task-inspector-header">Tap a waiting task to see what it needs</div>
-    <div id="task-inspector-content">
-      <span class="inspector-hint">Nothing selected</span>
+    <div class="preview-pop" id="preview-pop">
+      <div class="preview-tail" id="preview-tail"></div>
+      <div class="preview-eyebrow">Preview</div>
+      <div class="preview-name" id="preview-name"></div>
+      <div class="preview-icons" id="preview-icons"></div>
     </div>
   </div>
 
@@ -2134,6 +2040,7 @@ function setupTileDrag(tile) {
 // Safety cleanup: if the browser cancels a touch (iOS Safari interruption,
 // incoming call, system gesture, etc.), abort the drag and remove the ghost.
 function abortDrag() {
+  document.body.classList.remove("is-dragging");
   if (ghost) { ghost.remove(); ghost = null; }
   if (draggedTile) { draggedTile.classList.remove("dragging"); }
   document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
@@ -2195,6 +2102,7 @@ function movePointer(cx, cy) {
     if (Math.sqrt(dx*dx + dy*dy) < DRAG_THRESHOLD) return; // not yet
     // Commit to drag — create ghost
     dragCommitted = true;
+    document.body.classList.add("is-dragging");
     const rect = draggedTile.getBoundingClientRect();
     ghost = draggedTile.cloneNode(true);
     ghost.style.cssText = `
@@ -2246,6 +2154,7 @@ function onTouchEnd(e) {
 
 function endPointer(cx, cy) {
   if (!draggedTile) return;
+  document.body.classList.remove("is-dragging");
   // Task tiles use their own drag handler — skip if dragging a task tile
   if (draggedTile.classList.contains("task-tile")) {
     draggedTile = null; draggedName = null; draggedSource = null; dragCommitted = false;
@@ -2583,106 +2492,151 @@ async function runRescueScan() {
   }
 }
 
-/* ─── R3: QUEUE BAR RENDERING ───────────────────────────────── */
-function makeTaskTile(taskId, context) {
-  const task = localTaskDefs[taskId] || { name: taskId, description: "" };
-  const div  = document.createElement("div");
-  div.className    = "tile task-tile";
-  div.dataset.taskId  = taskId;
-  div.dataset.context = context; // "queue" or "active"
-  div.innerHTML = `
-    <span class="tile-emoji">📋</span>
-    <span class="tile-label">${task.name}</span>
-  `;
-  return div;
+/* ─── R3: RAIL RENDERING ─────────────────────────────────────
+   Replaces the old queue-row + separate active-task-slot. Position 0 on
+   the rail IS "now prepping" — there is no second mechanism (brief §3.2).
+   Leftmost = index 0, extending rightward (brief §3.1 — reversed from the
+   old right-to-left queue). The rail is synthesized from the existing
+   myActiveTaskId + myTaskQueue fields purely for rendering/dragging — no
+   Firebase schema change — via getRail()/setRailFromArray() below. */
+function getRail() {
+  return [myActiveTaskId, ...myTaskQueue].filter(Boolean);
+}
+
+// Writes a reordered rail back into myActiveTaskId/myTaskQueue and applies
+// the resource-return rule (brief §3.8): leaving position 0 — whether
+// demoted by reordering or traded away — returns any resources already
+// committed to that ticket to the player's own station inventory. Returns
+// true if the identity of position 0 changed (caller still needs to push
+// the update to Firebase and reload the main ticket).
+function setRailFromArray(rail) {
+  const prevActiveId = myActiveTaskId;
+  myActiveTaskId = rail[0] || null;
+  myTaskQueue    = rail.slice(1);
+  const changed  = prevActiveId !== myActiveTaskId;
+  if (changed && prevActiveId && Object.keys(taskZoneMap).length > 0) {
+    Object.entries(taskZoneMap).forEach(([name, count]) => addToLocalInventory(name, count));
+    taskZoneMap = {};
+    renderInventory();
+  }
+  return changed;
+}
+
+function makeStub(taskId, idx) {
+  const task = localTaskDefs[taskId] || { name: taskId };
+  const wrap = document.createElement("div");
+  wrap.className = "stub-wrap" + (idx === 0 ? " is-now" : idx === 1 ? " is-next" : "");
+  wrap.dataset.taskId  = taskId;
+  wrap.dataset.railIdx = idx;
+  wrap.innerHTML = `
+    <div class="stub-tag">${idx === 0 ? "Now prepping" : idx === 1 ? "Next up" : ""}</div>
+    <div class="stub-ticket-group">
+      <div class="clip-shape"></div>
+      <div class="ticket-stub" data-task-id="${taskId}" data-rail-idx="${idx}">
+        <div class="stub-emoji">📋</div>
+        <div class="stub-name">${task.name}</div>
+      </div>
+    </div>`;
+  return wrap;
 }
 
 function renderQueueBar() {
   if (currentRound !== "round3") return;
-
-  const queueTilesEl  = document.getElementById("queue-tiles");
-  const queueNums     = document.getElementById("queue-numbers");
-  const activeSlot    = document.getElementById("active-task-slot");
-
-  // ── Render active task slot ──────────────────────────────────
-  activeSlot.innerHTML = "";
-  if (myActiveTaskId) {
-    const tile = makeTaskTile(myActiveTaskId, "active");
-    tile.classList.add("active-task-tile");
-    setupTaskTileDrag(tile);
-    activeSlot.classList.add("has-tile");
-    activeSlot.appendChild(tile);
-  } else {
-    activeSlot.classList.remove("has-tile");
-    activeSlot.innerHTML = '<span style="font-size:11px; color:var(--text-3);">Empty</span>';
-  }
-
-  // ── Render queue tiles (displayed right-to-left so index 0 = rightmost) ──
-  // myTaskQueue[0] is "next up" and should appear rightmost
-  queueTilesEl.innerHTML = "";
-  queueNums.innerHTML    = "";
-
-  myTaskQueue.forEach((taskId, idx) => {
-    // Position number: 1 = rightmost (next up) = index 0
-    const posNum = idx + 1;
-    const numEl  = document.createElement("div");
-    numEl.className   = "queue-number";
-    numEl.textContent = posNum;
-    queueNums.appendChild(numEl);
-
-    const tile = makeTaskTile(taskId, "queue");
-    tile.dataset.queueIdx = idx;
-    if (taskId === inspectedTaskId) tile.classList.add("inspected");
-    setupTaskTileDrag(tile);
-    // Tap = inspect (not drag)
-    tile.addEventListener("click", (e) => {
-      if (!e._wasDragged) inspectTask(taskId);
-    });
-    queueTilesEl.appendChild(tile);
+  hidePreview();
+  const rail  = getRail();
+  const railEl = document.getElementById("rail-row");
+  railEl.innerHTML = '<div class="rail-wire"></div>';
+  rail.forEach((taskId, idx) => {
+    const wrap = makeStub(taskId, idx);
+    railEl.appendChild(wrap);
+    setupTaskTileDrag(wrap.querySelector(".ticket-stub"));
   });
-
-  // ── Update active-task-slot drop target ──────────────────────
-  activeSlot.ondragover = null; // handled by pointer events below
+  updateRailArrows();
 }
 
-function inspectTask(taskId) {
-  inspectedTaskId = taskId === inspectedTaskId ? null : taskId;
-  renderQueueBar(); // re-render to update inspected highlight
-  const contentEl = document.getElementById("task-inspector-content");
-  if (!inspectedTaskId) {
-    contentEl.innerHTML = '<span class="inspector-hint">Nothing selected</span>';
-    return;
-  }
+/* ─── R3: PREVIEW POPOVER (replaces the old task inspector) ───
+   Anchored to the tapped stub, tail centered on the stub itself, dish
+   name + mini icon list only, no description (brief §3.4). Opens on tap;
+   closes on second tap of the same ticket, tap on the popover, or tap
+   elsewhere (see the document-level mousedown listener registered below). */
+function showPreview(stubWrap, taskId) {
   const task = localTaskDefs[taskId];
-  if (!task) { contentEl.innerHTML = '<span class="inspector-hint">Loading…</span>'; return; }
-
-  const reqHtml = task.requirements.map(r => {
-    const res = RESOURCES[r.resource] || { emoji:"❓" };
-    return `<span class="task-inspector-req">${res.emoji} ${r.resource}${r.qty > 1 ? " ×"+r.qty : ""}</span>`;
+  if (!task) return;
+  const pop  = document.getElementById("preview-pop");
+  const tail = document.getElementById("preview-tail");
+  document.getElementById("preview-name").textContent = task.name;
+  document.getElementById("preview-icons").innerHTML = task.requirements.map(r => {
+    const res = RESOURCES[r.resource] || { emoji: "❓", label: r.resource };
+    return `<span class="preview-item"><span class="em">${res.emoji}</span>${res.label}</span>`;
   }).join("");
 
-  contentEl.innerHTML = `
-    <div style="flex:1;">
-      <div class="task-inspector-name">${task.name}</div>
-      <div class="task-inspector-desc">${task.description}</div>
-      <div class="task-inspector-reqs">${reqHtml}</div>
-    </div>`;
+  const railRect = document.getElementById("r3-rail-section").getBoundingClientRect();
+  const stubRect = stubWrap.querySelector(".ticket-stub").getBoundingClientRect();
+  const popWidth = 200;
+  pop.style.right = (railRect.right - stubRect.right) + "px";
+  pop.style.left  = "auto";
+  const popRightViewport   = stubRect.right;
+  const popLeftActual      = popRightViewport - popWidth;
+  const stubCenterViewport = stubRect.left + stubRect.width / 2;
+  let tailLeft = stubCenterViewport - popLeftActual;
+  tailLeft = Math.max(14, Math.min(popWidth - 14, tailLeft));
+  tail.style.left = tailLeft + "px";
+  pop.classList.add("show");
 }
 
-/* ─── R3: TASK TILE DRAG ────────────────────────────────────── */
-// Task tiles use the same pointer-event framework as resource tiles,
-// but with different drop target handling.
+function togglePreview(stubWrap, taskId) {
+  if (inspectedTaskId === taskId) { hidePreview(); return; }
+  inspectedTaskId = taskId;
+  showPreview(stubWrap, taskId);
+}
+
+function hidePreview() {
+  inspectedTaskId = null;
+  document.getElementById("preview-pop")?.classList.remove("show");
+}
+
+// Tapping the position-0 ("now prepping") stub has nothing to preview —
+// it flashes the main ticket instead, same idea as the old click-to-jump.
+function flashMainTicket() {
+  hidePreview();
+  const tm = document.getElementById("ticket-main");
+  tm.classList.add("flash");
+  setTimeout(() => tm.classList.remove("flash"), 500);
+}
+
+// Click/tap anywhere outside the popover and outside a rail stub closes it.
+document.addEventListener("mousedown", (e) => {
+  if (!inspectedTaskId) return;
+  if (e.target.closest(".preview-pop") || e.target.closest(".ticket-stub")) return;
+  hidePreview();
+});
+
+/* ─── R3: RAIL OVERFLOW (brief §3.11) ─────────────────────────
+   Scrollable rail with arrow buttons that fade in only when there's more
+   content in that direction. */
+function updateRailArrows() {
+  const scroll = document.getElementById("rail-scroll");
+  const l = document.getElementById("rail-arrow-left"), r = document.getElementById("rail-arrow-right");
+  if (!scroll || !l || !r) return;
+  l.classList.toggle("show", scroll.scrollLeft > 4);
+  r.classList.toggle("show", scroll.scrollLeft < scroll.scrollWidth - scroll.clientWidth - 4);
+}
+
+/* ─── R3: RAIL TICKET DRAG ──────────────────────────────────────
+   Tickets use the same pointer-event framework as resource tiles, but
+   drop-target handling covers the whole rail (reorder anywhere, including
+   to position 0 — that IS promotion, brief §3.2) plus teammate cards (trade). */
 function setupTaskTileDrag(tile) {
   tile.addEventListener("mousedown",  onTaskTileMouseDown);
   tile.addEventListener("touchstart", onTaskTileTouchStart, { passive: false });
 }
 
 let draggedTaskId     = null;
-let draggedTaskCtx    = null;  // "queue" | "active"
-let draggedTaskIdx    = -1;    // index in myTaskQueue if context=queue
+let draggedRailIdx    = -1;
 let taskDragGhost     = null;
 let taskDragStartX    = 0;
 let taskDragStartY    = 0;
+let taskDragLastX     = 0;
 let taskDragCommitted = false;
 let taskOffX = 0, taskOffY = 0;
 
@@ -2702,9 +2656,9 @@ function onTaskTileTouchStart(e) {
 }
 function initTaskPointer(tile, cx, cy) {
   draggedTaskId     = tile.dataset.taskId;
-  draggedTaskCtx    = tile.dataset.context;
-  draggedTaskIdx    = parseInt(tile.dataset.queueIdx ?? "-1");
+  draggedRailIdx    = parseInt(tile.dataset.railIdx ?? "-1");
   taskDragStartX    = cx; taskDragStartY = cy;
+  taskDragLastX     = cx;
   taskDragCommitted = false; taskDragGhost = null;
   const rect = tile.getBoundingClientRect();
   taskOffX = cx - rect.left; taskOffY = cy - rect.top;
@@ -2718,27 +2672,39 @@ function moveTaskPointer(cx, cy) {
   if (!taskDragCommitted) {
     if (Math.sqrt(dx*dx+dy*dy) < DRAG_THRESHOLD) return;
     taskDragCommitted = true;
-    const srcTile = document.querySelector(`[data-task-id="${draggedTaskId}"][data-context="${draggedTaskCtx}"]`);
+    document.body.classList.add("is-dragging");
+    hidePreview();
+    const srcTile = document.querySelector(`.ticket-stub[data-task-id="${CSS.escape(draggedTaskId)}"][data-rail-idx="${draggedRailIdx}"]`);
     if (srcTile) {
       const rect = srcTile.getBoundingClientRect();
       taskDragGhost = srcTile.cloneNode(true);
+      taskDragGhost.className = srcTile.className;
       taskDragGhost.style.cssText = `position:fixed;pointer-events:none;z-index:9001;
-        width:${rect.width}px;height:${rect.height}px;opacity:0.85;transform:scale(1.08);
+        width:${rect.width}px;height:${rect.height}px;opacity:0.85;
         left:${taskDragStartX-taskOffX}px;top:${taskDragStartY-taskOffY}px;
         box-shadow:0 8px 24px rgba(0,0,0,0.18);transition:none;`;
       document.body.appendChild(taskDragGhost);
-      srcTile.style.opacity = "0.35";
+      srcTile.classList.add("stub-dragging");
     }
   }
   if (taskDragGhost) {
-    taskDragGhost.style.left = (cx - taskOffX) + "px";
-    taskDragGhost.style.top  = (cy - taskOffY) + "px";
+    const vel  = cx - taskDragLastX; taskDragLastX = cx;
+    const tilt = Math.max(-8, Math.min(8, vel * 1.5));
+    taskDragGhost.style.left      = (cx - taskOffX) + "px";
+    taskDragGhost.style.top       = (cy - taskOffY) + "px";
+    taskDragGhost.style.transform = `rotate(${tilt}deg)`;
   }
-  // Highlight drop targets
-  document.querySelectorAll(".active-task-slot, .teammate-drop, .queue-tiles").forEach(z => z.classList.remove("drag-over"));
-  const el   = document.elementFromPoint(cx, cy);
-  const zone = el?.closest(".active-task-slot, .teammate-drop, .queue-tiles");
-  if (zone) zone.classList.add("drag-over");
+  // Highlight drop targets — unified accept ring on any valid destination:
+  // a teammate card (trade), or another rail stub incl. position 0 (reorder/promote).
+  document.querySelectorAll(".stub-wrap, .teammate-drop").forEach(z => z.classList.remove("match", "drag-over"));
+  const el       = document.elementFromPoint(cx, cy);
+  const tmZone   = el?.closest(".teammate-drop");
+  const stubWrap = el?.closest(".stub-wrap");
+  if (tmZone) {
+    tmZone.classList.add("drag-over");
+  } else if (stubWrap && stubWrap.dataset.taskId !== draggedTaskId) {
+    stubWrap.classList.add("match");
+  }
 }
 
 function onTaskMouseUp(e) {
@@ -2754,172 +2720,112 @@ function onTaskTouchEnd(e) {
 
 function endTaskPointer(cx, cy) {
   if (!draggedTaskId) return;
-  document.querySelectorAll(".active-task-slot, .teammate-drop, .queue-tiles").forEach(z => z.classList.remove("drag-over"));
+  document.body.classList.remove("is-dragging");
+  document.querySelectorAll(".stub-wrap, .teammate-drop").forEach(z => z.classList.remove("match", "drag-over"));
 
-  // Restore opacity on source tile
-  const srcTile = document.querySelector(`[data-task-id="${draggedTaskId}"][data-context="${draggedTaskCtx}"]`);
-  if (srcTile) srcTile.style.opacity = "";
+  const srcTile = document.querySelector(`.ticket-stub[data-task-id="${CSS.escape(draggedTaskId)}"][data-rail-idx="${draggedRailIdx}"]`);
+  if (srcTile) srcTile.classList.remove("stub-dragging");
   if (taskDragGhost) { taskDragGhost.remove(); taskDragGhost = null; }
 
   if (!taskDragCommitted) {
-    // Tap — inspector handled by click listener
-    draggedTaskId = null; draggedTaskCtx = null;
+    // Tap (not drag): position 0 flashes the main ticket; anything else toggles its preview.
+    if (draggedRailIdx === 0) {
+      flashMainTicket();
+    } else if (srcTile) {
+      togglePreview(srcTile.closest(".stub-wrap"), draggedTaskId);
+    }
+    draggedTaskId = null; draggedRailIdx = -1;
     return;
   }
 
   const el       = document.elementFromPoint(cx, cy);
-  const activeSlot = el?.closest(".active-task-slot");
-  const tmZone     = el?.closest(".teammate-drop");
-  const queueArea  = el?.closest(".queue-tiles");
+  const tmZone   = el?.closest(".teammate-drop");
+  const railArea = el?.closest("#r3-rail-section");
 
   if (tmZone) {
-    // Trade task to teammate
-    const targetPid = tmZone.dataset.playerId;
-    handleTaskTrade(draggedTaskId, draggedTaskCtx, targetPid);
-  } else if (activeSlot && draggedTaskCtx === "queue") {
-    // Promote queued task to active
-    handlePromoteToActive(draggedTaskId, draggedTaskIdx);
-  } else if (queueArea && draggedTaskCtx === "active") {
-    // Demote active task to queue (drag active task to queue area)
-    handleDemoteActiveToQueue();
-  } else if (queueArea && draggedTaskCtx === "queue") {
-    // Reorder within queue — find drop position
-    handleQueueReorder(draggedTaskId, draggedTaskIdx, cx, cy);
+    handleTaskTrade(draggedTaskId, draggedRailIdx, tmZone.dataset.playerId);
+  } else if (railArea) {
+    handleRailReorder(draggedTaskId, draggedRailIdx, cx, cy);
   }
 
-  draggedTaskId = null; draggedTaskCtx = null; draggedTaskIdx = -1; taskDragCommitted = false;
+  draggedTaskId = null; draggedRailIdx = -1; taskDragCommitted = false;
 }
 
-function handlePromoteToActive(taskId, queueIdx) {
-  if (!myActiveTaskId) {
-    // No current active task — just promote
-    doPromoteToActive(taskId, queueIdx);
-    return;
-  }
-  // Active task exists — confirm replacement
-  showConfirmModal(
-    "Replace current task?",
-    `"${localTaskDefs[myActiveTaskId]?.name || myActiveTaskId}" will move to the front of your queue.`,
-    () => doPromoteToActive(taskId, queueIdx)
-  );
-}
-
-function doPromoteToActive(taskId, queueIdx) {
-  const prevActive = myActiveTaskId;
-  myActiveTaskId   = taskId;
-  // Remove from queue, insert prev active at front if it existed
-  const newQueue = myTaskQueue.filter((_, i) => i !== queueIdx);
-  if (prevActive) newQueue.unshift(prevActive);
-  myTaskQueue = newQueue;
-
-  // Return work area resources to inventory before clearing
-  if (Object.keys(taskZoneMap).length > 0) {
-    Object.entries(taskZoneMap).forEach(([name, count]) => addToLocalInventory(name, count));
-    taskZoneMap = {};
-    renderInventory();
+// Reorder anywhere on the rail, including to position 0 — that single
+// gesture IS promotion; there is no separate promote/demote mechanism
+// (brief §3.2). Resource-return (brief §3.8) is handled by setRailFromArray.
+function handleRailReorder(taskId, fromIdx, cx) {
+  const stubs = [...document.querySelectorAll("#rail-row .ticket-stub")]
+    .filter(s => s.dataset.taskId !== taskId);
+  let toIdx = stubs.length;
+  for (let i = 0; i < stubs.length; i++) {
+    const r = stubs[i].getBoundingClientRect();
+    if (cx < r.left + r.width / 2) { toIdx = i; break; }
   }
 
-  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
-    activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
-    playerStatus: "working"
-  });
-  loadTask(myActiveTaskId);
-  renderQueueBar();
-}
+  const rail = getRail();
+  const [moved] = rail.splice(fromIdx, 1);
+  rail.splice(toIdx, 0, moved);
+  if (toIdx === fromIdx) return;
 
-function handleDemoteActiveToQueue() {
-  if (!myActiveTaskId) return;
-  const prevActive = myActiveTaskId;
-  // Clear work area resources back to inventory
-  Object.entries(taskZoneMap).forEach(([name, count]) => {
-    addToLocalInventory(name, count);
-  });
-  taskZoneMap    = {};
-  myTaskQueue    = [prevActive, ...myTaskQueue]; // front of queue
-  myActiveTaskId = myTaskQueue.shift() || null;  // autofill next
-  // Actually autofill: if there are queued tasks, promote the new [0]
-  // After unshift(prevActive), queue is [prevActive, ...rest]
-  // We want prevActive at front, current active cleared, then autofill
-  // Result: active = nothing, queue = [prevActive, ...rest], then autofill picks queue[0]
-  // Simplest: demote just clears active and moves it to front
-  myActiveTaskId = null;
-  myTaskQueue    = [prevActive, ...(myTaskQueue.filter(id => id !== prevActive))];
-  // Autofill
-  const nextId   = myTaskQueue[0] || null;
-  if (nextId) {
-    myActiveTaskId = nextId;
-    myTaskQueue    = myTaskQueue.slice(1);
-    loadTask(myActiveTaskId);
-  } else {
-    renderNoActiveTask();
-  }
+  const changed = setRailFromArray(rail);
+
   update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
     activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
     playerStatus: myActiveTaskId ? "working" : "no-tasks"
   });
-  renderInventory();
-  renderQueueBar();
-}
 
-function handleQueueReorder(taskId, fromIdx, cx, cy) {
-  // Find nearest queue tile to determine drop position
-  const tiles = [...document.querySelectorAll("#queue-tiles .task-tile")];
-  if (tiles.length === 0) return;
-  let toIdx = myTaskQueue.length - 1;
-  for (let i = 0; i < tiles.length; i++) {
-    const r = tiles[i].getBoundingClientRect();
-    if (cx < r.left + r.width / 2) { toIdx = i; break; }
+  if (changed) {
+    if (myActiveTaskId) loadTask(myActiveTaskId); else renderNoActiveTask();
+    renderInventory();
   }
-  if (toIdx === fromIdx) return;
-  const newQueue = [...myTaskQueue];
-  const [moved]  = newQueue.splice(fromIdx, 1);
-  newQueue.splice(toIdx, 0, moved);
-  myTaskQueue = newQueue;
-  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
   renderQueueBar();
+
+  // Settle-jiggle on the moved ticket, isolated from the Now Prepping/Next
+  // Up label sitting outside the rotating group (brief §3.6).
+  requestAnimationFrame(() => {
+    const newStub = document.querySelector(`.ticket-stub[data-task-id="${CSS.escape(taskId)}"]`);
+    const grp = newStub?.closest(".stub-wrap")?.querySelector(".stub-ticket-group");
+    if (grp) { grp.classList.add("settle"); setTimeout(() => grp.classList.remove("settle"), 500); }
+  });
 }
 
-async function handleTaskTrade(taskId, fromCtx, targetPlayerId) {
+async function handleTaskTrade(taskId, fromIdx, targetPlayerId) {
   const targetName = gameState.players?.[targetPlayerId]?.name || "teammate";
   const taskDef    = localTaskDefs[taskId];
 
-  // If trading active task with items in work zone, confirm first
-  if (fromCtx === "active" && Object.keys(taskZoneMap).length > 0) {
+  // Trading the ticket at position 0 while resources are already committed — confirm first.
+  if (fromIdx === 0 && Object.keys(taskZoneMap).length > 0) {
     const itemList = Object.entries(taskZoneMap)
       .map(([name, count]) => `${RESOURCES[name]?.emoji || ""} ${name}${count > 1 ? " ×"+count : ""}`)
       .join(", ");
     showConfirmModal(
       `Send task to ${targetName}?`,
       `You have ${itemList} loaded. These will return to your inventory — they won't transfer with the task. You can transfer resources separately.`,
-      () => executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef)
+      () => executeTaskTrade(taskId, targetPlayerId, targetName, taskDef)
     );
   } else {
-    executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef);
+    executeTaskTrade(taskId, targetPlayerId, targetName, taskDef);
   }
 }
 
-async function executeTaskTrade(taskId, fromCtx, targetPlayerId, targetName, taskDef) {
-  // Return work area items to inventory if trading active task
-  if (fromCtx === "active") {
-    Object.entries(taskZoneMap).forEach(([name, count]) => addToLocalInventory(name, count));
-    taskZoneMap    = {};
-    myActiveTaskId = null;
-    // Autofill: promote next queued task
-    const nextId = myTaskQueue[0] || null;
-    if (nextId) {
-      myActiveTaskId = nextId;
-      myTaskQueue    = myTaskQueue.slice(1);
+async function executeTaskTrade(taskId, targetPlayerId, targetName, taskDef) {
+  const rail = getRail();
+  const idx  = rail.indexOf(taskId);
+  if (idx !== -1) rail.splice(idx, 1);
+  const changed = setRailFromArray(rail); // resource-return handled here if position 0 was traded away
+
+  if (changed) {
+    if (myActiveTaskId) {
       setTimeout(() => {
         loadTask(myActiveTaskId);
-        const slot = document.getElementById("active-task-slot");
-        if (slot) { slot.classList.add("tile-spring-in"); setTimeout(() => slot.classList.remove("tile-spring-in"), 600); }
+        const stub = document.querySelector(`.ticket-stub[data-task-id="${CSS.escape(myActiveTaskId)}"]`);
+        const wrap = stub?.closest(".stub-wrap");
+        if (wrap) { wrap.classList.add("tile-spring-in"); setTimeout(() => wrap.classList.remove("tile-spring-in"), 600); }
       }, 300);
     } else {
       renderNoActiveTask();
     }
-  } else {
-    // Remove from queue
-    myTaskQueue = myTaskQueue.filter(id => id !== taskId);
   }
 
   // Write my updated state
@@ -3301,8 +3207,7 @@ function enterGame() {
 
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
-    document.getElementById("r3-queue-row").style.display     = isR3 ? "flex" : "none";
-    document.getElementById("r3-task-inspector").style.display = isR3 ? "block" : "none";
+    document.getElementById("r3-rail-section").style.display     = isR3 ? "block" : "none";
     // In R3, task panel label says "Working on" instead of "Current task"
     const panelLabel = document.getElementById("task-panel-label");
     if (panelLabel) { panelLabel.textContent = isR3 ? "Working on" : "Current task"; panelLabel.style.color = isR3 ? "var(--active-hd)" : ""; }
@@ -4035,6 +3940,14 @@ document.getElementById("btn-complete").addEventListener("click", () => {
   launchCookingActivity(toolNames, 0);
 });
 document.getElementById("btn-end-game").addEventListener("click", endGame);
+
+// Round 3 rail overflow (brief §3.11) — static elements, wired once.
+document.getElementById("rail-scroll").addEventListener("scroll", updateRailArrows);
+window.addEventListener("resize", updateRailArrows);
+document.getElementById("rail-arrow-left").addEventListener("click", () =>
+  document.getElementById("rail-scroll").scrollBy({ left: -130, behavior: "smooth" }));
+document.getElementById("rail-arrow-right").addEventListener("click", () =>
+  document.getElementById("rail-scroll").scrollBy({ left: 130, behavior: "smooth" }));
 document.getElementById("btn-pause").addEventListener("click", pauseGame);
 document.getElementById("btn-resume").addEventListener("click", resumeGame);
 document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
