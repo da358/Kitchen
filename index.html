@@ -306,97 +306,125 @@
   .game-body {
     display: grid;
     grid-template-columns: 1fr 280px;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
     gap: 0;
     flex: 1;
     min-height: 500px;
     overflow: hidden;
   }
-
-  /* Task zone */
-  .task-panel {
+  .board-main {
     grid-column: 1;
-    grid-row: 1;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    transition: background 0.2s;
-  }
-  .task-panel.r3-active {
-    background: var(--active-bg);
-  }
-  .task-panel-header {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 12px;
+    flex-direction: column;
+    overflow-y: auto;
   }
-  .task-panel-header h3 {
-    font-size: 11px;
-    font-weight: 600;
+
+  /* ── TICKET (main "now prepping" ticket — R1/R2/R3 share this) ──
+     Skeuomorphic treatment per brief §3.6 / §4: clip + ticket share one
+     rotating parent, pivot at the clip's top-center (not the ticket's own
+     bounding-box center), irregular torn-paper bottom edge, continuous
+     idle sway paused whenever anything is being dragged (body.is-dragging). */
+  .task-panel {
+    padding: 20px 20px 8px;
+  }
+  .ticket-wrap {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 2px;
+    margin-left: 38px;
+  }
+  .ticket-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    transform-origin: 50% 0;
+    animation: ticketSway 5s ease-in-out infinite;
+  }
+  @keyframes ticketSway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+  body.is-dragging .ticket-col { animation-play-state: paused; }
+  .clip-shape {
+    width: 14px; height: 22px; margin: 0 auto -10px; position: relative; z-index: 3;
+    background: linear-gradient(180deg, var(--clip-a), var(--clip-b));
+    clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+  }
+  .clip-shape.big { width: 26px; height: 40px; margin: 0 0 -20px; }
+  .ticket-main {
+    background: var(--surface);
+    width: 100%;
+    padding: 20px 22px 42px;
+    position: relative;
+    box-shadow: 0 6px 0 rgba(43,36,28,0.06), 0 10px 18px rgba(43,36,28,0.12);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 96%, 93% 100%, 87% 90%, 81% 100%, 74% 94%, 68% 100%,
+                        61% 91%, 55% 100%, 48% 95%, 42% 100%, 35% 90%, 29% 100%, 23% 96%, 17% 100%,
+                        11% 92%, 5% 100%, 0% 97%);
+    transition: box-shadow 0.15s;
+  }
+  .now-tag {
+    font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--text-3);
+    color: var(--accent);
+    margin-bottom: 6px;
   }
-  .task-name {
-    font-family: var(--font-hero);
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text);
-  }
-  .task-description {
-    font-size: 13px;
-    color: var(--text-2);
-    margin-bottom: 12px;
-  }
-  .task-requirements {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .req-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    border: 1.5px dashed var(--border);
-    color: var(--text-2);
-    transition: all 0.2s;
-  }
-  .req-item.satisfied {
-    border-style: solid;
-    color: var(--text);
-  }
-  .req-item.satisfied.spice { background: var(--spice-bg); border-color: var(--spice-bd); }
-  .req-item.satisfied.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
-  .req-item.satisfied.grain { background: var(--grain-bg); border-color: var(--grain-bd); }
-  .req-item.satisfied.dairy { background: var(--dairy-bg); border-color: var(--dairy-bd); }
-  .req-item.satisfied.tool { background: var(--tool-bg); border-color: var(--tool-bd); }
-  .req-item.satisfied.shaper { background: var(--shaper-bg); border-color: var(--shaper-bd); }
+  .task-name { margin-bottom: 14px; }
 
-  .task-drop-zone {
-    min-height: 72px;
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
+  /* Checklist — replaces the old ghost-tile requirement display.
+     Two-column grid, checkbox + icon + label rows, no per-row colored
+     background field (brief §3.3). */
+  .checklist {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+    margin-bottom: 16px;
+  }
+  .checklist-empty-hint {
+    color: var(--text-3);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px;
     align-items: center;
-    transition: border-color 0.2s, background 0.2s;
-    background: var(--bg);
+    gap: 8px;
+    padding: 8px 2px;
+    border-bottom: 1px dashed rgba(43,36,28,0.22);
+    font-size: 13px;
   }
-  .task-drop-zone.drag-over {
-    border-color: var(--accept);
-    background: #E1EDE5;
+  .row .box {
+    width: 16px; height: 16px;
+    border: 2px solid var(--text);
+    border-radius: 3px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #fff;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
   }
-  .task-drop-zone.complete {
-    border-color: var(--accept);
-    background: #E1EDE5;
+  .row .icon {
+    font-size: 15px;
+    filter: grayscale(1) contrast(1.3);
+    flex-shrink: 0;
+    transition: transform 0.15s, filter 0.15s;
+  }
+  .row .lb { flex: 1; font-weight: 600; transition: transform 0.15s; transform-origin: left center; }
+  .row.done .box { background: var(--accept); border-color: var(--accept); }
+  .row.done .box::after { content: '✓'; }
+  /* Hover/match "bulge" — scoped to checkbox + icon + label only, never a full-row fill (brief §3.3) */
+  .row.match .box { transform: scale(1.25); box-shadow: 0 0 0 3px rgba(47,107,74,0.3); border-color: var(--accept); }
+  .row.match .icon { transform: scale(1.35); filter: grayscale(1) contrast(1.3) drop-shadow(0 0 3px rgba(47,107,74,0.7)); }
+  .row.match .lb { transform: scale(1.08); }
+
+  /* Unified "allowed move" ring (brief §3.7) — single solid --accept glow,
+     never a toggled border-style. task-drop-zone is kept as a class name
+     purely as the existing drag-detection hook; it now carries no visual
+     styling of its own — see .ticket-main.drag-over / .complete below. */
+  .task-drop-zone { /* intentionally no base visual styling — see note above */ }
+  .ticket-main.drag-over,
+  .ticket-main.complete {
+    box-shadow: 0 0 0 3px var(--accept), 0 10px 18px rgba(43,36,28,0.12);
   }
   .drop-hint {
     color: var(--text-3);
@@ -404,12 +432,15 @@
     pointer-events: none;
   }
   .complete-btn {
+    width: 100%;
     margin-top: 10px;
+    font-family: var(--font-display);
+    font-size: 15px;
     transition: background 0.2s, opacity 0.2s, transform 0.1s;
   }
   .complete-btn:not(:disabled) {
     background: var(--accent);
-    box-shadow: 0 2px 8px rgba(178,58,46,0.35);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
   }
   .complete-btn:disabled {
     background: var(--surface-2);
@@ -419,39 +450,51 @@
     opacity: 1; /* override default btn disabled opacity so we control it */
   }
 
-  /* Inventory panel */
+  /* My station (formerly "inventory panel") */
   .inventory-panel {
-    grid-column: 1;
-    grid-row: 2;
-    padding: 16px 20px;
+    padding: 4px 20px 20px;
     overflow-y: auto;
-    background: var(--bg);
   }
-  .inventory-section { margin-bottom: 20px; }
-  .inventory-section h4 {
-    font-size: 11px;
-    font-weight: 600;
+  .station-header-block { margin: 6px 0 10px; margin-left: 38px; }
+  .station-header { font-family: var(--font-display); font-size: 14px; color: var(--text-2); }
+  .station-hint { font-size: 11px; font-style: italic; color: var(--text-2); opacity: 0.85; margin-left: 8px; }
+  .station-panel {
+    background: linear-gradient(180deg, var(--station-a), var(--station-b));
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-left: 38px;
+  }
+  .station-zone { margin-bottom: 14px; }
+  .station-zone:last-child { margin-bottom: 0; }
+  .station-zone h5 {
+    font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 10px;
+    color: var(--station-text);
+    opacity: 0.9;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .inventory-section h4::after {
+  .station-zone h5::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border);
+    background: var(--station-text);
+    opacity: 0.35;
   }
   .tiles-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
   }
 
-  /* Resource tiles */
+  /* Resource tiles — uniform station-tile look (brief §3.5/§5: no per-category
+     color field; category is conveyed by the label only, not the tile chrome).
+     No real icon assets yet, so emoji + grayscale() filter remains the
+     placeholder per brief §5. */
   .tile {
     display: flex;
     flex-direction: column;
@@ -460,7 +503,9 @@
     width: 72px;
     height: 72px;
     border-radius: var(--radius);
-    border: 1.5px solid;
+    border: none;
+    background: var(--bg);
+    box-shadow: 0 3px 0 rgba(43,36,28,0.16);
     cursor: grab;
     user-select: none;
     transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
@@ -471,21 +516,14 @@
     padding: 4px;
     gap: 4px;
   }
-  .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 5px 10px rgba(43,36,28,0.2); }
   .tile:active { cursor: grabbing; transform: scale(0.97); }
   .tile.dragging { opacity: 0.35; }
-  .tile .tile-emoji { font-size: 24px; line-height: 1; }
+  .tile .tile-emoji { font-size: 24px; line-height: 1; filter: grayscale(1) contrast(1.3); }
   .tile .tile-label { font-size: 10px; line-height: 1.2; color: var(--text); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-  .tile .type-badge {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    font-size: 8px;
-    font-weight: 700;
-    padding: 1px 4px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-  }
+  /* Type badge (ING/TOOL corner tag) retired along with category tile coloring —
+     category is no longer visually distinguished on the tile itself. */
+  .tile .type-badge { display: none; }
 
   /* Prevent child elements from intercepting pointer events on tiles */
   .tile * { pointer-events: none; }
@@ -498,74 +536,52 @@
     transform: scale(1.05);
   }
 
-  .tile.spice   { background: var(--spice-bg);   border-color: var(--spice-bd); }
-  .tile.protein { background: var(--protein-bg); border-color: var(--protein-bd); }
-  .tile.grain   { background: var(--grain-bg);   border-color: var(--grain-bd); }
-  .tile.dairy   { background: var(--dairy-bg);   border-color: var(--dairy-bd); }
-  .tile.tool    { background: var(--tool-bg);    border-color: var(--tool-bd); }
-  .tile.shaper  { background: var(--shaper-bg);  border-color: var(--shaper-bd); }
-
-  .tile.spice   .type-badge { background: var(--spice-bd);   color: #fff; }
-  .tile.protein .type-badge { background: var(--protein-bd); color: #fff; }
-  .tile.grain   .type-badge { background: var(--grain-bd);   color: #fff; }
-  .tile.dairy   .type-badge { background: var(--dairy-bd);   color: #fff; }
-  .tile.tool    .type-badge { background: var(--tool-bd);    color: #fff; }
-  .tile.shaper  .type-badge { background: var(--shaper-bd);  color: #fff; }
-
-  /* Teammates panel */
+  /* Teammates panel — "On the line" */
   .teammates-panel {
     grid-column: 2;
-    grid-row: 1 / 3;
     border-left: 1px solid var(--border);
-    background: var(--surface);
     overflow-y: auto;
     padding: 16px;
   }
   .teammates-panel h3 {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--text-3);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: normal;
+    color: var(--text-2);
     margin-bottom: 14px;
   }
   .teammate-card {
-    border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 12px;
-    margin-bottom: 10px;
-    background: var(--bg);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    background: var(--surface);
+    text-align: left;
+    min-height: 56px;
+    box-shadow: 0 0 0 0 rgba(47,107,74,0);
+    transition: box-shadow 0.15s, transform 0.15s, background 0.2s;
   }
   .teammate-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
   }
   .teammate-name {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
   }
   .teammate-score {
     font-size: 12px;
     color: var(--text-2);
   }
-  .teammate-drop {
-    min-height: 52px;
-    border: 2px dashed var(--border);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    color: var(--text-3);
-    transition: border-color 0.2s, background 0.2s;
-    padding: 6px;
-  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .status-dot.cooking    { background: var(--accent); }
+  .status-dot.no-tickets { background: var(--text-3); opacity: 0.5; }
+  /* teammate-card doubles as the drop target (brief §3.9/§3.7) — the whole
+     card gets the unified accept ring + slight scale bulge, not a nested box. */
   .teammate-drop.drag-over {
-    border-color: var(--accept);
-    background: #E1EDE5;
-    color: var(--accept);
+    box-shadow: 0 0 0 3px var(--accept);
+    transform: scale(1.03);
+    background: var(--surface);
   }
 
   /* Notification toast */
@@ -1052,16 +1068,18 @@
   .tile-ghost.fill-anim { animation: ghostFill 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 
   /* ── TEAMMATE STATUS ─────────────────────────────────────── */
+  /* Default "working" state shows nothing at all (brief §3.9) — only
+     "Cooking" and "No tickets" render a status dot + small label. */
   .teammate-status {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-2);
   }
-  .teammate-status.working  { color: var(--accent); }
-  .teammate-status.cooking  { color: var(--danger); font-weight: 700; }
-  .teammate-status.no-tasks { color: var(--text-3); }
+  .teammate-status.cooking    { color: var(--text-2); }
+  .teammate-status.no-tickets { color: var(--text-2); }
 
   /* ── CONFIRM MODAL ───────────────────────────────────────── */
   #confirm-modal-overlay {
@@ -1144,11 +1162,12 @@
   @media (max-width: 900px) {
     .game-body {
       grid-template-columns: 1fr;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: 1fr auto;
     }
+    .board-main { grid-column: 1; grid-row: 1; }
     .teammates-panel {
       grid-column: 1;
-      grid-row: 3;
+      grid-row: 2;
       border-left: none;
       border-top: 1px solid var(--border);
       display: flex;
@@ -1160,6 +1179,7 @@
     .teammate-card { min-width: 160px; margin-bottom: 0; flex-shrink: 0; }
     .tile { width: 64px; height: 64px; }
     .tile .tile-emoji { font-size: 20px; }
+    .ticket-wrap, .station-header-block, .station-panel { margin-left: 20px; }
   }
 </style>
 </head>
@@ -1235,7 +1255,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1322,37 +1342,49 @@
   </div>
 
   <div class="game-body">
-    <!-- Task panel -->
-    <div class="task-panel" id="task-panel">
-      <div class="task-panel-header">
-        <h3 id="task-panel-label">Current task</h3>
-        <span class="task-name" id="task-name">—</span>
+    <div class="board-main">
+      <!-- Ticket ("now prepping") -->
+      <div class="task-panel" id="task-panel">
+        <div class="ticket-wrap">
+          <div class="ticket-col" id="ticket-col">
+            <div class="clip-shape big"></div>
+            <div class="ticket-main task-drop-zone" id="ticket-main">
+              <div class="now-tag">Now prepping</div>
+              <div class="task-name" id="task-name">—</div>
+              <div class="checklist" id="task-checklist"></div>
+              <button class="btn btn-primary complete-btn" id="btn-complete" disabled>Cook →</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="task-description" id="task-description"></div>
-      <!-- requirements list removed — now shown as ghost tiles in the drop zone -->
-      <div class="task-drop-zone" id="task-drop-zone"></div>
-      <button class="btn btn-primary complete-btn" id="btn-complete" disabled>Cook →</button>
-    </div>
 
-    <!-- Inventory panel -->
-    <div class="inventory-panel" id="inventory-panel">
-      <div class="inventory-section">
-        <h4>Ingredients</h4>
-        <div class="tiles-grid" id="ingredients-grid"></div>
-      </div>
-      <div class="inventory-section">
-        <h4>Tools</h4>
-        <div class="tiles-grid" id="tools-grid"></div>
+      <!-- My station -->
+      <div class="inventory-panel" id="inventory-panel">
+        <div class="station-header-block">
+          <span class="station-header">My station</span>
+          <span class="station-hint">drag to your ticket to use · drag to a teammate to send</span>
+        </div>
+        <div class="station-panel">
+          <div class="station-zone">
+            <h5>Ingredients</h5>
+            <div class="tiles-grid" id="ingredients-grid"></div>
+          </div>
+          <div class="station-zone">
+            <h5>Tools</h5>
+            <div class="tiles-grid" id="tools-grid"></div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Teammates panel -->
     <div class="teammates-panel" id="teammates-panel">
-      <h3>Teammates</h3>
+      <h3>On the line</h3>
       <div id="teammates-list"></div>
     </div>
   </div>
 </div>
+
 
 <!-- ══ PAUSE MODAL (host only) ════════════════════════════════ -->
 <div id="pause-modal" style="display:none; position:fixed; z-index:9700;
@@ -2180,11 +2212,25 @@ function movePointer(cx, cy) {
   ghost.style.left = (cx - offsetX) + "px";
   ghost.style.top  = (cy - offsetY) + "px";
 
-  // Highlight drop targets
+  // Highlight drop targets — only light up the ticket (and the specific
+  // checklist row) when the dragged resource would actually be accepted;
+  // "allowed move" should mean allowed, not just "hovering a zone" (brief §3.7).
   document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
+  document.querySelectorAll("#task-checklist .row").forEach(r => r.classList.remove("match"));
   const el = document.elementFromPoint(cx, cy);
-  const zone = el?.closest(".task-drop-zone, .teammate-drop");
-  if (zone) zone.classList.add("drag-over");
+  const taskZone = el?.closest(".task-drop-zone");
+  const tmZone   = el?.closest(".teammate-drop");
+  if (taskZone && draggedSource === "inventory" && currentTask) {
+    const req    = currentTask.requirements.find(r => r.resource === draggedName);
+    const placed = taskZoneMap[draggedName] || 0;
+    if (req && placed < req.qty) {
+      taskZone.classList.add("drag-over");
+      const rowEl = taskZone.querySelector(`.row[data-resource="${CSS.escape(draggedName)}"]`);
+      if (rowEl) rowEl.classList.add("match");
+    }
+  } else if (tmZone) {
+    tmZone.classList.add("drag-over");
+  }
 }
 
 function onMouseUp(e) {
@@ -2207,6 +2253,7 @@ function endPointer(cx, cy) {
   }
 
   document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
+  document.querySelectorAll("#task-checklist .row").forEach(r => r.classList.remove("match"));
 
   if (!dragCommitted) {
     // Click on task tile: no action needed — Cook button activates automatically
@@ -2257,53 +2304,35 @@ function loadTask(taskId) {
 function renderTask() {
   if (!currentTask) return;
   document.getElementById("task-name").textContent = currentTask.name;
-  document.getElementById("task-description").textContent = currentTask.description;
-  // Requirements are now shown as ghost tiles in the drop zone — no separate list
+  // Description intentionally not shown on the main ticket — matches the
+  // approved mockups (name + checklist + Cook button only). Still available
+  // via currentTask.description if a future preview popover needs it (§3.4).
 }
 
 function renderTaskZone() {
-  const zone = document.getElementById("task-drop-zone");
+  // Renders the plain checklist (brief §3.3) — one row per requirement type
+  // (not per unit; in practice every requirement in ALL_TASKS has qty 1).
+  const zone = document.getElementById("task-checklist");
   zone.innerHTML = "";
 
   if (!currentTask) {
-    zone.innerHTML = '<span class="drop-hint">No active task</span>';
+    zone.innerHTML = '<span class="checklist-empty-hint">No active task</span>';
     return;
   }
 
-  // Build ghost tile slots for each requirement
-  // Each requirement gets qty slots; filled slots reflect placed resources
   currentTask.requirements.forEach(req => {
-    const res   = RESOURCES[req.resource] || { emoji:"❓", label:req.resource };
-    const cls   = categoryClass(req.resource);
-    const placed = taskZoneMap[req.resource] || 0;
-
-    for (let i = 0; i < req.qty; i++) {
-      const ghost = document.createElement("div");
-      ghost.className = "tile-ghost";
-      ghost.dataset.resource = req.resource;
-      ghost.dataset.slotIdx  = i;
-      const isFilled = i < placed;
-      ghost.innerHTML = `
-        <span class="fill-check">✓</span>
-        <span class="tile-emoji">${res.emoji}</span>
-        <span class="tile-label">${res.label}</span>
-      `;
-      if (isFilled) {
-        ghost.classList.add("filled", cls);
-      }
-      zone.appendChild(ghost);
-    }
+    const res  = RESOURCES[req.resource] || { emoji:"❓", label:req.resource };
+    const done = (taskZoneMap[req.resource] || 0) >= req.qty;
+    const row  = document.createElement("div");
+    row.className = "row" + (done ? " done" : "");
+    row.dataset.resource = req.resource;
+    row.innerHTML = `
+      <span class="box"></span>
+      <span class="icon">${res.emoji}</span>
+      <span class="lb">${req.qty > 1 ? req.qty + "× " : ""}${res.label}</span>
+    `;
+    zone.appendChild(row);
   });
-
-  // Overflow tiles (shouldn't exist with rejection logic, but safety)
-  const empty = !currentTask.requirements.some(r => (taskZoneMap[r.resource] || 0) > 0);
-  if (empty) {
-    const hint = document.createElement("span");
-    hint.className = "drop-hint";
-    hint.style.cssText = "margin-left:8px; align-self:center; pointer-events:none;";
-    hint.textContent = "Drag resources here";
-    zone.appendChild(hint);
-  }
 }
 
 function dropIntoTask(name) {
@@ -2350,7 +2379,7 @@ function checkTaskComplete() {
   const allSatisfied = reqs.every(r => (taskZoneMap[r.resource] || 0) >= r.qty);
   const btn = document.getElementById("btn-complete");
   btn.disabled = !allSatisfied;
-  document.getElementById("task-drop-zone").classList.toggle("complete", allSatisfied);
+  document.getElementById("ticket-main").classList.toggle("complete", allSatisfied);
 }
 
 async function completeTask() {
@@ -2463,8 +2492,8 @@ async function completeTask() {
   }
 
   // Flash animation and toast
-  document.getElementById("task-panel").classList.add("task-complete-anim");
-  setTimeout(() => document.getElementById("task-panel").classList.remove("task-complete-anim"), 800);
+  document.getElementById("ticket-main").classList.add("task-complete-anim");
+  setTimeout(() => document.getElementById("ticket-main").classList.remove("task-complete-anim"), 800);
   toast(`✓ "${taskName}" complete!`, "good");
 
   // ── Advance UI ────────────────────────────────────────────────
@@ -2505,12 +2534,10 @@ function renderNoActiveTask() {
   currentTask = null;
   taskZoneMap = {};
   document.getElementById("task-name").textContent = myTaskQueue.length > 0 ? "Pull a task" : "All done!";
-  document.getElementById("task-description").textContent =
-    myTaskQueue.length > 0
+  document.getElementById("task-checklist").innerHTML =
+    `<span class="checklist-empty-hint">${myTaskQueue.length > 0
       ? "Drag a task from the queue into the Current Task slot, or receive one from a teammate."
-      : "You've completed all your tasks. Help your teammates!";
-  document.getElementById("task-drop-zone").innerHTML =
-    '<span class="drop-hint">No active task</span>';
+      : "You’ve completed all your tasks. Help your teammates!"}</span>`;
   document.getElementById("btn-complete").disabled = true;
 }
 
@@ -3275,7 +3302,6 @@ function enterGame() {
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
     document.getElementById("r3-queue-row").style.display     = isR3 ? "flex" : "none";
-    document.getElementById("task-panel").classList.toggle("r3-active", isR3);
     document.getElementById("r3-task-inspector").style.display = isR3 ? "block" : "none";
     // In R3, task panel label says "Working on" instead of "Current task"
     const panelLabel = document.getElementById("task-panel-label");
@@ -3433,28 +3459,25 @@ function renderTeammates() {
   Object.entries(gameState.players).forEach(([pid, p]) => {
     if (pid === myPlayerId) return;
     // Only surface the two edge states — cooking (briefly unavailable)
-    // and no-tasks (has capacity). Working is the default and needs no label.
+    // and no-tickets (has capacity). Working is the default and needs no label (brief §3.9).
     const ps = p.playerStatus || "";
     let statusHtml = "";
     if (ps === "cooking") {
-      statusHtml = `<div class="teammate-status cooking">Cooking</div>`;
+      statusHtml = `<div class="teammate-status cooking"><span class="status-dot cooking"></span>Cooking</div>`;
     } else if (ps === "no-tasks") {
-      statusHtml = `<div class="teammate-status no-tasks">No tasks</div>`;
+      statusHtml = `<div class="teammate-status no-tickets"><span class="status-dot no-tickets"></span>No tickets</div>`;
     }
 
+    // The card itself is the drop target now (brief §3.9) — no nested "Drop to send" box.
     const div = document.createElement("div");
-    div.className = "teammate-card";
+    div.className = "teammate-card teammate-drop";
+    div.dataset.playerId = pid;
     div.innerHTML = `
       <div class="teammate-card-header">
-        <div>
-          <span class="teammate-name">${p.name}</span>
-          ${statusHtml}
-        </div>
+        <span class="teammate-name">${p.name}</span>
         <span class="teammate-score">${p.tasksCompleted||0} done</span>
       </div>
-      <div class="teammate-drop" data-player-id="${pid}">
-        Drop to send
-      </div>`;
+      ${statusHtml}`;
     listEl.appendChild(div);
   });
 }
