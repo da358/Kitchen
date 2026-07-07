@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.8 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1832,6 +1832,15 @@ let myActiveTaskId = null;  // R3: explicit active task ID; R1/R2: derived from 
 let taskTarget     = 0;     // team win condition: total tasks needed
 let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
 let currentRound   = "round2"; // "round1" | "round2" | "round3"
+// Unique per round start. Bug found 260707: a completeTask() call whose
+// awaited Firebase writes were still in flight when a round ended (very
+// possible under R2/R3 timer pressure, near-impossible in untimed R1)
+// could land AFTER the next round had already reset tasksCompleted to 0,
+// resurrecting a stale nonzero value and immediately re-triggering the
+// "reached taskTarget" auto-end check for the brand new round. completeTask()
+// checks this id right before committing and discards the write if the
+// round has moved on underneath it.
+let currentRoundInstanceId = null;
 let hostPlayerId   = null;  // player ID of game creator
 let amHost         = false; // true if this player is the host
 let inventoryOrder = [];    // ordered list of resource names for stable display
@@ -2240,6 +2249,7 @@ async function completeTask() {
   if (!currentTask) return;
   const taskName = currentTask.name;
   const isR3 = currentRound === "round3";
+  const myRoundInstanceId = currentRoundInstanceId;
 
   // ── Identify required vs excess items ────────────────────────
   const reqMap = {};
@@ -2296,6 +2306,17 @@ async function completeTask() {
   });
   playerUpdate[`games/${gameCode}/players/${myPlayerId}/ingredients`] = ingMap;
   playerUpdate[`games/${gameCode}/players/${myPlayerId}/tools`]       = toolMap;
+
+  // Bail out if the round changed while we were computing the above (see
+  // the currentRoundInstanceId comment near its declaration). Without this,
+  // a completion that was in flight right as the round ended could land
+  // after the NEXT round already reset tasksCompleted to 0, resurrecting a
+  // stale count and immediately ending the brand new round.
+  const liveIdSnap = await get(ref(db, `games/${gameCode}/roundInstanceId`));
+  if (liveIdSnap.val() !== myRoundInstanceId) {
+    toast("That round already ended — this completion wasn't counted", "bad");
+    return;
+  }
 
   await update(ref(db), playerUpdate);
   myTaskQueue    = newQueue;
@@ -3131,9 +3152,12 @@ async function startRoundInFirebase(players, roundType, duration) {
   const evtName = gameState.eventName || genEventName();
   const setup   = generateGameSetup(playerIds, roundType);
   const tgt     = Object.values(setup.startingTaskCounts).reduce((a, b) => a + b, 0);
+  // Unique per round start (see completeTask() for why this exists).
+  const roundInstanceId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const updates = {};
   updates[`games/${gameCode}/status`]      = "playing";
+  updates[`games/${gameCode}/roundInstanceId`] = roundInstanceId;
   updates[`games/${gameCode}/endTime`]     = endTime;
   updates[`games/${gameCode}/roundType`]   = roundType;
   updates[`games/${gameCode}/roundDuration`] = isR1 ? null : duration;
@@ -3179,6 +3203,7 @@ function enterGame() {
     eventName    = data.eventName    || "";
     taskTarget   = data.taskTarget   || 0;
     currentRound = data.roundType    || "round2";
+    currentRoundInstanceId = data.roundInstanceId || null;
     hostPlayerId = data.hostPlayerId || null;
     amHost       = (myPlayerId === hostPlayerId);
 
@@ -3312,6 +3337,7 @@ function enterGame() {
 
     if (gameState.status === "disbanded") { resetToLanding(); return; }
 
+    currentRoundInstanceId = gameState.roundInstanceId || currentRoundInstanceId;
     renderTeammates();
     updateScoreDisplay(gameState.players);
 
