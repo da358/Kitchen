@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.10 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.11 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3270,6 +3270,15 @@ function enterGame() {
       if (myTaskQueue.length > 0) loadTask(myTaskQueue[0]);
     }
     updateScoreDisplay(data.players);
+
+    // Start the timer directly from this authoritative read rather than
+    // relying solely on gameUnsub's first firing, which registers around
+    // the same time as this async fetch resolves and can race it — this
+    // was leaving the timer display frozen at its starting value until
+    // some unrelated Firebase write nudged gameUnsub into firing again.
+    if (data.endTime && currentRound !== "round1" && !timerInterval) {
+      startTimer(data.endTime);
+    }
 
     // R3: start host-only rescue scan every 30s
     if (isR3 && amHost) {
