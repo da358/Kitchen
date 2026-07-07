@@ -25,15 +25,15 @@
        revisit after a visual pass. */
     --bg:          #FBF3E7;       /* page background */
     --surface:     #F3E4CC;       /* ticket + teammate card surface */
-    --surface-2:   #EAD9BC;       /* secondary surface / dividers — PROPOSED */
-    --border:      #D8C4A0;       /* PROPOSED */
+    --surface-2:   #D2B78D;       /* secondary surface / dividers — CONFIRMED Session 8 */
+    --border:      #B8935C;       /* CONFIRMED Session 8 — darkened to stay visible against new surface-2 */
     --text:        #2B241C;
     --text-2:      #6B6252;
     --text-3:      #7A6F5A;       /* darkened from the original #9E9384 proposal — that measured 2.74:1 on --bg, well under WCAG AA. This measures ~4.5:1 on --bg / ~4.0:1 on --surface. */
     --accent:      #B23A2E;       /* copper — brand emphasis, CTAs, "now prepping" */
     --accent-2:    #8B4A2B;       /* station gradient top stop / secondary emphasis */
     --accept:      #2F6B4A;       /* universal "allowed move" / success green — rings & glows only, never dashed */
-    --danger:      #D8402A;       /* PROPOSED — brighter alarm red, distinct from --accent's deeper copper-brick */
+    --danger:      #E23A2A;       /* CONFIRMED Session 8 — Scarlet, hue-shifted from --accent's copper-brick */
     --active-bg:   #F6E4D5;       /* pale copper-rose — current task zone (legacy R3 slot; retinted, likely retired in §3 rework) */
     --active-bd:   #C1613C;
     --active-hd:   #B23A2E;
@@ -254,7 +254,7 @@
     color: var(--text-3);
   }
   .player-row .ready-badge.is-ready {
-    background: #E1EDE5;
+    background: #DCE6C6;
     color: var(--ready);
   }
   .lobby-actions { display: flex; gap: 12px; flex-direction: column; align-items: center; }
@@ -281,6 +281,22 @@
     font-size: 20px;
     font-weight: normal;
   }
+  .round-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--accent-2);
+    color: #fff;
+    vertical-align: middle;
+  }
+  .round-badge.summary {
+    margin-bottom: 8px;
+  }
+  .round-badge:empty { display: none; }
   .timer-display {
     font-size: 22px;
     font-weight: 700;
@@ -369,7 +385,14 @@
     color: var(--accent);
     margin-bottom: 6px;
   }
-  .task-name { margin-bottom: 14px; }
+  .task-name {
+    margin-bottom: 14px;
+    font-family: var(--font-hero);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
 
   /* Checklist — replaces the old ghost-tile requirement display.
      Two-column grid, checkbox + icon + label rows, no per-row colored
@@ -620,7 +643,7 @@
     animation: flashGreen 0.6s ease;
   }
   @keyframes flashGreen {
-    0%   { background: #cfe6d7; }
+    0%   { background: #CEDCAD; }
     100% { background: transparent; }
   }
 
@@ -749,7 +772,7 @@
   /* Completed task flash */
   @keyframes completePulse {
     0%   { background: var(--surface); }
-    30%  { background: #cfe6d7; }
+    30%  { background: #CEDCAD; }
     100% { background: var(--surface); }
   }
   .task-complete-anim { animation: completePulse 0.8s ease; }
@@ -825,7 +848,7 @@
   }
   .complete-banner {
     display: none; align-items: center; justify-content: center;
-    gap: 10px; padding: 12px; background: #E1EDE5;
+    gap: 10px; padding: 12px; background: #DCE6C6;
     border-radius: var(--radius); color: var(--accept);
     font-weight: 600; font-size: 14px;
   }
@@ -1120,7 +1143,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.11 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260707.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1161,7 +1184,10 @@
   <div class="game-header">
     <div class="game-header-left">
       <div style="display:flex; flex-direction:column; gap:1px;">
-        <span class="game-title">The Pass</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="game-title">The Kitchen</span>
+          <span class="round-badge" id="round-badge-header"></span>
+        </div>
         <span id="event-name-display" style="font-size:11px; color:var(--text-3); letter-spacing:0.02em;"></span>
       </div>
       <div class="header-divider"></div>
@@ -1302,6 +1328,7 @@
 <!-- ══ SCREEN: ROUND 1 SUMMARY ══════════════════════════════════ -->
 <div id="screen-summary-r1" class="screen" style="flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:28px;">
   <div style="text-align:center; max-width:480px;">
+    <span class="round-badge summary" id="round-badge-summary-r1"></span>
     <p id="summary-r1-event-name" style="font-family:var(--font-display); font-size:22px; color:var(--accent); font-style:italic; min-height:28px; line-height:1.2;"></p>
     <h2 style="font-family:var(--font-display); font-size:32px; font-weight:normal; margin-top:8px;">Your team completed all the dishes!</h2>
     <p id="summary-r1-transfers" style="margin-top:12px; font-size:15px; color:var(--text-2);"></p>
@@ -1343,6 +1370,7 @@
 <!-- ══ SCREEN: SUMMARY ══════════════════════════════════════════ -->
 <div id="screen-summary" class="screen">
   <div class="summary-header">
+    <span class="round-badge summary" id="round-badge-summary-r2"></span>
     <p id="summary-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;">Event complete</h2>
     <p id="summary-subtitle">Here's how your team did</p>
@@ -1396,6 +1424,7 @@
 <!-- ══ SCREEN: ROUND 3 SUMMARY ═══════════════════════════════════ -->
 <div id="screen-summary-r3" class="screen">
   <div class="summary-header">
+    <span class="round-badge summary" id="round-badge-summary-r3"></span>
     <p id="summary-r3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;">Event complete</h2>
     <p id="summary-r3-subtitle">Here's how your team did</p>
@@ -1841,9 +1870,28 @@ let currentRound   = "round2"; // "round1" | "round2" | "round3"
 // checks this id right before committing and discards the write if the
 // round has moved on underneath it.
 let currentRoundInstanceId = null;
+
+// ── Round label helper (Session 8: header + summary round badge) ──
+const ROUND_LABELS = { round1: "Round 1", round2: "Round 2", round3: "Round 3" };
+function updateRoundBadge(el) {
+  if (el) el.textContent = ROUND_LABELS[currentRound] || "";
+}
+
 let hostPlayerId   = null;  // player ID of game creator
 let amHost         = false; // true if this player is the host
 let inventoryOrder = [];    // ordered list of resource names for stable display
+// Session 8 fix: names of resources confirmed via a claimed transfer
+// notification, waiting to be placed at the very end of the display order
+// once the ingredients/tools listener's own count-diff catches up to them.
+// This exists because the ingredients/tools node is just {name: count} —
+// it carries no per-arrival ordering info, so a coincidental second
+// change landing in the same snapshot (e.g. a rescue-scan spawn) could
+// otherwise get appended after the resource the player actually watched
+// arrive. The notification is the one signal that reliably says "this
+// specific resource just arrived for this specific reason," so it's used
+// as the authority for *order*, while the inventory snapshot stays the
+// authority for *counts*.
+let pendingArrivals = [];
 let inspectedTaskId = null; // R3: task ID currently shown in inspector
 // Stable snapshot of last-seen Firebase inventory counts.
 const lastKnownInventoryRef = { ingredients: {}, tools: {} };
@@ -1941,7 +1989,33 @@ function renderInventory(newlyAdded = []) {
       nameCountSeen[name] = seen + 1;
     }
   });
-  // Append any new items not yet in order
+  // Append genuinely-new units. Two sources of "new":
+  //  1. pendingArrivals — resources confirmed via a claimed transfer
+  //     notification (see declaration above). These get priority, placed
+  //     strictly in the order their notifications were claimed, since
+  //     that's the one signal here with real chronological meaning.
+  //  2. Anything else (rescue-scan spawns with no notification of their
+  //     own, local-only mutations) falls back to the old
+  //     Object.entries(localInventory) order, same as before this fix.
+  const PENDING_MAX_AGE_MS = 4000; // safety valve — don't wait forever on a stuck entry
+  const now = Date.now();
+  const stillPending = [];
+  pendingArrivals.forEach(entry => {
+    if (now - entry.ts > PENDING_MAX_AGE_MS) return; // drop stale — falls through to normal handling below
+    const alreadyIn = expandedOrder.filter(n => n === entry.name).length;
+    const totalHave = localInventory[entry.name] || 0;
+    if (alreadyIn < totalHave) {
+      expandedOrder.push(entry.name);
+    } else {
+      // Count hasn't caught up yet (notification arrived before the
+      // ingredients/tools listener processed the increment) — keep
+      // waiting for it on a future render pass.
+      stillPending.push(entry);
+    }
+  });
+  pendingArrivals = stillPending;
+
+  // Append any remaining new items not accounted for above
   Object.entries(localInventory).forEach(([name, count]) => {
     const alreadyIn = expandedOrder.filter(n => n === name).length;
     for (let i = alreadyIn; i < count; i++) {
@@ -3238,6 +3312,7 @@ function enterGame() {
     if (data.taskDefs) Object.assign(localTaskDefs, data.taskDefs);
 
     document.getElementById("event-name-display").textContent = eventName;
+    updateRoundBadge(document.getElementById("round-badge-header"));
 
     // Show/hide timer for Round 1
     const timerEl = document.getElementById("timer");
@@ -3314,32 +3389,85 @@ function enterGame() {
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/players/${myPlayerId}/tools`), "value", toolUnsub));
 
   // ── 3. Watch notifications ───────────────────────────────────
+  // Session 8 fix: consuming a notification is now an atomic "claim" via
+  // runTransaction instead of a plain remove(). Previously remove() was
+  // fire-and-forget — no await, no error handling — so if it silently
+  // failed (dropped connection, backgrounded tab, a second stray listener,
+  // etc.) the node never actually left the database, and a purely
+  // client-side, in-memory seenNotifs Set was the only thing standing
+  // between "shown once" and "shown again" the next time this callback
+  // fired. That's what was producing 2-4 duplicate toasts for a single
+  // transfer. The transaction below lets exactly one claim of a given
+  // notification key succeed (server-confirmed) — any other attempt to
+  // consume the same key, from any firing of this listener, aborts with
+  // no write and no toast. seenNotifs is kept only as a same-tick
+  // fast-path to skip an unnecessary transaction call, not as the source
+  // of correctness.
   const seenNotifs = new Set();
   const notifUnsub = onValue(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), snap => {
     if (!snap.exists()) return;
     snap.forEach(child => {
       if (seenNotifs.has(child.key)) return;
-      seenNotifs.add(child.key);
       const item = child.val();
-      if (item.type === "task") {
-        // Received a traded task — append to back of queue
-        const taskDef = localTaskDefs[item.taskId];
-        if (item.taskId && !myTaskQueue.includes(item.taskId) && myActiveTaskId !== item.taskId) {
-          myTaskQueue = [...myTaskQueue, item.taskId];
-          // Write updated queue to Firebase
-          update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
-          if (currentRound === "round3") renderQueueBar();
-          toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
-        }
-      } else {
-        // Resource notification
-        const res = RESOURCES[item.resource];
-        toast(`${res?.emoji || ""} ${item.resource} received from ${item.fromName}`, "good");
-        const panel = document.getElementById("inventory-panel");
-        panel.classList.add("incoming-flash");
-        setTimeout(() => panel.classList.remove("incoming-flash"), 600);
-      }
-      remove(ref(db, `games/${gameCode}/notifications/${myPlayerId}/${child.key}`));
+      const notifRef = ref(db, `games/${gameCode}/notifications/${myPlayerId}/${child.key}`);
+
+      // Atomic claim: only the caller who actually deletes the node gets
+      // to act on it. If it's already gone (someone/something else beat
+      // us to it), the transaction aborts (returns undefined) and commits nothing.
+      runTransaction(notifRef, current => current === null ? undefined : null)
+        .then(result => {
+          if (!result.committed) return; // already claimed elsewhere — skip silently
+          seenNotifs.add(child.key);
+
+          if (item.type === "task") {
+            // Received a traded task — append to back of queue
+            const taskDef = localTaskDefs[item.taskId];
+            if (item.taskId && !myTaskQueue.includes(item.taskId) && myActiveTaskId !== item.taskId) {
+              myTaskQueue = [...myTaskQueue, item.taskId];
+              // Write updated queue to Firebase
+              update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
+              if (currentRound === "round3") renderQueueBar();
+              toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
+            }
+          } else {
+            // Resource notification
+            const res = RESOURCES[item.resource];
+            toast(`${res?.emoji || ""} ${item.resource} received from ${item.fromName}`, "good");
+            const panel = document.getElementById("inventory-panel");
+            panel.classList.add("incoming-flash");
+            setTimeout(() => panel.classList.remove("incoming-flash"), 600);
+
+            // Session 8 fix: this notification is the one authoritative,
+            // exactly-once signal that "this specific resource just
+            // arrived." The ingredients/tools listener works purely off
+            // aggregate counts ({name: count}), so on its own it can't
+            // tell "the unit the player just watched arrive" apart from
+            // an unrelated coincidental change (e.g. a rescue-scan spawn
+            // landing in the same update) — that ambiguity was why a
+            // transferred item didn't always land last.
+            // In the common case, the ingredients/tools count has already
+            // been updated by the time this notification is claimed (the
+            // sender writes the count before the notification), so the
+            // tile already exists somewhere in inventoryOrder — move it
+            // to the tail directly rather than re-deriving order from
+            // scratch.
+            const idx = inventoryOrder.lastIndexOf(item.resource);
+            if (idx !== -1) {
+              inventoryOrder.splice(idx, 1);
+              inventoryOrder.push(item.resource);
+            } else {
+              // Rare reverse race: notification claimed before the
+              // ingredients/tools listener has processed the increment.
+              // Queue it — renderInventory()'s append phase gives
+              // pendingArrivals priority once the count catches up.
+              pendingArrivals.push({ name: item.resource, ts: Date.now() });
+            }
+            renderInventory();
+          }
+        })
+        .catch(err => {
+          console.error("Notification claim failed:", err);
+        });
     });
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), "value", notifUnsub));
@@ -3383,6 +3511,7 @@ function enterGame() {
       taskTarget   = gameState.taskTarget || 0;
       currentRound = gameState.roundType  || "round2";
       document.getElementById("event-name-display").textContent = eventName;
+      updateRoundBadge(document.getElementById("round-badge-header"));
     }
     if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
 
@@ -3457,7 +3586,7 @@ function resetToLanding() {
   roundStartInFlight = false;
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
-  localInventory = {}; inventoryOrder = []; taskZoneMap = {};
+  localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
   taskTarget = 0; eventName = ""; currentRound = "round2";
@@ -3491,9 +3620,11 @@ async function showSummary() {
   const transferArr    = Object.values(transfers);
   const taskTradeArr   = Object.values(taskTrades);
   const evtName    = data.eventName || "";
+  const roundLabel = ROUND_LABELS[roundType] || "";
 
   if (isR1) {
     showScreen("summary-r1");
+    document.getElementById("round-badge-summary-r1").textContent = roundLabel;
     document.getElementById("summary-r1-event-name").textContent = evtName;
     document.getElementById("summary-r1-transfers").textContent =
       transferArr.length === 0
@@ -3504,6 +3635,7 @@ async function showSummary() {
 
   } else if (isR3) {
     showScreen("summary-r3");
+    document.getElementById("round-badge-summary-r3").textContent = roundLabel;
     document.getElementById("summary-r3-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
@@ -3526,7 +3658,7 @@ async function showSummary() {
     if (tgt > 0) {
       const resultEl = document.createElement("div");
       resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
-        background:${won?"#E1EDE5":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
+        background:${won?"#DCE6C6":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
       resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
@@ -3542,6 +3674,7 @@ async function showSummary() {
   } else {
     // ── ROUND 2: summary ─────────────────────────────────────────
     showScreen("summary");
+    document.getElementById("round-badge-summary-r2").textContent = roundLabel;
     document.getElementById("summary-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
@@ -3561,7 +3694,7 @@ async function showSummary() {
     if (tgt > 0) {
       const resultEl = document.createElement("div");
       resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
-        background:${won?"#EAF2EA":"#FAEAEA"};color:${won?"var(--accent)":"var(--danger)"};`;
+        background:${won?"#DCE6C6":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
       resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
@@ -3584,7 +3717,7 @@ async function showSummary() {
       off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
       inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
       taskTarget = 0; eventName = ""; currentTask = null; taskZoneMap = {};
-      inventoryOrder = []; localInventory = {}; inspectedTaskId = null;
+      inventoryOrder = []; pendingArrivals = []; localInventory = {}; inspectedTaskId = null;
       Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
       Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
       Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
@@ -4060,7 +4193,7 @@ async function enterBetweenRoundLobby(nextRoundType, duration) {
   // Reset local game state (but keep gameCode, myPlayerId, myPlayerName, hostPlayerId)
   inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
   taskTarget = 0; eventName = ""; currentTask = null;
-  taskZoneMap = {}; inventoryOrder = []; localInventory = {};
+  taskZoneMap = {}; inventoryOrder = []; pendingArrivals = []; localInventory = {};
   inspectedTaskId = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
   Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
