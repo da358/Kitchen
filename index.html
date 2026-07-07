@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1825,6 +1825,7 @@ let localInventory = {};    // { resourceName: count } — kept in sync with Fir
 let taskZoneItems  = [];    // resources dragged into task zone
 let transferLog    = [];    // for summary
 let unsubscribers  = [];    // Firebase listeners to detach
+let roundStartInFlight = false; // guards against the ready-check double-firing (see enterLobby)
 let inGameEntered  = false; // guard: prevent enterGame() firing twice
 let myTaskQueue    = [];    // R3: queued (not active) task IDs; R1/R2: full queue
 let myActiveTaskId = null;  // R3: explicit active task ID; R1/R2: derived from queue[0]
@@ -3005,6 +3006,7 @@ async function joinGame() {
 }
 
 function enterLobby() {
+  roundStartInFlight = false;
   document.getElementById("lobby-code").textContent = gameCode;
   showScreen("lobby");
 
@@ -3027,21 +3029,32 @@ function enterLobby() {
       allReady ? "All ready! Starting…" :
       `${all.filter(p=>p.ready).length} of ${all.length} ready`;
 
-    if (allReady && gameState.status === "lobby") {
+    if (allReady && gameState.status === "lobby" && !roundStartInFlight) {
       // Derive host status here directly — amHost isn't set until enterGame()
       const isHostInLobby = myPlayerId === gameState.hostPlayerId;
       if (isHostInLobby) {
-        // Resolve pending round config (set by enterBetweenRoundLobby) vs initial config
-        const rt  = gameState.pendingRoundType     || gameState.roundType     || "round2";
-        const dur = gameState.pendingRoundDuration || gameState.roundDuration || ROUND_DURATION;
-        // Promote pending fields to live before starting — clear pending to avoid re-trigger
-        await update(ref(db, `games/${gameCode}`), {
-          roundType:            rt,
-          roundDuration:        rt === "round1" ? null : dur,
-          pendingRoundType:     null,
-          pendingRoundDuration: null,
-        });
-        await startRoundInFirebase(players, rt, dur);
+        // Guard against re-entrancy: the update() below applies optimistically
+        // to Firebase's local cache, which re-invokes this SAME onValue callback
+        // before this async function finishes — and status is still "lobby" at
+        // that point, so the guard above would otherwise pass a second time and
+        // start the round twice concurrently with two different random setups
+        // racing to write over each other. Found 260707 during the R2→R3 bug.
+        roundStartInFlight = true;
+        try {
+          // Resolve pending round config (set by enterBetweenRoundLobby) vs initial config
+          const rt  = gameState.pendingRoundType     || gameState.roundType     || "round2";
+          const dur = gameState.pendingRoundDuration || gameState.roundDuration || ROUND_DURATION;
+          // Promote pending fields to live before starting — clear pending to avoid re-trigger
+          await update(ref(db, `games/${gameCode}`), {
+            roundType:            rt,
+            roundDuration:        rt === "round1" ? null : dur,
+            pendingRoundType:     null,
+            pendingRoundDuration: null,
+          });
+          await startRoundInFirebase(players, rt, dur);
+        } finally {
+          roundStartInFlight = false;
+        }
       }
     }
 
@@ -3340,6 +3353,7 @@ function endGame() {
 function resetToLanding() {
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
+  roundStartInFlight = false;
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
   localInventory = {}; inventoryOrder = []; taskZoneMap = {};
@@ -3917,6 +3931,17 @@ document.getElementById("btn-exit-r3-guest").addEventListener("click", exitTeam)
 // Moves all players back through the ready-check before starting the next round.
 // The host calls this; roundType and duration are passed through Firebase.
 async function enterBetweenRoundLobby(nextRoundType, duration) {
+  // Detach every listener registered by the round we're leaving (game-level
+  // state, inventory, notifications, my-player doc) BEFORE touching anything
+  // else. Bug found 260707: these were never torn down between rounds, so
+  // by Round 3 there were two full sets of stale Round 1 + Round 2 listeners
+  // still reacting to every Firebase write — one of them would grab Round 2's
+  // still-lingering eventName/taskTarget/roundType during the Round 3 waiting
+  // room (nothing clears those fields until the round actually starts) and
+  // lock currentRound to the wrong round before Round 3 even began.
+  unsubscribers.forEach(fn => fn());
+  unsubscribers = [];
+
   // Write pending round config and reset everyone's ready state
   const playerIds = Object.keys(gameState.players || {});
   const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null };
