@@ -19,39 +19,50 @@
 <style>
   /* ── DESIGN TOKENS ─────────────────────────────────────────── */
   :root {
-    --bg:          #F7F5F2;
-    --surface:     #FFFFFF;
-    --surface-2:   #F0EDE8;
-    --border:      #E2DDD7;
-    --text:        #1A1814;
-    --text-2:      #6B6560;
-    --text-3:      #9E9890;
-    --accent:      #5C6E5B;       /* muted sage green */
-    --accent-2:    #8B7355;       /* warm walnut */
-    --danger:      #B85450;
-    --active-bg:   #FDF0F0;       /* pale rose — current task zone */
-    --active-bd:   #C4706C;       /* muted rose border */
-    --active-hd:   #A85550;       /* current task header text */
-    --ready:       #5C6E5B;
-    --spice-bg:    #F5ECD7;       /* warm amber */
-    --spice-bd:    #D4A853;
-    --protein-bg:  #E8EFF5;       /* cool blue */
-    --protein-bd:  #6B9BB8;
-    --grain-bg:    #EDF2E8;       /* soft green */
-    --grain-bd:    #7A9E6E;
-    --dairy-bg:    #F5EFF8;       /* pale lavender */
-    --dairy-bd:    #9E7FB8;
-    --tool-bg:     #E8E8E8;       /* neutral grey */
-    --tool-bd:     #888888;
-    --shaper-bg:   #EDF0F5;       /* cool slate */
-    --shaper-bd:   #7A88A8;
+    /* ── Visual overhaul palette (260706) — copper & cream ─────
+       See kitchen-visual-overhaul-brief.md §1. --danger, --surface-2,
+       --border, --text-3 are flagged there as proposed/unconfirmed —
+       revisit after a visual pass. */
+    --bg:          #FBF3E7;       /* page background */
+    --surface:     #F3E4CC;       /* ticket + teammate card surface */
+    --surface-2:   #EAD9BC;       /* secondary surface / dividers — PROPOSED */
+    --border:      #D8C4A0;       /* PROPOSED */
+    --text:        #2B241C;
+    --text-2:      #6B6252;
+    --text-3:      #9E9384;       /* PROPOSED */
+    --accent:      #B23A2E;       /* copper — brand emphasis, CTAs, "now prepping" */
+    --accent-2:    #8B4A2B;       /* station gradient top stop / secondary emphasis */
+    --accept:      #2F6B4A;       /* universal "allowed move" / success green — rings & glows only, never dashed */
+    --danger:      #D8402A;       /* PROPOSED — brighter alarm red, distinct from --accent's deeper copper-brick */
+    --active-bg:   #F6E4D5;       /* pale copper-rose — current task zone (legacy R3 slot; retinted, likely retired in §3 rework) */
+    --active-bd:   #C1613C;
+    --active-hd:   #B23A2E;
+    --ready:       #2F6B4A;       /* alias to --accept — "ready" is a success signal, not brand color */
+    --spice-bg:    #F5E7C8;       /* retinted to sit within the warm palette — category tile coloring is likely retired per mockups, revisit in §3/step 2 */
+    --spice-bd:    #C9A24A;
+    --protein-bg:  #E7DCC7;
+    --protein-bd:  #8B7355;
+    --grain-bg:    #EADFC2;
+    --grain-bd:    #A98C4A;
+    --dairy-bg:    #EFE1CB;
+    --dairy-bd:    #B89468;
+    --tool-bg:     #E3D7BE;
+    --tool-bd:     #7A6A50;
+    --shaper-bg:   #E7DAC0;
+    --shaper-bd:   #8B6F47;
+    --station-a:   #8B4A2B;       /* station panel gradient top */
+    --station-b:   #5C2F1A;       /* station panel gradient bottom */
+    --station-text:#FBF3E7;       /* light text for use on the station gradient — don't leave station headers at --text-2 */
+    --clip-a:      #4a4136;       /* ticket clip gradient — neutral, unchanged by palette */
+    --clip-b:      #221d16;
     --radius:      8px;
-    --btn-pause:   #1A1814;       /* near-black pause button */
+    --btn-pause:   #2B241C;       /* near-black pause button, retinted to new ink */
     --radius-lg:   14px;
-    --shadow:      0 1px 4px rgba(0,0,0,0.08);
-    --shadow-lg:   0 4px 20px rgba(0,0,0,0.12);
-    --font:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-display:'Georgia', 'Times New Roman', serif;
+    --shadow:      0 1px 4px rgba(43,36,28,0.08);
+    --shadow-lg:   0 4px 20px rgba(43,36,28,0.12);
+    --font:        -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    --font-display:'Georgia', 'Times New Roman', serif;   /* wordmark + section headers — unchanged */
+    --font-hero:   'Cambria', 'Georgia', serif;            /* NEW — dish/recipe hero name only */
   }
 
   /* ── RESET & BASE ──────────────────────────────────────────── */
@@ -160,7 +171,7 @@
     font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--danger);
     padding: 3px 10px; border-radius: 4px;
-    background: #FAEAEA; border: 1px solid var(--danger);
+    background: #FBE4DF; border: 1px solid var(--danger);
     display: none;
   }
   .paused-badge.visible { display: inline-block; }
@@ -243,7 +254,7 @@
     color: var(--text-3);
   }
   .player-row .ready-badge.is-ready {
-    background: #EAF2EA;
+    background: #E1EDE5;
     color: var(--ready);
   }
   .lobby-actions { display: flex; gap: 12px; flex-direction: column; align-items: center; }
@@ -328,8 +339,9 @@
     color: var(--text-3);
   }
   .task-name {
-    font-size: 17px;
-    font-weight: 600;
+    font-family: var(--font-hero);
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text);
   }
   .task-description {
@@ -379,12 +391,12 @@
     background: var(--bg);
   }
   .task-drop-zone.drag-over {
-    border-color: var(--accent);
-    background: #EEF2EE;
+    border-color: var(--accept);
+    background: #E1EDE5;
   }
   .task-drop-zone.complete {
-    border-color: var(--accent);
-    background: #EEF2EE;
+    border-color: var(--accept);
+    background: #E1EDE5;
   }
   .drop-hint {
     color: var(--text-3);
@@ -397,7 +409,7 @@
   }
   .complete-btn:not(:disabled) {
     background: var(--accent);
-    box-shadow: 0 2px 8px rgba(92,110,91,0.35);
+    box-shadow: 0 2px 8px rgba(178,58,46,0.35);
   }
   .complete-btn:disabled {
     background: var(--surface-2);
@@ -463,7 +475,7 @@
   .tile:active { cursor: grabbing; transform: scale(0.97); }
   .tile.dragging { opacity: 0.35; }
   .tile .tile-emoji { font-size: 24px; line-height: 1; }
-  .tile .tile-label { font-size: 10px; line-height: 1.2; color: var(--text-2); }
+  .tile .tile-label { font-size: 10px; line-height: 1.2; color: var(--text); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
   .tile .type-badge {
     position: absolute;
     top: 3px;
@@ -482,7 +494,7 @@
   .tile.in-task { cursor: pointer; }
   .tile.in-task:hover { transform: translateY(-1px); }
   .tile.glowing {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 14px rgba(92,110,91,0.4);
+    box-shadow: 0 0 0 3px var(--accept), 0 0 14px rgba(47,107,74,0.4);
     transform: scale(1.05);
   }
 
@@ -551,9 +563,9 @@
     padding: 6px;
   }
   .teammate-drop.drag-over {
-    border-color: var(--accent-2);
-    background: #F5EFE7;
-    color: var(--accent-2);
+    border-color: var(--accept);
+    background: #E1EDE5;
+    color: var(--accept);
   }
 
   /* Notification toast */
@@ -589,7 +601,7 @@
     animation: flashGreen 0.6s ease;
   }
   @keyframes flashGreen {
-    0%   { background: #c4e8c4; }
+    0%   { background: #cfe6d7; }
     100% { background: transparent; }
   }
 
@@ -685,7 +697,7 @@
   }
   .duration-opt:has(input:checked) {
     border-color: var(--accent);
-    background: #EEF2EE;
+    background: #F5E1DC;
     color: var(--accent);
     font-weight: 600;
   }
@@ -718,7 +730,7 @@
   /* Completed task flash */
   @keyframes completePulse {
     0%   { background: var(--surface); }
-    30%  { background: #d4edda; }
+    30%  { background: #cfe6d7; }
     100% { background: var(--surface); }
   }
   .task-complete-anim { animation: completePulse 0.8s ease; }
@@ -770,7 +782,7 @@
     display: block; width: 100%;
     border-radius: 8px;
     border: 1.5px solid var(--border);
-    background: #FAFAF8;
+    background: var(--bg);
     touch-action: none;
     cursor: crosshair;
   }
@@ -788,14 +800,14 @@
     height: 100%; border-radius: 99px; background: var(--accent);
     width: 0%; transition: width 0.12s ease;
   }
-  .progress-fill.done { background: #4a9e4a; }
+  .progress-fill.done { background: var(--accept); }
   .progress-pct {
     font-size: 11px; color: var(--text-2); min-width: 34px; text-align: right;
   }
   .complete-banner {
     display: none; align-items: center; justify-content: center;
-    gap: 10px; padding: 12px; background: #EAF2EA;
-    border-radius: var(--radius); color: var(--accent);
+    gap: 10px; padding: 12px; background: #E1EDE5;
+    border-radius: var(--radius); color: var(--accept);
     font-weight: 600; font-size: 14px;
   }
   .complete-banner.show { display: flex; }
@@ -821,7 +833,7 @@
     border-width: 1.5px;
   }
   .tile.task-tile .tile-emoji { font-size: 20px; }
-  .tile.task-tile .tile-label { font-size: 10px; color: var(--text-2); }
+  .tile.task-tile .tile-label { font-size: 10px; color: var(--text); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
   .tile.task-tile.active-task-tile {
     background: var(--active-bg);
     border-color: var(--active-bd);
@@ -921,8 +933,8 @@
     position: relative;
   }
   .active-task-slot.drag-over {
-    border-color: var(--accent);
-    background: #EEF2EE;
+    border-color: var(--accept);
+    background: #E1EDE5;
   }
   .active-task-slot.has-tile {
     border-style: solid;
@@ -995,7 +1007,7 @@
     width: 72px;
     height: 72px;
     border-radius: var(--radius);
-    border: 1.5px dashed #B0A89A;
+    border: 1.5px dashed #C9B896;
     background: var(--surface-2);
     font-size: 10px;
     font-weight: 500;
@@ -1007,7 +1019,7 @@
     pointer-events: none;
   }
   .tile-ghost .tile-emoji { font-size: 22px; line-height: 1; opacity: 0.55; }
-  .tile-ghost .tile-label { font-size: 9px; color: #1A1814; line-height: 1.2; font-weight: 600; }
+  .tile-ghost .tile-label { font-size: 9px; color: var(--text); line-height: 1.2; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
   .tile-ghost.filled {
     border-style: solid;
     box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(92,110,91,0.25);
@@ -1223,7 +1235,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260627.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1264,7 +1276,7 @@
   <div class="game-header">
     <div class="game-header-left">
       <div style="display:flex; flex-direction:column; gap:1px;">
-        <span class="game-title">The Kitchen</span>
+        <span class="game-title">The Pass</span>
         <span id="event-name-display" style="font-size:11px; color:var(--text-3); letter-spacing:0.02em;"></span>
       </div>
       <div class="header-divider"></div>
@@ -1344,7 +1356,7 @@
 
 <!-- ══ PAUSE MODAL (host only) ════════════════════════════════ -->
 <div id="pause-modal" style="display:none; position:fixed; z-index:9700;
-  background:#1A1814; border:1px solid #3A3630; border-radius:var(--radius-lg);
+  background:#2B241C; border:1px solid #4a4136; border-radius:var(--radius-lg);
   padding:24px 28px; box-shadow:0 8px 40px rgba(0,0,0,0.45); min-width:280px; max-width:380px;
   top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; gap:16px;
   flex-direction:column; cursor:move;">
@@ -1352,7 +1364,7 @@
   <div style="font-size:13px; color:#C0B8B0;">Click below to continue.</div>
   <button id="btn-resume" style="margin-top:4px; padding:10px 20px; border-radius:var(--radius);
     border:none; cursor:pointer; font-size:14px; font-weight:600; font-family:var(--font);
-    background:#FFFFFF; color:#1A1814; letter-spacing:0.01em;">▶ Resume</button>
+    background:#FFFFFF; color:#2B241C; letter-spacing:0.01em;">▶ Resume</button>
 </div>
 
 <!-- ══ CONFIRM MODAL ════════════════════════════════════════════ -->
@@ -3530,7 +3542,7 @@ async function showSummary() {
     if (tgt > 0) {
       const resultEl = document.createElement("div");
       resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
-        background:${won?"#EAF2EA":"#FAEAEA"};color:${won?"var(--accent)":"var(--danger)"};`;
+        background:${won?"#E1EDE5":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
       resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
@@ -3630,7 +3642,7 @@ function drawNetwork(players, transfers) {
   // ── Arrowhead marker (insert into defs first) ─────────────────
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
   defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#5C6E5B" opacity="0.8"/>
+    <polygon points="0 0, 8 3, 0 6" fill="#2F6B4A" opacity="0.8"/>
   </marker>`;
   svg.appendChild(defs);
 
@@ -3673,7 +3685,7 @@ function drawNetwork(players, transfers) {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", `M${p0.x},${p0.y} Q${p1.x},${p1.y} ${p2.x},${p2.y}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#5C6E5B");
+    path.setAttribute("stroke", "#2F6B4A");
     path.setAttribute("stroke-width", strokeW);
     path.setAttribute("stroke-opacity", opacity);
     path.setAttribute("marker-end", "url(#arrowhead)");
@@ -3710,7 +3722,7 @@ function drawNetwork(players, transfers) {
     halo.setAttribute("font-size", "12");
     halo.setAttribute("font-weight", "700");
     halo.setAttribute("fill", "none");
-    halo.setAttribute("stroke", "#F7F5F2");
+    halo.setAttribute("stroke", "#FBF3E7");
     halo.setAttribute("stroke-width", "4");
     halo.setAttribute("stroke-linejoin", "round");
     halo.textContent = count;
@@ -3723,7 +3735,7 @@ function drawNetwork(players, transfers) {
     label.setAttribute("dominant-baseline", "middle");
     label.setAttribute("font-size", "12");
     label.setAttribute("font-weight", "700");
-    label.setAttribute("fill", "#3a4f39");
+    label.setAttribute("fill", "#1f4a34");
     label.textContent = count;
     svg.appendChild(label);
   });
@@ -3736,8 +3748,8 @@ function drawNetwork(players, transfers) {
     circle.setAttribute("cx", pos.x);
     circle.setAttribute("cy", pos.y);
     circle.setAttribute("r", 24);
-    circle.setAttribute("fill", pos.pid === myPlayerId ? "#5C6E5B" : "#F7F5F2");
-    circle.setAttribute("stroke", "#5C6E5B");
+    circle.setAttribute("fill", pos.pid === myPlayerId ? "#B23A2E" : "#FBF3E7");
+    circle.setAttribute("stroke", "#B23A2E");
     circle.setAttribute("stroke-width", "2");
 
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -3747,7 +3759,7 @@ function drawNetwork(players, transfers) {
     text.setAttribute("dominant-baseline", "middle");
     text.setAttribute("font-size", "9");
     text.setAttribute("font-weight", "600");
-    text.setAttribute("fill", pos.pid === myPlayerId ? "#fff" : "#1A1814");
+    text.setAttribute("fill", pos.pid === myPlayerId ? "#fff" : "#2B241C");
     text.textContent = pos.name.length > 7 ? pos.name.slice(0, 7) + "…" : pos.name;
 
     g.appendChild(circle);
@@ -3785,7 +3797,7 @@ function drawNetworkR3(players, transfers, svgId, mode) {
   });
 
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const markerColor = mode === "task" ? "#8B7355" : "#5C6E5B";
+  const markerColor = mode === "task" ? "#8B4A2B" : "#2F6B4A";
   defs.innerHTML = `<marker id="arrowhead-${svgId}" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
     <polygon points="0 0, 8 3, 0 6" fill="${markerColor}" opacity="0.8"/>
   </marker>`;
@@ -3826,7 +3838,7 @@ function drawNetworkR3(players, transfers, svgId, mode) {
     if (reverseExists) { const pt = bezierPoint(p0,p1,p2,0.72); lx=pt.x; ly=pt.y; }
     else { const perp=11; lx=(p0.x+p2.x)/2+(-dy/len*perp); ly=(p0.y+p2.y)/2+(dx/len*perp); }
 
-    [["none","#F7F5F2","4","round"], [markerColor,null,"0",null]].forEach(([fill,stroke,sw,slj]) => {
+    [["none","#FBF3E7","4","round"], [markerColor,null,"0",null]].forEach(([fill,stroke,sw,slj]) => {
       const t = document.createElementNS("http://www.w3.org/2000/svg","text");
       t.setAttribute("x",lx); t.setAttribute("y",ly);
       t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","middle");
@@ -3842,14 +3854,14 @@ function drawNetworkR3(players, transfers, svgId, mode) {
 
     const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
     circle.setAttribute("cx",pos.x); circle.setAttribute("cy",pos.y); circle.setAttribute("r",22);
-    circle.setAttribute("fill", pos.pid===myPlayerId ? markerColor : "#F7F5F2");
+    circle.setAttribute("fill", pos.pid===myPlayerId ? markerColor : "#FBF3E7");
     circle.setAttribute("stroke",markerColor); circle.setAttribute("stroke-width","2");
 
     const nameText = document.createElementNS("http://www.w3.org/2000/svg","text");
     nameText.setAttribute("x",pos.x); nameText.setAttribute("y",pos.y);
     nameText.setAttribute("text-anchor","middle"); nameText.setAttribute("dominant-baseline","middle");
     nameText.setAttribute("font-size","8"); nameText.setAttribute("font-weight","600");
-    nameText.setAttribute("fill", pos.pid===myPlayerId ? "#fff" : "#1A1814");
+    nameText.setAttribute("fill", pos.pid===myPlayerId ? "#fff" : "#2B241C");
     nameText.textContent = pos.name.length>7 ? pos.name.slice(0,7)+"…" : pos.name;
 
     g.appendChild(circle); g.appendChild(nameText);
