@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.8 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.9 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2956,9 +2956,31 @@ function updateScoreDisplay(players) {
 }
 
 /* ─── TIMER ─────────────────────────────────────────────────── */
+// A client's own setInterval timer can fire long after the round has
+// actually moved on if its browser tab was backgrounded — browsers
+// throttle timers in inactive tabs, sometimes for minutes, and often flush
+// the backlog right when the tab regains focus (e.g. exactly when someone
+// switches to that window to click Ready). Since every client's timer
+// independently writes status:"ended" when it thinks time is up, a stale
+// firing like this can overwrite a brand new round's "playing" status back
+// to "ended" for the whole team. Found 260707 — this is unrelated to the
+// task-count/target and explains why it happened regardless of how many
+// tasks had been completed. Only actually end the round if it's still the
+// exact round instance this timer was started for.
+async function handleTimerExpired(expiredRoundInstanceId) {
+  const snap = await get(ref(db, `games/${gameCode}`));
+  const data = snap.val() || {};
+  if (data.status !== "playing" || data.roundInstanceId !== expiredRoundInstanceId) {
+    return; // stale callback from a throttled tab — the round already moved on
+  }
+  update(ref(db, `games/${gameCode}`), { status: "ended" });
+  showSummary();
+}
+
 function startTimer(endTime) {
   if (timerInterval) clearInterval(timerInterval);
   const timerEl = document.getElementById("timer");
+  const roundInstanceIdAtStart = currentRoundInstanceId;
 
   timerInterval = setInterval(() => {
     const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
@@ -2969,7 +2991,7 @@ function startTimer(endTime) {
 
     if (remaining === 0) {
       clearInterval(timerInterval);
-      endGame();
+      handleTimerExpired(roundInstanceIdAtStart);
     }
   }, 500);
 }
