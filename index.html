@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3033,6 +3033,17 @@ async function joinGame() {
 }
 
 function enterLobby() {
+  // Bug found 260707 (round): enterLobby() could be invoked twice in a row
+  // for the same transition — once directly by enterBetweenRoundLobby(),
+  // and again reactively by showSummary()'s summaryStatusUnsub watcher
+  // reacting to that same write (it wasn't tracked in `unsubscribers`, so
+  // it survived that function's cleanup). Two live lobbyUnsub listeners
+  // meant two independent copies of the ready-check logic below, racing
+  // each other. Clearing everything here, unconditionally, on every call,
+  // makes enterLobby() safe no matter how many times or from where it's
+  // called — there can only ever be one lobby listener alive afterward.
+  unsubscribers.forEach(fn => fn());
+  unsubscribers = [];
   roundStartInFlight = false;
   document.getElementById("lobby-code").textContent = gameCode;
   showScreen("lobby");
@@ -3501,11 +3512,13 @@ async function showSummary() {
   }
 
   // Watch for host advancing — registered AFTER screen renders
+  let summaryTransitionHandled = false;
   const summaryStatusUnsub = onValue(ref(db, `games/${gameCode}/status`), snap => {
+    if (summaryTransitionHandled) return;
     const status = snap.val();
     if (status === "lobby") {
+      summaryTransitionHandled = true;
       off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
-      unsubscribers.forEach(fn => fn()); unsubscribers = [];
       inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
       taskTarget = 0; eventName = ""; currentTask = null; taskZoneMap = {};
       inventoryOrder = []; localInventory = {}; inspectedTaskId = null;
@@ -3516,13 +3529,15 @@ async function showSummary() {
       clearInterval(rescueInterval); rescueInterval = null;
       const btnReady = document.getElementById("btn-ready");
       btnReady.disabled = false; btnReady.textContent = "I'm ready ✓";
-      enterLobby();
+      enterLobby(); // enterLobby() itself now clears `unsubscribers`, incl. this listener
     }
     if (status === "disbanded") {
+      summaryTransitionHandled = true;
       off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
       resetToLanding();
     }
   });
+  unsubscribers.push(() => off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub));
 }
 
 function drawNetwork(players, transfers) {
