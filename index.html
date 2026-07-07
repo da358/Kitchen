@@ -1120,7 +1120,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260706.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2306,6 +2306,17 @@ async function completeTask() {
   const otherPlayers = Object.keys(gameState.players || {}).filter(pid => pid !== myPlayerId);
   const spawnCount   = Math.max(1, requiredIngrCount - (isR3 ? 1 : 0)); // mild deficit for R3
 
+  // Bug found 260707: target selection below used to be a fresh
+  // Math.random() pick on every iteration with no memory of who'd already
+  // been picked. With a 3-4 player team it was common for the same
+  // targetPid to come up 2-3 times in one completion — each iteration
+  // fires its own notification + inventory increment, so that one player
+  // would get several toasts/tiles in quick succession from a single
+  // completion, easily mistaken for a duplicated transfer. usedTargets
+  // keeps each completion's spawns spread across distinct players as long
+  // as there are enough of them to go around.
+  const usedTargets = new Set();
+
   for (let i = 0; i < spawnCount; i++) {
     let resName, targetPid;
     if (isR3) {
@@ -2314,14 +2325,19 @@ async function completeTask() {
       resName   = teamActiveNeeded.length > 0
         ? teamActiveNeeded[Math.floor(Math.random() * teamActiveNeeded.length)]
         : INGREDIENT_NAMES[Math.floor(Math.random() * INGREDIENT_NAMES.length)];
-      // Prefer player who doesn't already have this ingredient in their inventory
-      const preferredTargets = otherPlayers.filter(pid => {
+      // Prefer player who doesn't already have this ingredient in their inventory,
+      // and who hasn't already been targeted earlier in this same completion.
+      const notYetHave = otherPlayers.filter(pid => {
         const inv = gameState.players?.[pid]?.ingredients || {};
         return !inv[resName];
       });
-      targetPid = (preferredTargets.length > 0 ? preferredTargets : otherPlayers)[
-        Math.floor(Math.random() * Math.max(1, (preferredTargets.length > 0 ? preferredTargets : otherPlayers).length))
-      ] || myPlayerId;
+      const preferredTargets = notYetHave.filter(pid => !usedTargets.has(pid));
+      const freshOthers      = otherPlayers.filter(pid => !usedTargets.has(pid));
+      const candidates = preferredTargets.length > 0 ? preferredTargets
+                        : freshOthers.length > 0     ? freshOthers
+                        : notYetHave.length > 0       ? notYetHave
+                        : otherPlayers;
+      targetPid = candidates[Math.floor(Math.random() * candidates.length)] || myPlayerId;
     } else {
       // R1/R2: bias toward next task's ingredients
       const nextTaskObj = nextActiveId ? (localTaskDefs[nextActiveId] || null) : null;
@@ -2334,7 +2350,12 @@ async function completeTask() {
       targetPid = otherPlayers.length > 0
         ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
         : myPlayerId;
+      const freshOthers = otherPlayers.filter(pid => !usedTargets.has(pid));
+      if (freshOthers.length > 0) {
+        targetPid = freshOthers[Math.floor(Math.random() * freshOthers.length)];
+      }
     }
+    usedTargets.add(targetPid);
 
     await runTransaction(ref(db, `games/${gameCode}/players/${targetPid}/ingredients/${resName}`),
       (current) => (current || 0) + 1);
@@ -2422,12 +2443,18 @@ async function runRescueScan() {
   });
   if (missing.length === 0) return;
 
-  // Spawn each missing ingredient to a player who doesn't need it
+  // Spawn each missing ingredient to a player who doesn't need it — and, where
+  // possible, spread across distinct players within this scan tick (same fix
+  // as completeTask()'s spawn loop, see note there).
+  const usedTargets = new Set();
   for (const { resource, needingPid } of missing) {
     const otherPlayers = playerIds.filter(pid => pid !== needingPid);
-    const targetPid    = otherPlayers.length > 0
-      ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+    const freshOthers   = otherPlayers.filter(pid => !usedTargets.has(pid));
+    const candidates    = freshOthers.length > 0 ? freshOthers : otherPlayers;
+    const targetPid     = candidates.length > 0
+      ? candidates[Math.floor(Math.random() * candidates.length)]
       : needingPid;
+    usedTargets.add(targetPid);
     await runTransaction(ref(db, `games/${gameCode}/players/${targetPid}/ingredients/${resource}`),
       (current) => (current || 0) + 1);
     const notifKey = `rescue_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
