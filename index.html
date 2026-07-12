@@ -789,6 +789,108 @@
     animation: springIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 
+  /* ── SHARED CHALLENGE: KITCHEN FIRE (Session 9, Step 1) ─────
+     Deliberately a SEPARATE, bigger overlay from .modal (the small
+     cooking-activity modal) rather than reusing it — the handoff briefing
+     flagged that the extinguisher's fixed-CSS-pixel reach only clears the
+     board's right margin once the board renders at roughly 730px+ wide,
+     and .modal caps at 560px. A bigger surface here is necessary but not
+     sufficient on its own — see --kf-scale below, which is the other half
+     of the fix (keeps canister + flame sizing proportional to whatever
+     width this actually renders at, instead of just moving the clipping
+     point to a narrower screen). */
+  #kf-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9600;
+    background: rgba(20,18,15,0.72); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  #kf-overlay.active { display: flex; }
+  .kf-modal {
+    width: min(860px, calc(100vw - 32px));
+    background: var(--bg); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); overflow: hidden; position: relative;
+    border: 3px solid var(--accent-2);
+    display: flex; flex-direction: column;
+    /* Board floor/object tones — scoped here rather than added to the
+       global palette, since nothing outside Kitchen Fire uses them. */
+    --board-floor: #EAD9BC;
+    --board-object: #FFF3E0;
+  }
+  .kf-modal-header {
+    background: var(--accent); color: #fff; padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .kf-modal-header .title {
+    font-family: var(--font-hero, var(--font-display)); font-weight: 700;
+    font-size: 19px; letter-spacing: 0.02em;
+  }
+  .kf-modal-header .sub { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+  .kf-blueprint-wrap { padding: 14px; }
+  .kf-blueprint {
+    position: relative; width: 100%; aspect-ratio: 568 / 508; border-radius: 10px;
+    border: 2px solid var(--border); overflow: hidden;
+    background: var(--surface); touch-action: none; cursor: crosshair;
+  }
+  #kf-blueprint-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+  canvas.kf-fx-layer { position: absolute; inset: 0; pointer-events: none; }
+  #kf-flames-layer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  #kf-fx-under { z-index: 3; }
+  #kf-tags-layer { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+  #kf-fx-over { z-index: 5; }
+
+  /*
+    Flame sizing scales via --kf-scale (set in JS from the board's measured
+    render width — see kfComputeScale()) rather than fixed px, which is the
+    other half of the margin-clipping fix: the canister and the flames now
+    move together with the board's margin at any render size, instead of
+    the canister silently drifting out of proportion with it, as it did in
+    the testbed at any size other than the one it happened to be tuned at.
+  */
+  .kf-flame {
+    position: absolute; transform: translate(-50%, -100%);
+    width: calc(67.5px * var(--kf-scale, 1)); height: calc(84px * var(--kf-scale, 1));
+    pointer-events: none; will-change: transform, opacity;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.28));
+  }
+  .kf-flame.stage-1 { width: calc(57px * var(--kf-scale, 1)); height: calc(70.5px * var(--kf-scale, 1)); opacity: 0.94; }
+  .kf-flame.stage-2 { width: calc(43.5px * var(--kf-scale, 1)); height: calc(54px * var(--kf-scale, 1)); opacity: 0.72; filter: grayscale(35%) drop-shadow(0 2px 3px rgba(0,0,0,0.2)); }
+  .kf-flame.stage-3 { width: calc(30px * var(--kf-scale, 1)); height: calc(37.5px * var(--kf-scale, 1)); opacity: 0.46; filter: grayscale(70%); }
+  .kf-flame.puffing { animation: kfPuffOut 0.42s ease forwards; }
+  @keyframes kfPuffOut {
+    0%   { opacity: 0.8; }
+    100% { transform: translate(-50%, -100%) scale(1.7); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kf-flame * { animation: none !important; }
+  }
+  .kf-flame-tag {
+    position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
+    background: var(--accent-2); color: var(--bg); font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s ease, top 0.45s ease, left 0.45s ease;
+  }
+  .kf-flame-tag.pinned { transition: opacity 0.3s ease; }
+  .kf-flame-tag.visible { opacity: 0.85; }
+  .kf-extinguisher-icon {
+    /* width/height set in JS every resize from the same --kf-scale factor
+       driving the flames — see renderSpray/kfPositionExtinguisherIcon.
+       No transform: left/top placed every frame is the shape's own
+       native (0,0) origin, not a centered anchor. */
+    position: absolute; pointer-events: none; z-index: 4;
+  }
+  .kf-blueprint-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px 14px; font-size: 11.5px; color: var(--text-2);
+  }
+  .kf-success-banner {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; background: rgba(220,230,198,0.96); text-align: center; padding: 20px;
+  }
+  .kf-success-banner.show { display: flex; }
+  .kf-success-banner .big { font-family: var(--font-hero, var(--font-display)); font-size: 24px; color: var(--accept); font-weight: 700; }
+  .kf-success-banner .small { font-size: 12.5px; color: var(--text-2); }
+
   /* ── COOKING ACTIVITY MODAL ─────────────────────────────── */
   #activity-modal-overlay {
     display: none; position: fixed; inset: 0;
@@ -1100,7 +1202,7 @@
             <span style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-3);">Round 1</span>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <label class="duration-opt">
-                <input type="radio" name="duration" value="round1"> Onboarding
+                <input type="radio" name="duration" value="round1" checked> Onboarding
               </label>
             </div>
           </div>
@@ -1111,7 +1213,7 @@
               <label class="duration-opt"><input type="radio" name="duration" value="120"> 2 min</label>
               <label class="duration-opt"><input type="radio" name="duration" value="180"> 3 min</label>
               <label class="duration-opt"><input type="radio" name="duration" value="240"> 4 min</label>
-              <label class="duration-opt"><input type="radio" name="duration" value="300" checked> 5 min</label>
+              <label class="duration-opt"><input type="radio" name="duration" value="300"> 5 min</label>
               <label class="duration-opt"><input type="radio" name="duration" value="360"> 6 min</label>
               <label class="duration-opt"><input type="radio" name="duration" value="420"> 7 min</label>
             </div>
@@ -1143,7 +1245,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260707.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1201,6 +1303,11 @@
     <div class="game-header-right">
       <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
       <span class="paused-badge" id="paused-badge">Paused</span>
+      <!-- Session 9, Step 1: debug-only trigger, host + Round 3 only, same
+           visibility gate as Pause. Bypasses the (not-yet-built) random
+           clock entirely and ignores the future once-per-round limiter, so
+           it can be clicked repeatedly for sizing/pacing testing. -->
+      <button class="btn btn-secondary" id="btn-trigger-challenge" style="display:none; font-size:12px; padding:7px 12px;">🔥 Trigger shared challenge</button>
       <button class="btn btn-pause" id="btn-pause" style="display:none;">⏸</button>
       <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
     </div>
@@ -1291,6 +1398,46 @@
     <div class="confirm-modal-actions">
       <button class="btn btn-secondary" id="confirm-modal-cancel" style="flex:1;">Cancel</button>
       <button class="btn btn-primary"   id="confirm-modal-ok"     style="flex:1;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHARED CHALLENGE: KITCHEN FIRE (Session 9, Step 1) ═══════
+     Standalone overlay, deliberately not reusing .modal — see the CSS
+     comment above #kf-overlay for why. Ported from kitchen-fire-testbed
+     v13; bot teammates and the debug control panel were left behind per
+     the handoff briefing (testbed-only, not shipped). This step wires a
+     local, single-player instance behind the new sizing/scale fix; the
+     Firebase challenge/lobby/authority plumbing is Step 2. -->
+<div id="kf-overlay">
+  <div class="kf-modal">
+    <div class="kf-modal-header">
+      <div>
+        <div class="title">🔥 KITCHEN FIRE</div>
+        <div class="sub">Grab an extinguisher — put out every flame!</div>
+      </div>
+    </div>
+    <div class="kf-blueprint-wrap">
+      <div class="kf-blueprint" id="kf-blueprint">
+        <svg id="kf-blueprint-svg" preserveAspectRatio="none">
+          <!-- viewBox set from KF_BOARD_VIEW_W/H in JS at boot, not
+               hardcoded — a stale hardcoded viewBox was the actual cause
+               of a "no room on the right" bug in the testbed (see
+               handoff briefing); don't reintroduce it here. -->
+        </svg>
+        <canvas class="kf-fx-layer" id="kf-fx-under"></canvas>
+        <div id="kf-flames-layer"></div>
+        <div id="kf-tags-layer"></div>
+        <canvas class="kf-fx-layer" id="kf-fx-over"></canvas>
+        <div class="kf-success-banner" id="kf-success-banner">
+          <div class="big">🎉 Fire's out!</div>
+          <div class="small" id="kf-success-detail">Nice work.</div>
+        </div>
+      </div>
+    </div>
+    <div class="kf-blueprint-footer">
+      <span id="kf-flame-count-readout">— fires remaining</span>
+      <span id="kf-budget-readout"></span>
     </div>
   </div>
 </div>
@@ -1404,12 +1551,12 @@
     <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
       <span style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-3); text-align:center;">Start Round 3</span>
       <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="120">2 min</button>
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="180">3 min</button>
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="240">4 min</button>
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="300">5 min</button>
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="360">6 min</button>
-        <button class="btn btn-secondary btn-r2-to-r3" data-duration="420">7 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="120">2 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="180">3 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="240">4 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="300">5 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="360">6 min</button>
+        <button class="btn btn-primary btn-r2-to-r3" data-duration="420">7 min</button>
       </div>
     </div>
     <button class="btn btn-secondary" id="btn-exit-r2" style="min-width:200px;">Exit this team</button>
@@ -3327,6 +3474,9 @@ function enterGame() {
     // Show pause button to host only (R2/R3 have timers)
     const pauseBtn = document.getElementById("btn-pause");
     if (pauseBtn) pauseBtn.style.display = (amHost && currentRound !== "round1") ? "" : "none";
+    // Shared challenges (Session 9) are Round 3-only — see project briefing.
+    const triggerBtn = document.getElementById("btn-trigger-challenge");
+    if (triggerBtn) triggerBtn.style.display = (amHost && currentRound === "round3") ? "" : "none";
 
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
@@ -4818,6 +4968,654 @@ function closeActivityModal(completed) {
 }
 
 // (old mini-game state removed — new system in ACTIVITY_DEFS above)
+
+/* ══════════════════════════════════════════════════════════════════════
+   SHARED CHALLENGE: KITCHEN FIRE — Session 9, Step 1
+   ══════════════════════════════════════════════════════════════════════
+   Ported from kitchen-fire-testbed v13 (see handoff briefing + project
+   briefing for full context). This step is LOCAL ONLY — one player,
+   no Firebase, triggered by the host-only debug button. It exists to
+   validate the margin-clipping fix (bigger overlay + dynamic --kf-scale
+   applied to both the canister and the flames) before Step 2 wires in
+   the real challenge/lobby/authority Firebase plumbing.
+
+   Left behind on purpose, per the handoff briefing's own scoping:
+   - Bot teammates / control panel / debug log (testbed-only, never ships)
+   - Subset ("Reset the circuit breaker") + lobby states — Step 2
+   - Escape hatch — still a stub in the testbed itself, not built here
+   - Passive banner for non-participants — moot until multiplayer exists
+
+   Kept, because it's cheap and already correct:
+   - The resolveChallenge() gate checks the real gameState.status, not a
+     stub — so this already behaves correctly if a round ends mid-challenge,
+     even though nothing else about Firebase timing is wired up yet.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ---- layer 1: challenge contract (kept minimal on purpose for Step 1) --- */
+function kfCreateChallenge() {
+  return { id: 'ch_' + Math.random().toString(36).slice(2, 9), status: 'active', startedAt: performance.now() };
+}
+function kfResolveChallenge(challenge, outcome) {
+  if (challenge.status !== 'active') return false;
+  // Real check against this file's own live game state — same hazard
+  // class as completeTask()'s roundInstanceId guard, just not yet keyed
+  // to a specific roundInstanceId since challenges aren't in Firebase yet.
+  if (!gameState || gameState.status !== 'playing') {
+    challenge.status = 'abandoned';
+    return false;
+  }
+  challenge.status = 'resolved';
+  challenge.outcome = outcome;
+  return true;
+}
+
+/* ---- layer 2: field-of-targets engine (generic; verbatim from testbed) --- */
+const KF_CONFIG = {
+  flamesPerPlayer: 4,
+  budgetSlack: 0.15,
+  baseRequiredSec: 3,
+  rateTable: { 1: 1.0, 2: 1.5, 3: 1.75 },
+  rateTableCap: 2.0,
+  sprayRadius: 46,
+  mercyThresholdSec: 14,
+  mercyFloorSec: 1.6,
+  mercyWindowSec: 10,
+  spawnCheckIntervalSec: 2.2,
+  maxSimultaneousMultiplier: 5,
+  maxTargetsPerZone: 5,
+  maxFoamBubbles: 85,
+  foamPileHeight: 30,
+  foamPileWidth: 22.5,
+};
+const kfEngine = {
+  targets: [],
+  budgetRemaining: 0,
+  budgetTotal: 0,
+  lastSpawnCheck: 0,
+  reset(playerCount) {
+    this.targets = [];
+    this.budgetTotal = Math.ceil(playerCount * KF_CONFIG.flamesPerPlayer * (1 + KF_CONFIG.budgetSlack));
+    this.budgetRemaining = this.budgetTotal;
+    this.lastSpawnCheck = 0;
+  },
+  maxSimultaneous(playerCount) { return playerCount * KF_CONFIG.maxSimultaneousMultiplier; },
+  spawnBurst(count, zonePicker) {
+    for (let i = 0; i < count && this.budgetRemaining > 0; i++) this.spawnOne(zonePicker);
+  },
+  spawnOne(zonePicker) {
+    if (this.budgetRemaining <= 0) return null;
+    const zoneId = zonePicker(this.targets);
+    if (!zoneId) return null;
+    const [bx, by] = kfPickSafeSpawnPoint(zoneId);
+    const t = {
+      id: 'f_' + Math.random().toString(36).slice(2, 8),
+      zoneId, bx, by, spentSec: 0, requiredSec: KF_CONFIG.baseRequiredSec,
+      bornAt: performance.now(), stage: 0, status: 'burning', engagedBy: [], foamBubbles: [],
+    };
+    this.targets.push(t);
+    this.budgetRemaining--;
+    return t;
+  },
+  rateFor(engagedCount) {
+    if (engagedCount <= 0) return 0;
+    if (KF_CONFIG.rateTable[engagedCount] !== undefined) return KF_CONFIG.rateTable[engagedCount];
+    return KF_CONFIG.rateTableCap;
+  },
+  tick(dtSec, nowMs) {
+    for (const t of this.targets) {
+      if (t.status === 'out') continue;
+      const ageSec = (nowMs - t.bornAt) / 1000;
+      if (ageSec > KF_CONFIG.mercyThresholdSec) {
+        const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
+        t.requiredSec = KF_CONFIG.baseRequiredSec - mercyProgress * (KF_CONFIG.baseRequiredSec - KF_CONFIG.mercyFloorSec);
+      }
+      const rate = this.rateFor(t.engagedBy.length);
+      if (rate > 0) t.spentSec += dtSec * rate;
+      const frac = t.spentSec / t.requiredSec;
+      t.stage = frac >= 0.9 ? 3 : frac >= 0.66 ? 2 : frac >= 0.33 ? 1 : 0;
+      const desiredBubbles = Math.round(Math.min(1, frac) * KF_CONFIG.maxFoamBubbles);
+      while (t.foamBubbles.length < desiredBubbles) {
+        const heightFrac = Math.pow(Math.random(), 1.3);
+        const dy = -heightFrac * KF_CONFIG.foamPileHeight;
+        const widthAtHeight = KF_CONFIG.foamPileWidth * (1 - heightFrac * 0.6);
+        const dx = (Math.random() - 0.5) * 2 * widthAtHeight;
+        t.foamBubbles.push({ dx, dy, r: 2.5 + Math.random() * 3 });
+      }
+      if (frac >= 1 && t.status === 'burning') { t.status = 'out'; t.outAt = nowMs; }
+    }
+    this.targets = this.targets.filter(t => t.status !== 'out' || (nowMs - t.outAt) < 500);
+    this.lastSpawnCheck += dtSec;
+    if (this.lastSpawnCheck >= KF_CONFIG.spawnCheckIntervalSec) {
+      this.lastSpawnCheck = 0;
+      const activeCount = this.targets.filter(t => t.status === 'burning').length;
+      if (this.budgetRemaining > 0 && activeCount < kf.maxSimultaneous) this.spawnOne(kfZonePicker);
+    }
+  },
+  allCleared() { return this.budgetRemaining <= 0 && this.targets.filter(t => t.status === 'burning').length === 0; },
+};
+
+/* ---- layer 3: Kitchen Fire skin (zones, flame asset, extinguisher) --- */
+const KF_ZONES = ['prep', 'pantry', 'grill', 'stovetop', 'dessert', 'fryer'];
+const kfZoneLastActivity = {};
+const KF_ZONE_PATHS = {
+  prep:     'M0,0 L400,0 L400,100 L200,100 L200,200 L100,200 L100,100 L0,100 Z',
+  pantry:   'M0,100 L100,100 L100,400 L0,400 Z',
+  grill:    'M200,100 L400,100 L400,200 L200,200 Z',
+  stovetop: 'M100,200 L300,200 L300,300 L200,300 L200,400 L100,400 Z',
+  dessert:  'M300,200 L400,200 L400,400 L300,400 Z',
+  fryer:    'M200,300 L300,300 L300,400 L200,400 Z',
+};
+const KF_DIAGRAM_OBJECTS_INNER = `<rect x="10.834" width="523.645" height="51.7626" fill="var(--board-object)"/>
+<rect x="155" y="36.1135" width="119.174" height="168.529" fill="var(--board-object)"/>
+<rect x="573" y="186" width="71" height="200" transform="rotate(90 573 186)" fill="var(--board-object)"/>
+<rect x="397.248" y="335" width="52.9664" height="234.737" transform="rotate(90 397.248 335)" fill="var(--board-object)"/>
+<rect x="573" y="538" width="53" height="209" transform="rotate(-180 573 538)" fill="var(--board-object)"/>
+<path d="M313 572L313 481L392 481L392 572L313 572Z" fill="var(--board-object)"/>
+<rect x="162.51" y="361" width="51.7626" height="210.662" fill="var(--board-object)"/>
+<rect y="196" width="52" height="365" fill="var(--board-object)"/>`;
+const KF_ZONE_LABEL_BOXES = {
+  prep:     { x: 10,  y: 8,   label: 'PREP COUNTER' },
+  pantry:   { x: 10,  y: 108, label: 'PANTRY' },
+  grill:    { x: 210, y: 108, label: 'GRILL' },
+  stovetop: { x: 110, y: 208, label: 'STOVETOP' },
+  dessert:  { x: 310, y: 208, label: 'DESSERT' },
+  fryer:    { x: 210, y: 308, label: 'FRYER' },
+};
+const KF_ZONE_LABEL_FONT = "700 10px -apple-system, BlinkMacSystemFont, sans-serif";
+const KF_ZONE_LABEL_LETTER_SPACING = 0.5;
+const KF_ZONE_LABEL_MARGIN = 7;
+function kfMeasureLabelWidth(text) {
+  if (!kfMeasureLabelWidth._ctx) kfMeasureLabelWidth._ctx = document.createElement('canvas').getContext('2d');
+  const ctx = kfMeasureLabelWidth._ctx;
+  ctx.font = KF_ZONE_LABEL_FONT;
+  return ctx.measureText(text).width + KF_ZONE_LABEL_LETTER_SPACING * Math.max(0, text.length - 1);
+}
+const KF_BOARD_W = 400, KF_BOARD_H = 400;
+const KF_BOARD_MARGIN_LEFT = 84, KF_BOARD_MARGIN_TOP = 30, KF_BOARD_MARGIN_BOTTOM = 78, KF_BOARD_MARGIN_RIGHT = 84;
+const KF_BOARD_VIEW_W = KF_BOARD_MARGIN_LEFT + KF_BOARD_W + KF_BOARD_MARGIN_RIGHT;
+const KF_BOARD_VIEW_H = KF_BOARD_MARGIN_TOP + KF_BOARD_H + KF_BOARD_MARGIN_BOTTOM;
+let kfBoardRect = { w: 0, h: 0 };
+function kfMeasureBoardRect() {
+  const r = document.getElementById('kf-blueprint').getBoundingClientRect();
+  kfBoardRect = { w: r.width, h: r.height };
+}
+function kfBoardToPx(bx, by) {
+  return {
+    x: ((bx + KF_BOARD_MARGIN_LEFT) / KF_BOARD_VIEW_W) * kfBoardRect.w,
+    y: ((by + KF_BOARD_MARGIN_TOP) / KF_BOARD_VIEW_H) * kfBoardRect.h,
+  };
+}
+function kfBuildBoardSVGInner() {
+  let out = `<rect x="0" y="0" width="${KF_BOARD_VIEW_W}" height="${KF_BOARD_VIEW_H}" fill="var(--surface)"/>`;
+  out += `<g transform="translate(${KF_BOARD_MARGIN_LEFT}, ${KF_BOARD_MARGIN_TOP})">`;
+  KF_ZONES.forEach(z => { out += `<path d="${KF_ZONE_PATHS[z]}" fill="var(--board-floor)" stroke="var(--border)" stroke-width="2.4"/>`; });
+  out += `<svg x="0" y="0" width="${KF_BOARD_W}" height="${KF_BOARD_H}" viewBox="0 0 573 572" preserveAspectRatio="none">${KF_DIAGRAM_OBJECTS_INNER}</svg>`;
+  KF_ZONES.forEach(z => { out += `<path d="${KF_ZONE_PATHS[z]}" fill="none" stroke="var(--border)" stroke-width="2.4"/>`; });
+  out += `<g font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="10" letter-spacing="0.5">`;
+  KF_ZONES.forEach(z => {
+    const b = KF_ZONE_LABEL_BOXES[z];
+    const boxW = kfMeasureLabelWidth(b.label) + KF_ZONE_LABEL_MARGIN * 2;
+    out += `<rect x="${b.x}" y="${b.y}" width="${boxW}" height="17" rx="4" fill="var(--text)"/><text x="${b.x + KF_ZONE_LABEL_MARGIN}" y="${b.y + 12}" fill="var(--bg)">${b.label}</text>`;
+  });
+  out += `</g></g>`;
+  const midX = KF_BOARD_VIEW_W / 2;
+  const textTop = KF_BOARD_MARGIN_TOP + KF_BOARD_H + 22;
+  out += `<text x="${midX}" y="${textTop}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="15" fill="var(--text)">
+    <tspan x="${midX}" dy="0">Aim your extinguisher at the flames.</tspan>
+    <tspan x="${midX}" dy="20">Coordinate as a team to put them all out.</tspan>
+    <tspan x="${midX}" dy="20">Your clock is still ticking.</tspan>
+  </text>`;
+  return out;
+}
+const KF_ZONE_SAFE_POINTS = {
+  prep:     [[50,50],[150,50],[250,50],[350,50],[150,150]],
+  pantry:   [[50,150],[50,250],[50,350]],
+  grill:    [[250,150],[350,150]],
+  stovetop: [[150,250],[250,250],[150,350]],
+  dessert:  [[350,250],[350,350]],
+  fryer:    [[250,350]],
+};
+function kfPickSafeSpawnPoint(zoneId) {
+  const points = KF_ZONE_SAFE_POINTS[zoneId] || [[200, 200]];
+  const [x, y] = points[Math.floor(Math.random() * points.length)];
+  const jitter = () => (Math.random() - 0.5) * 24;
+  return [x + jitter(), y + jitter()];
+}
+function kfZonePicker(existingTargets) {
+  const counts = {};
+  existingTargets.forEach(t => { if (t.status === 'burning') counts[t.zoneId] = (counts[t.zoneId] || 0) + 1; });
+  const now = performance.now();
+  const eligible = KF_ZONES.filter(z => (counts[z] || 0) < KF_CONFIG.maxTargetsPerZone);
+  if (eligible.length === 0) return null;
+  const weights = eligible.map(z => 1 + (now - (kfZoneLastActivity[z] || 0)) / 1000);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < eligible.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { kfZoneLastActivity[eligible[i]] = now; return eligible[i]; }
+  }
+  kfZoneLastActivity[eligible[0]] = now;
+  return eligible[0];
+}
+
+// Real uploaded flame asset (verbatim from the testbed) — internal ids are
+// rewritten per-instance in kfBuildFlameSVG() to avoid the id-collision bug
+// documented in the handoff briefing (many flames exist simultaneously).
+const KF_FLAME_ASSET_RAW = `<style>
+@keyframes kf_Frame_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } 20% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.061rad) translate(-42.152px, -160px); } 42% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.031rad) translate(-42.152px, -160px); } 60% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.038rad) translate(-42.152px, -160px); } 80% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.044rad) translate(-42.152px, -160px); } 100% { transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } }
+#Frame { transform-origin: 0 0; animation: kf_Frame_transform_0 2.4s linear infinite; }
+@keyframes kf_Frame_2_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 1; } 7.5% { animation-timing-function: ease-in-out; opacity: 0.95; } 16.88% { animation-timing-function: ease-in-out; opacity: 1; } 27.5% { animation-timing-function: ease-in-out; opacity: 0.9; } 38.13% { animation-timing-function: ease-in-out; opacity: 0.97; } 48.75% { animation-timing-function: ease-in-out; opacity: 0.93; } 62.5% { animation-timing-function: linear; opacity: 1; } 100% { opacity: 1; } }
+#Frame_2 { animation: kf_Frame_2_opacity_0 2.4s linear infinite; }
+@keyframes kf_Frame_3_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } 14.63% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0.052rad) translate(-30.191px, -142px); } 30.88% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(-0.026rad) translate(-30.191px, -142px); } 47.13% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0.049rad) translate(-30.191px, -142px); } 63.38% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(-0.035rad) translate(-30.191px, -142px); } 81.25% { transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } 100% { transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } }
+#Frame_3 { transform-origin: 0 0; animation: kf_Frame_3_transform_0 2.4s linear infinite; }
+@keyframes kf_Frame_4_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(0px); } 8.62% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-5px); } 16.77% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(2px); } 26.35% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-7px); } 34.5% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(1px); } 42.17% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-3px); } 47.92% { transform: translateX(0px) translateY(0px); } 100% { transform: translateX(0px) translateY(0px); } }
+@keyframes kf_Frame_4_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 0.92; } 8.62% { animation-timing-function: ease-in-out; opacity: 1; } 16.77% { animation-timing-function: ease-in-out; opacity: 0.85; } 26.35% { animation-timing-function: ease-in-out; opacity: 0.97; } 34.5% { animation-timing-function: ease-in-out; opacity: 0.88; } 42.17% { animation-timing-function: ease-in-out; opacity: 0.94; } 47.92% { animation-timing-function: linear; opacity: 0.92; } 100% { opacity: 0.92; } }
+#Frame_4 { transform-origin: 0 0; animation: kf_Frame_4_transform_0 2.4s linear infinite, kf_Frame_4_opacity_0 2.4s linear infinite; }
+@keyframes kf_Frame_5_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } 8.71% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-9px); } 16.63% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-2px); } 25.33% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-11px); } 32.46% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-1px); } 39.58% { transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } 100% { transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } }
+@keyframes kf_Frame_5_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 1; } 8.71% { animation-timing-function: ease-in-out; opacity: 0.88; } 16.63% { animation-timing-function: ease-in-out; opacity: 0.95; } 25.33% { animation-timing-function: ease-in-out; opacity: 1; } 32.46% { animation-timing-function: ease-in-out; opacity: 0.9; } 39.58% { animation-timing-function: linear; opacity: 1; } 100% { opacity: 1; } }
+#Frame_5 { transform-origin: 0 0; animation: kf_Frame_5_transform_0 2.4s linear infinite, kf_Frame_5_opacity_0 2.4s linear infinite; }
+</style>
+<g id="Icon_-_Flickering_flame" clip-path="url(#clip0_23_174)">
+<g id="Frame" filter="url(#filter0_f_23_174)" transform="translate(37.8485 22)">
+<g id="Frame_2">
+<path id="Vector" d="M42.1515 160C16.1515 160 -1.84847 138 0.151535 114C2.15153 92 14.1515 78 20.1515 60C25.1515 45 24.1515 28 19.1515 10C29.1515 26 36.1515 44 34.1515 62C38.1515 42 42.1515 20 40.1515 0C44.1515 20 48.1515 42 52.1515 62C50.1515 44 55.1515 26 66.1515 10C61.1515 28 60.1515 45 65.1515 60C71.1515 78 82.1515 92 84.1515 114C86.1515 138 68.1515 160 42.1515 160Z" fill="url(#paint0_radial_23_174)"/>
+</g>
+</g>
+<g id="Frame_3" transform="translate(49.8095 34)">
+<g id="Frame_4" opacity="0.92">
+<path id="Vector_2" opacity="0.95" d="M30.1905 142C12.1905 142 -1.80946 126 0.190538 107C2.19054 90 12.1905 78 17.1905 62C21.1905 48 21.1905 33 18.1905 16C26.1905 30 30.1905 46 29.1905 62C31.1905 42 33.1905 20 30.1905 0C27.1905 20 29.1905 42 31.1905 62C30.1905 46 34.1905 30 42.1905 16C39.1905 33 39.1905 48 43.1905 62C48.1905 78 58.1905 90 60.1905 107C62.1905 126 48.1905 142 30.1905 142Z" fill="url(#paint1_radial_23_174)"/>
+</g>
+</g>
+<g id="Frame_5" transform="translate(62.9154 75)">
+<path id="Vector_3" d="M17.0846 95C7.08457 95 -0.915426 85 0.0845743 72C1.08457 60 9.08457 50 12.0846 37C14.0846 26 14.0846 14 11.0846 0C16.0846 12 17.0846 25 17.0846 37C17.0846 25 18.0846 12 23.0846 0C20.0846 14 20.0846 26 22.0846 37C25.0846 50 33.0846 60 34.0846 72C35.0846 85 27.0846 95 17.0846 95Z" fill="url(#paint2_radial_23_174)"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_f_23_174" x="-12" y="-12" width="108.303" height="184" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="6" result="effect1_foregroundBlur_23_174"/>
+</filter>
+<radialGradient id="paint0_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(42.1515 115.2) scale(46.3667 88)">
+<stop stop-color="#FF6520"/>
+<stop offset="0.55" stop-color="#E83000"/>
+<stop offset="1" stop-color="#8B1200" stop-opacity="0.6"/>
+</radialGradient>
+<radialGradient id="paint1_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(30.1905 92.3) scale(30.1905 71)">
+<stop stop-color="#FFD040"/>
+<stop offset="0.5" stop-color="#FF9000"/>
+<stop offset="1" stop-color="#FF4000" stop-opacity="0.4"/>
+</radialGradient>
+<radialGradient id="paint2_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(17.0846 55.1) scale(14.351 39.9)">
+<stop stop-color="#FFFCF0"/>
+<stop offset="0.35" stop-color="#FFEC80"/>
+<stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_23_174">
+<rect width="160" height="200" fill="white"/>
+</clipPath>
+</defs>`;
+const KF_FLAME_ASSET_IDS = [
+  'Frame', 'Frame_2', 'Frame_3', 'Frame_4', 'Frame_5',
+  'filter0_f_23_174', 'paint0_radial_23_174', 'paint1_radial_23_174', 'paint2_radial_23_174', 'clip0_23_174',
+  'kf_Frame_transform_0', 'kf_Frame_2_opacity_0', 'kf_Frame_3_transform_0',
+  'kf_Frame_4_transform_0', 'kf_Frame_4_opacity_0', 'kf_Frame_5_transform_0', 'kf_Frame_5_opacity_0',
+];
+function kfBuildFlameSVG(uid) {
+  let svg = KF_FLAME_ASSET_RAW;
+  KF_FLAME_ASSET_IDS.forEach(id => { svg = svg.replace(new RegExp('\\b' + id + '\\b', 'g'), id + '_' + uid); });
+  return `<svg viewBox="0 0 160 200" width="100%" height="100%">${svg}</svg>`;
+}
+
+/*
+  DYNAMIC SCALE FIX (Session 9) — the concretely-verified risk from the
+  handoff briefing: the canister's fixed-CSS-pixel rightward reach (~108px)
+  only clears the board's right margin once the board renders at ~731px+
+  wide, and the extinguisher and flames were BOTH fixed px, tuned at one
+  specific render width. Fix: measure the board's actual width every time
+  the challenge opens or the window resizes, and derive one multiplier
+  (kfScale) from it, applied uniformly to the canister geometry (below)
+  and to the flames (via the --kf-scale CSS var, set in kfApplyScale()).
+  KF_REFERENCE_BOARD_W is the width the original fixed sizes (105px-tall
+  canister, 84px-tall flame) were tuned at — recalibrate this constant if
+  that assumption turns out to be wrong once seen at real size.
+*/
+const KF_REFERENCE_BOARD_W = 700;
+let kfScale = 1;
+function kfComputeScale() {
+  kfMeasureBoardRect();
+  kfScale = kfBoardRect.w > 0 ? kfBoardRect.w / KF_REFERENCE_BOARD_W : 1;
+  return kfScale;
+}
+function kfApplyScale() {
+  document.getElementById('kf-blueprint').style.setProperty('--kf-scale', kfScale);
+}
+
+const KF_EXT_SCALE_BASE = 105 / 375;
+const KF_EXT_CANISTER_ORIGIN = { x: 242.602, y: 12.605 };
+const KF_EXT_CANISTER_SIZE = { w: 144, h: 375 };
+const KF_EXT_NOZZLE_POINTS_RAW = [[0, 55.8907], [87.4451, 64.0661], [93.8761, 43.8503], [17.78, 0]];
+const KF_EXT_NOZZLE_EXIT_RAW = { x: (0 + 17.78) / 2, y: (55.8907 + 0) / 2 };
+const KF_EXT_HOSE_RAW = {
+  P0: { x: 289.744, y: 37.4958 }, P1: { x: 237.102, y: 69.105 },
+  Pmid: { x: 177.102, y: 302.605 }, P3: { x: 122.602, y: 95.105 }, P4: { x: 80.1022, y: 48.6052 },
+  cp2s1_offP1: { x: 5, y: -34.5 }, cp1s2_offP1: { x: -11.305, y: 78 },
+  cp2s2_offPmid: { x: 44.001, y: 0 }, cp1s3_offPmid: { x: -44.001, y: 0 },
+  cp2s3_offP3: { x: 6, y: 64.5 }, cp1s4_offP3: { x: -2.93, y: -31.5 },
+};
+function kfExtScaleVal() { return KF_EXT_SCALE_BASE * kfScale; } // replaces the testbed's fixed EXT_SCALE
+function kfExtScale(pt) { const s = kfExtScaleVal(); return { x: pt.x * s, y: pt.y * s }; }
+
+const KF_FOAM_VX_AVG = -360, KF_FOAM_VX_JITTER = 54;
+const KF_FOAM_VY0_AVG = -70, KF_FOAM_VY0_JITTER = 14;
+const KF_GRAVITY = 480;
+const KF_VX_DRAG = 4.5;
+const KF_FOAM_SETTLE_TIME = 0.42;
+function kfComputeFoamLandingOffset() {
+  const exit = kfExtScale(KF_EXT_NOZZLE_EXIT_RAW);
+  let x = exit.x, y = exit.y, vx = KF_FOAM_VX_AVG, vy = KF_FOAM_VY0_AVG;
+  const dt = 1 / 120, steps = Math.round(KF_FOAM_SETTLE_TIME / dt);
+  for (let i = 0; i < steps; i++) {
+    x += vx * dt; y += vy * dt;
+    vx *= Math.max(0, 1 - KF_VX_DRAG * dt);
+    vy += KF_GRAVITY * dt;
+  }
+  return { x, y };
+}
+// Recomputed whenever kfScale changes (open + resize), not just once —
+// unlike the testbed, this offset now depends on a value that can change.
+let kfFoamLandingOffset = { x: 0, y: 0 };
+
+/* ---- runtime state: single local player for Step 1 ---- */
+const kf = {
+  challenge: null,
+  you: { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null },
+  particlesOver: [],
+  hoseWobble: { x: 0, y: 0 }, hoseWobbleVel: { x: 0, y: 0 }, _prevNozzle: null,
+  lastFrameMs: 0, loopHandle: null, maxSimultaneous: 5,
+};
+
+function kfSetupPointerInput() {
+  const container = document.getElementById('kf-blueprint');
+  function updatePos(e) {
+    const rect = container.getBoundingClientRect();
+    kf.you.x = e.clientX - rect.left;
+    kf.you.y = e.clientY - rect.top;
+  }
+  container.addEventListener('pointerdown', e => { container.setPointerCapture(e.pointerId); updatePos(e); kf.you.spraying = true; });
+  container.addEventListener('pointermove', e => { updatePos(e); });
+  container.addEventListener('pointerup',    () => { kf.you.spraying = false; });
+  container.addEventListener('pointercancel',() => { kf.you.spraying = false; });
+}
+
+const KF_ENGAGE_MIN_DWELL_MS = 1300;
+const KF_ENGAGE_SWITCH_MARGIN = 0.42;
+function kfRecomputeEngagement() {
+  kfEngine.targets.forEach(t => t.engagedBy = []);
+  const nowMs = performance.now();
+  const p = kf.you;
+  if (!p.spraying) { p._stickyTargetId = null; p._engagedTargetId = null; return; }
+  const landX = p.x + kfFoamLandingOffset.x, landY = p.y + kfFoamLandingOffset.y;
+  let best = null, bestD = Infinity;
+  kfEngine.targets.forEach(t => {
+    if (t.status !== 'burning') return;
+    const { x: tx, y: ty } = kfBoardToPx(t.bx, t.by);
+    const d = Math.hypot(tx - landX, ty - landY);
+    if (d <= KF_CONFIG.sprayRadius && d < bestD) { bestD = d; best = t; }
+  });
+  const stickyTarget = p._stickyTargetId ? kfEngine.targets.find(t => t.id === p._stickyTargetId && t.status === 'burning') : null;
+  let chosen = null;
+  if (stickyTarget) {
+    const { x: stx, y: sty } = kfBoardToPx(stickyTarget.bx, stickyTarget.by);
+    const stickyDist = Math.hypot(stx - landX, sty - landY);
+    const stillInRange = stickyDist <= KF_CONFIG.sprayRadius;
+    const dwellElapsed = (nowMs - (p._stickySince || 0)) > KF_ENGAGE_MIN_DWELL_MS;
+    const meaningfullyCloser = best && best.id !== stickyTarget.id && bestD < stickyDist * KF_ENGAGE_SWITCH_MARGIN;
+    if (stillInRange && !(dwellElapsed && meaningfullyCloser)) chosen = stickyTarget;
+  }
+  if (!chosen) { chosen = best; if (chosen && chosen.id !== p._stickyTargetId) { p._stickyTargetId = chosen.id; p._stickySince = nowMs; } }
+  if (!chosen) p._stickyTargetId = null;
+  if (chosen) chosen.engagedBy.push('you');
+  p._engagedTargetId = chosen ? chosen.id : null;
+}
+
+let kfFxUnderCtx, kfFxOverCtx;
+function kfResizeCanvases() {
+  const container = document.getElementById('kf-blueprint');
+  const rect = container.getBoundingClientRect();
+  ['kf-fx-under', 'kf-fx-over'].forEach(id => {
+    const cv = document.getElementById(id);
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = rect.width * dpr; cv.height = rect.height * dpr;
+    cv.style.width = rect.width + 'px'; cv.style.height = rect.height + 'px';
+    cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  });
+  kfFxUnderCtx = document.getElementById('kf-fx-under').getContext('2d');
+  kfFxOverCtx  = document.getElementById('kf-fx-over').getContext('2d');
+}
+
+const kfFlameEls = new Map();
+function kfRenderTargets() {
+  const flamesLayer = document.getElementById('kf-flames-layer');
+  const seen = new Set();
+  kfEngine.targets.forEach(t => {
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    seen.add(t.id);
+    let flameEl = kfFlameEls.get(t.id);
+    if (!flameEl) {
+      flameEl = document.createElement('div');
+      flameEl.className = 'kf-flame';
+      flameEl.innerHTML = kfBuildFlameSVG(t.id);
+      flamesLayer.appendChild(flameEl);
+      kfFlameEls.set(t.id, flameEl);
+    }
+    flameEl.style.left = px + 'px';
+    flameEl.style.top = py + 'px';
+    flameEl.className = 'kf-flame stage-' + t.stage + (t.status === 'out' ? ' puffing' : '');
+  });
+  for (const [id, flameEl] of kfFlameEls) {
+    if (!seen.has(id)) { flameEl.remove(); kfFlameEls.delete(id); }
+  }
+}
+
+function kfRenderFoam() {
+  const { width, height } = kfFxUnderCtx.canvas;
+  kfFxUnderCtx.clearRect(0, 0, width, height);
+  kfEngine.targets.forEach(t => {
+    if (!t.foamBubbles.length) return;
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    t.foamBubbles.forEach(b => {
+      kfFxUnderCtx.beginPath();
+      kfFxUnderCtx.arc(px + b.dx * kfScale, py + b.dy * kfScale, b.r * kfScale, 0, Math.PI * 2);
+      kfFxUnderCtx.fillStyle = 'rgba(255,253,246,0.92)';
+      kfFxUnderCtx.fill();
+      kfFxUnderCtx.lineWidth = 1;
+      kfFxUnderCtx.strokeStyle = 'rgba(184,147,92,0.45)';
+      kfFxUnderCtx.stroke();
+    });
+  });
+}
+
+function kfRenderSpray(dtSec) {
+  const { width, height } = kfFxOverCtx.canvas;
+  kfFxOverCtx.clearRect(0, 0, width, height);
+  const p = kf.you;
+  const cursorX = p.x, cursorY = p.y;
+  const extScaleVal = kfExtScaleVal();
+
+  if (!kf._prevNozzle) kf._prevNozzle = { x: cursorX, y: cursorY };
+  const velX = (cursorX - kf._prevNozzle.x) / Math.max(dtSec, 0.001);
+  const velY = (cursorY - kf._prevNozzle.y) / Math.max(dtSec, 0.001);
+  const KICK = 5.5, springK = 48, damping = 3.6;
+  kf.hoseWobbleVel.x += -velX * KICK * dtSec;
+  kf.hoseWobbleVel.y += -velY * KICK * dtSec;
+  kf.hoseWobbleVel.x += (-springK * kf.hoseWobble.x - damping * kf.hoseWobbleVel.x) * dtSec;
+  kf.hoseWobbleVel.y += (-springK * kf.hoseWobble.y - damping * kf.hoseWobbleVel.y) * dtSec;
+  kf.hoseWobble.x += kf.hoseWobbleVel.x * dtSec;
+  kf.hoseWobble.y += kf.hoseWobbleVel.y * dtSec;
+  const wobbleMag = Math.hypot(kf.hoseWobble.x, kf.hoseWobble.y);
+  const wobbleCap = 80 * kfScale;
+  if (wobbleMag > wobbleCap) { kf.hoseWobble.x *= wobbleCap / wobbleMag; kf.hoseWobble.y *= wobbleCap / wobbleMag; }
+  kf._prevNozzle = { x: cursorX, y: cursorY };
+
+  const H = KF_EXT_HOSE_RAW;
+  const P0 = { x: cursorX + H.P0.x * extScaleVal, y: cursorY + H.P0.y * extScaleVal };
+  const P1 = { x: cursorX + H.P1.x * extScaleVal, y: cursorY + H.P1.y * extScaleVal };
+  const P3 = { x: cursorX + H.P3.x * extScaleVal, y: cursorY + H.P3.y * extScaleVal };
+  const P4 = { x: cursorX + H.P4.x * extScaleVal, y: cursorY + H.P4.y * extScaleVal };
+  const Pmid = { x: cursorX + H.Pmid.x * extScaleVal + kf.hoseWobble.x, y: cursorY + H.Pmid.y * extScaleVal + kf.hoseWobble.y };
+  const cp1s1 = P0;
+  const cp2s1 = { x: P1.x + H.cp2s1_offP1.x * extScaleVal, y: P1.y + H.cp2s1_offP1.y * extScaleVal };
+  const cp1s2 = { x: P1.x + H.cp1s2_offP1.x * extScaleVal, y: P1.y + H.cp1s2_offP1.y * extScaleVal };
+  const cp2s2 = { x: Pmid.x + H.cp2s2_offPmid.x * extScaleVal, y: Pmid.y + H.cp2s2_offPmid.y * extScaleVal };
+  const cp1s3 = { x: Pmid.x + H.cp1s3_offPmid.x * extScaleVal, y: Pmid.y + H.cp1s3_offPmid.y * extScaleVal };
+  const cp2s3 = { x: P3.x + H.cp2s3_offP3.x * extScaleVal, y: P3.y + H.cp2s3_offP3.y * extScaleVal };
+  const cp1s4 = { x: P3.x + H.cp1s4_offP3.x * extScaleVal, y: P3.y + H.cp1s4_offP3.y * extScaleVal };
+  const cp2s4 = P4;
+
+  kfFxOverCtx.beginPath();
+  kfFxOverCtx.moveTo(P0.x, P0.y);
+  kfFxOverCtx.bezierCurveTo(cp1s1.x, cp1s1.y, cp2s1.x, cp2s1.y, P1.x, P1.y);
+  kfFxOverCtx.bezierCurveTo(cp1s2.x, cp1s2.y, cp2s2.x, cp2s2.y, Pmid.x, Pmid.y);
+  kfFxOverCtx.bezierCurveTo(cp1s3.x, cp1s3.y, cp2s3.x, cp2s3.y, P3.x, P3.y);
+  kfFxOverCtx.bezierCurveTo(cp1s4.x, cp1s4.y, cp2s4.x, cp2s4.y, P4.x, P4.y);
+  kfFxOverCtx.strokeStyle = 'rgba(20,18,15,0.88)';
+  kfFxOverCtx.lineWidth = 6 * kfScale;
+  kfFxOverCtx.lineCap = 'round';
+  kfFxOverCtx.stroke();
+
+  if (p.spraying) {
+    const exit = kfExtScale(KF_EXT_NOZZLE_EXIT_RAW);
+    const exitX = cursorX + exit.x, exitY = cursorY + exit.y;
+    for (let i = 0; i < 3; i++) {
+      kf.particlesOver.push({
+        x: exitX, y: exitY + (Math.random() - 0.5) * 6 * kfScale,
+        vx: (KF_FOAM_VX_AVG + (Math.random() - 0.5) * 2 * KF_FOAM_VX_JITTER) * kfScale,
+        vy: (KF_FOAM_VY0_AVG + (Math.random() - 0.5) * 2 * KF_FOAM_VY0_JITTER) * kfScale,
+        life: 0.5, maxLife: 0.5, r: (3 + Math.random() * 4.5) * 0.7 * kfScale,
+      });
+    }
+  }
+
+  kf.particlesOver.forEach(pt => {
+    pt.x += pt.vx * dtSec; pt.y += pt.vy * dtSec; pt.life -= dtSec;
+    pt.vx *= Math.max(0, 1 - KF_VX_DRAG * dtSec);
+    pt.vy += KF_GRAVITY * kfScale * dtSec;
+  });
+  kf.particlesOver = kf.particlesOver.filter(pt => pt.life > 0);
+  kf.particlesOver.forEach(pt => {
+    const ageFrac = 1 - pt.life / pt.maxLife;
+    const rad = pt.r * (0.5 + ageFrac * 1.15);
+    kfFxOverCtx.globalAlpha = Math.max(0, pt.life / pt.maxLife) * 0.92;
+    kfFxOverCtx.beginPath(); kfFxOverCtx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+    kfFxOverCtx.fillStyle = '#FFFDF8';
+    kfFxOverCtx.fill();
+    kfFxOverCtx.lineWidth = 1;
+    kfFxOverCtx.strokeStyle = 'rgba(184,147,92,0.5)';
+    kfFxOverCtx.stroke();
+  });
+  kfFxOverCtx.globalAlpha = 1;
+
+  kfFxOverCtx.beginPath();
+  KF_EXT_NOZZLE_POINTS_RAW.forEach((pt, i) => {
+    const s = kfExtScale({ x: pt[0], y: pt[1] });
+    const x = cursorX + s.x, y = cursorY + s.y;
+    if (i === 0) kfFxOverCtx.moveTo(x, y); else kfFxOverCtx.lineTo(x, y);
+  });
+  kfFxOverCtx.closePath();
+  kfFxOverCtx.fillStyle = 'black';
+  kfFxOverCtx.fill();
+
+  const youEl = document.getElementById('kf-extinguisher-icon');
+  if (youEl) {
+    youEl.style.width = (KF_EXT_CANISTER_SIZE.w * extScaleVal) + 'px';
+    youEl.style.height = (KF_EXT_CANISTER_SIZE.h * extScaleVal) + 'px';
+    youEl.style.left = (cursorX + KF_EXT_CANISTER_ORIGIN.x * extScaleVal) + 'px';
+    youEl.style.top = (cursorY + KF_EXT_CANISTER_ORIGIN.y * extScaleVal) + 'px';
+  }
+}
+
+function kfLoop(ts) {
+  if (!kf.challenge || kf.challenge.status !== 'active') { kf.loopHandle = null; return; }
+  if (!kf.lastFrameMs) kf.lastFrameMs = ts;
+  let dtSec = Math.min((ts - kf.lastFrameMs) / 1000, 0.08);
+  kf.lastFrameMs = ts;
+
+  kfRecomputeEngagement();
+  kfEngine.tick(dtSec, ts);
+  kfRenderTargets();
+  kfRenderFoam();
+  kfRenderSpray(dtSec);
+  const remaining = kfEngine.targets.filter(t => t.status === 'burning').length;
+  document.getElementById('kf-flame-count-readout').textContent = `${remaining} fire${remaining !== 1 ? 's' : ''} still burning`;
+  document.getElementById('kf-budget-readout').textContent = `${kfEngine.budgetRemaining} more may still spawn`;
+
+  if (kfEngine.allCleared()) { kfFinishChallenge('cleared'); return; }
+  kf.loopHandle = requestAnimationFrame(kfLoop);
+}
+
+function kfFinishChallenge(outcome) {
+  const ok = kfResolveChallenge(kf.challenge, outcome);
+  if (!ok) return; // round already ended — leave the screen alone, per the resolveChallenge gate
+  document.getElementById('kf-success-banner').classList.add('show');
+  document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
+  setTimeout(() => { document.getElementById('kf-overlay').classList.remove('active'); }, 1500);
+}
+
+function kfTriggerChallenge() {
+  // Local-only guard for Step 1 (no Firebase activeChallengeId yet).
+  if (kf.challenge && kf.challenge.status === 'active') return;
+
+  kf.challenge = kfCreateChallenge();
+  document.getElementById('kf-overlay').classList.add('active');
+  document.getElementById('kf-success-banner').classList.remove('show');
+
+  // Measure only after the overlay is visible — display:none gives a 0 rect.
+  kfComputeScale();
+  kfApplyScale();
+  kfResizeCanvases();
+  kfFoamLandingOffset = kfComputeFoamLandingOffset();
+
+  Object.keys(kfZoneLastActivity).forEach(k => delete kfZoneLastActivity[k]);
+  const playerCount = 1; // Step 1: solo local test; real player count comes in Step 2
+  kf.maxSimultaneous = kfEngine.maxSimultaneous(playerCount);
+  kfEngine.reset(playerCount);
+  kfEngine.spawnBurst(playerCount * KF_CONFIG.flamesPerPlayer, kfZonePicker);
+
+  kf.you = { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null };
+  kf.particlesOver = [];
+  kf.hoseWobble = { x: 0, y: 0 };
+  kf.hoseWobbleVel = { x: 0, y: 0 };
+  kf._prevNozzle = null;
+
+  kf.lastFrameMs = 0;
+  kf.loopHandle = requestAnimationFrame(kfLoop);
+}
+
+/* ---- boot ---- */
+document.getElementById('kf-blueprint-svg').setAttribute('viewBox', `0 0 ${KF_BOARD_VIEW_W} ${KF_BOARD_VIEW_H}`);
+document.getElementById('kf-blueprint-svg').innerHTML = kfBuildBoardSVGInner();
+kfSetupPointerInput();
+(function kfAddExtinguisherIcon() {
+  const el = document.createElement('div');
+  el.id = 'kf-extinguisher-icon';
+  el.className = 'kf-extinguisher-icon';
+  el.innerHTML = `<svg viewBox="0 0 144 375" width="100%" height="100%">
+    <path d="M144 12H85.3584C85.3598 12.0022 85.3609 12.0046 85.3623 12.0068C87.9009 11.9724 90.446 12.1415 92.9727 12.5205C100.35 13.6273 107.36 16.474 113.419 20.8262C119.478 25.1783 124.414 30.9109 127.819 37.5488C130.357 42.4952 131.989 47.8391 132.656 53.3281C133.035 56.4453 130.454 59 127.313 59C124.173 58.9998 121.674 56.4382 121.175 53.3379C120.582 49.656 119.413 46.0783 117.7 42.7393C115.119 37.7074 111.377 33.3616 106.784 30.0625C102.191 26.7636 96.8786 24.6056 91.2861 23.7666C90.5105 23.6502 89.7321 23.5609 88.9531 23.4961C88.9827 23.9937 89 24.495 89 25C89 31.7374 86.3335 37.851 82 42.3467V63.041C88.1595 63.5492 93 68.7093 93 75H35C35 68.7093 39.8405 63.5492 46 63.041V42.3467C41.6665 37.851 39 31.7374 39 25C39 11.1929 50.1929 0 64 0C64.6732 0 65.3402 0.0268754 66 0.0791016V0H134.662L144 12Z" fill="black"/>
+    <path d="M0 119C0 94.1472 20.1472 74 45 74H88C110.091 74 128 91.9086 128 114V360C128 368.284 121.284 375 113 375H15C6.71573 375 0 368.284 0 360V119Z" fill="var(--accent)"/>
+    <rect x="32" y="135" width="64" height="39" fill="black"/>
+    <rect x="32" y="186" width="64" height="62" fill="black"/>
+  </svg>`;
+  document.getElementById('kf-blueprint').appendChild(el);
+})();
+window.addEventListener('resize', () => {
+  if (!document.getElementById('kf-overlay').classList.contains('active')) return;
+  kfComputeScale();
+  kfApplyScale();
+  kfResizeCanvases();
+  kfFoamLandingOffset = kfComputeFoamLandingOffset();
+});
+document.getElementById('btn-trigger-challenge').addEventListener('click', kfTriggerChallenge);
 
 init();
 </script>
