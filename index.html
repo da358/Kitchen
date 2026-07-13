@@ -891,6 +891,48 @@
   .kf-success-banner .big { font-family: var(--font-hero, var(--font-display)); font-size: 24px; color: var(--accept); font-weight: 700; }
   .kf-success-banner .small { font-size: 12.5px; color: var(--text-2); }
 
+  /* ── SHARED CHALLENGE LOBBY (Session 9, Step 2) ──────────────
+     Deliberately a SEPARATE, smaller overlay from #kf-overlay — this is a
+     message/roster screen, not the board. Two inner views toggle by
+     scope: all-hands is a passive countdown (no controls, per spec);
+     subset is a roster with per-player toggle buttons. Subset is
+     groundwork only — no subset challenge type exists yet, so this path
+     is untested against a real second challenge. */
+  #kf-lobby-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9650;
+    background: rgba(20,18,15,0.72); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  #kf-lobby-overlay.active { display: flex; }
+  .kf-lobby-modal {
+    width: min(440px, calc(100vw - 32px));
+    background: var(--bg); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); border: 3px solid var(--accent-2);
+    padding: 28px 24px; text-align: center;
+  }
+  .kf-lobby-alert {
+    font-weight: 700; color: var(--accent); font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .kf-lobby-message { font-size: 16px; color: var(--text); margin-bottom: 18px; line-height: 1.4; }
+  .kf-lobby-countdown-num {
+    font-family: var(--font-display); font-size: 56px; font-weight: 700;
+    color: var(--accent); line-height: 1;
+  }
+  .kf-lobby-roster { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; text-align: left; }
+  .kf-lobby-roster-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .kf-lobby-roster-row .name { font-weight: 600; font-size: 14px; }
+  .kf-lobby-imonit-btn {
+    font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--bg); color: var(--text-2);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .kf-lobby-imonit-btn.selected { background: var(--accept); border-color: var(--accept); color: #fff; }
+
   /* ── COOKING ACTIVITY MODAL ─────────────────────────────── */
   #activity-modal-overlay {
     display: none; position: fixed; inset: 0;
@@ -1245,7 +1287,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1398,6 +1440,25 @@
     <div class="confirm-modal-actions">
       <button class="btn btn-secondary" id="confirm-modal-cancel" style="flex:1;">Cancel</button>
       <button class="btn btn-primary"   id="confirm-modal-ok"     style="flex:1;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHARED CHALLENGE LOBBY (Session 9, Step 2) ═══════════════
+     Full-screen takeover for everyone while a challenge is being set up
+     (round clock keeps ticking underneath). Two views toggle by scope. -->
+<div id="kf-lobby-overlay">
+  <div class="kf-lobby-modal">
+    <div id="kf-lobby-allhands">
+      <div class="kf-lobby-alert">Alert</div>
+      <div class="kf-lobby-message" id="kf-lobby-allhands-message">All-hands crisis starting in…</div>
+      <div class="kf-lobby-countdown-num" id="kf-lobby-countdown-num">3</div>
+    </div>
+    <div id="kf-lobby-subset" style="display:none;">
+      <div class="kf-lobby-alert">Alert</div>
+      <div class="kf-lobby-message" id="kf-lobby-subset-message">Some people are needed to handle a crisis.</div>
+      <div class="kf-lobby-roster" id="kf-lobby-roster"></div>
+      <button class="btn btn-primary" id="kf-lobby-letsgo-btn" disabled style="width:100%;">Let's go</button>
     </div>
   </div>
 </div>
@@ -3417,6 +3478,16 @@ async function startRoundInFirebase(players, roundType, duration) {
   updates[`games/${gameCode}/transfers`]   = null;
   updates[`games/${gameCode}/taskTrades`]  = null;
 
+  // Shared challenges (Session 9) — Round 3 only, once per round for now.
+  // Stamped here (same moment as roundInstanceId/endTime) so every client
+  // agrees on the trigger time without any client needing to keep polling
+  // a clock nobody else can see — same idea as endTime itself.
+  updates[`games/${gameCode}/activeChallengeId`]    = null;
+  updates[`games/${gameCode}/naturalChallengeFired`] = isR3 ? false : null;
+  updates[`games/${gameCode}/challengeTriggerAt`]    = isR3
+    ? Date.now() + (90_000 + Math.random() * 90_000) // 1.5–3 min into the round
+    : null;
+
   playerIds.forEach(pid => {
     const allTasks = setup.playerTasks[pid] || [];
     // For R3: first task becomes activeTaskId, rest go into taskQueue
@@ -3674,6 +3745,28 @@ function enterGame() {
       if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
     }
 
+    // Shared challenges (Session 9) — natural clock trigger. Gated on
+    // amHost, matching this file's existing convention for "a background
+    // condition became true, someone has to be the one to act on it" (see
+    // the taskTarget check just above). Keyed off gameState.roundInstanceId
+    // directly (rather than the local currentRound var, whose refresh
+    // timing across round transitions isn't guaranteed) so the guard
+    // self-resets correctly every time a fresh round actually starts.
+    if (amHost && gameState.roundType === "round3" && gameState.status === "playing"
+        && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
+        && !gameState.activeChallengeId
+        && kfNaturalTriggerHandledForRoundId !== gameState.roundInstanceId
+        && Date.now() >= gameState.challengeTriggerAt) {
+      kfNaturalTriggerHandledForRoundId = gameState.roundInstanceId;
+      kfStartChallenge("natural");
+    }
+
+    // Shared challenges (Session 9) — track the active challenge doc.
+    if (gameState.activeChallengeId !== kfLastSeenActiveChallengeId) {
+      kfLastSeenActiveChallengeId = gameState.activeChallengeId;
+      kfSetupChallengeDocListener(gameState.activeChallengeId);
+    }
+
     if (gameState.status === "paused") {
       clearInterval(timerInterval); timerInterval = null;
       if (gameState.endTime) _pausedTimeRemaining = Math.max(0, gameState.endTime - Date.now());
@@ -3736,6 +3829,7 @@ function resetToLanding() {
   roundStartInFlight = false;
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
+  if (typeof kfTeardownChallengeUI === "function") kfTeardownChallengeUI();
   localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
@@ -4970,68 +5064,280 @@ function closeActivityModal(completed) {
 // (old mini-game state removed — new system in ACTIVITY_DEFS above)
 
 /* ══════════════════════════════════════════════════════════════════════
-   SHARED CHALLENGE: KITCHEN FIRE — Session 9, Step 1
+   SHARED CHALLENGE: KITCHEN FIRE — Session 9, Step 2
    ══════════════════════════════════════════════════════════════════════
-   Ported from kitchen-fire-testbed v13 (see handoff briefing + project
-   briefing for full context). This step is LOCAL ONLY — one player,
-   no Firebase, triggered by the host-only debug button. It exists to
-   validate the margin-clipping fix (bigger overlay + dynamic --kf-scale
-   applied to both the canister and the flames) before Step 2 wires in
-   the real challenge/lobby/authority Firebase plumbing.
-
-   Left behind on purpose, per the handoff briefing's own scoping:
-   - Bot teammates / control panel / debug log (testbed-only, never ships)
-   - Subset ("Reset the circuit breaker") + lobby states — Step 2
-   - Escape hatch — still a stub in the testbed itself, not built here
-   - Passive banner for non-participants — moot until multiplayer exists
-
-   Kept, because it's cheap and already correct:
-   - The resolveChallenge() gate checks the real gameState.status, not a
-     stub — so this already behaves correctly if a round ends mid-challenge,
-     even though nothing else about Firebase timing is wired up yet.
+   Step 1 (previous session) validated the visual sizing fix locally,
+   solo, no Firebase. This step wires the real thing:
+     - trigger scheduling (random clock + debug override, one code path)
+     - the two lobby shapes (all-hands passive countdown; subset roster —
+       groundwork only, no subset challenge type exists yet, so that path
+       is UNTESTED against a real second challenge)
+     - challenge authority: NOT always the host. Authority is derived from
+       the finalized `participants` array (lowest sorted id) so a subset
+       challenge that excludes the host still has someone to run the sim.
+       This is deliberately a different concept from "who commits the
+       lobby -> active transition", which stays on this file's existing
+       amHost / direct-click conventions — see comments at each site.
+     - host-authoritative simulation: only the authority runs kfEngine.tick
+       and flushes target state to Firebase on a throttle; every other
+       participant renders from that synced snapshot. Nobody's own cursor,
+       hose, or foam spray ever goes over the wire — only which target
+       they're engaging, and only on change.
    ════════════════════════════════════════════════════════════════════ */
 
-/* ---- layer 1: challenge contract (kept minimal on purpose for Step 1) --- */
-function kfCreateChallenge() {
-  return { id: 'ch_' + Math.random().toString(36).slice(2, 9), status: 'active', startedAt: performance.now() };
+/* ---- registry (layer for challenge selection) ---- */
+const CHALLENGE_TYPES = {
+  "kitchen-fire": { scope: "all", weight: 1 },
+  // future, not built: "circuit-breaker": { scope: "subset", subsetSize: 2, weight: 1 },
+};
+function pickChallengeType() {
+  const entries = Object.entries(CHALLENGE_TYPES);
+  const total = entries.reduce((s, [, d]) => s + (d.weight || 1), 0);
+  let r = Math.random() * total;
+  for (const [key, def] of entries) { r -= (def.weight || 1); if (r <= 0) return key; }
+  return entries[0][0];
 }
-function kfResolveChallenge(challenge, outcome) {
-  if (challenge.status !== 'active') return false;
-  // Real check against this file's own live game state — same hazard
-  // class as completeTask()'s roundInstanceId guard, just not yet keyed
-  // to a specific roundInstanceId since challenges aren't in Firebase yet.
-  if (!gameState || gameState.status !== 'playing') {
-    challenge.status = 'abandoned';
-    return false;
-  }
-  challenge.status = 'resolved';
-  challenge.outcome = outcome;
+
+/* ---- layer 1: challenge contract ---- */
+// Real per-challenge staleness gate — checks BOTH that the game is still
+// playing AND that this specific challenge's round hasn't since moved on
+// (a new round could in principle start while a stale client still thinks
+// a challenge is active). Same hazard class as completeTask()'s guard.
+function kfResolveChallenge(challengeId, challengeData, outcome) {
+  if (!gameState || gameState.status !== "playing") return false;
+  if (challengeData.roundInstanceId !== currentRoundInstanceId) return false;
+  update(ref(db, `games/${gameCode}/challenges/${challengeId}`), { status: "resolved", outcome, endedAt: Date.now() }).catch(()=>{});
   return true;
 }
 
-/* ---- layer 2: field-of-targets engine (generic; verbatim from testbed) --- */
+async function kfStartChallenge(mode) {
+  // One at a time. Also covers the debug button's "repeatable for testing"
+  // requirement implicitly — it's only blocked while one is truly active.
+  if (gameState.activeChallengeId) return;
+  const type = pickChallengeType();
+  const def  = CHALLENGE_TYPES[type];
+  const id   = "ch_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+
+  const doc = {
+    type, scope: def.scope, status: "lobby", triggerMode: mode,
+    roundInstanceId: currentRoundInstanceId,
+    createdAt: Date.now(),
+  };
+  if (def.scope === "all") {
+    doc.lobbyEndsAt = Date.now() + 3000; // 3-2-1, no controls
+  } else {
+    doc.subsetSize   = def.subsetSize;
+    doc.volunteers   = {};
+    doc.lobbyEndsAt  = Date.now() + 45000; // 45s auto-cancel deadline
+  }
+
+  const updates = {};
+  updates[`games/${gameCode}/challenges/${id}`] = doc;
+  updates[`games/${gameCode}/activeChallengeId`] = id;
+  if (mode === "natural") updates[`games/${gameCode}/naturalChallengeFired`] = true;
+  await update(ref(db), updates);
+}
+
+/* ---- active-challenge-doc tracking (called from the game-level listener) --- */
+let kfNaturalTriggerHandledForRoundId = null;
+let kfLastSeenActiveChallengeId = undefined;
+let kfChallengeDocUnsub = null;
+let kfChallengeDocUnsubId = null;
+
+function kfSetupChallengeDocListener(challengeId) {
+  if (kfChallengeDocUnsub) {
+    off(ref(db, `games/${gameCode}/challenges/${kfChallengeDocUnsubId}`), "value", kfChallengeDocUnsub);
+    kfChallengeDocUnsub = null; kfChallengeDocUnsubId = null;
+  }
+  if (!challengeId) { kfHandleChallengeUpdate(null, null); return; }
+  kfChallengeDocUnsubId = challengeId;
+  kfChallengeDocUnsub = onValue(ref(db, `games/${gameCode}/challenges/${challengeId}`), snap => {
+    kfHandleChallengeUpdate(challengeId, snap.val());
+  });
+}
+
+/* ---- lobby + active + resolution state machine ---- */
+let kfTrackedChallengeId = null;
+let kfNonParticipantToastShown = false;
+let kfLobbyCountdownInterval = null;
+let kfLobbyCountdownForId = null;
+let kfLobbyTimeoutInterval = null;
+let kfLobbyTimeoutForId = null;
+
+function kfHandleChallengeUpdate(id, data) {
+  kfTrackedChallengeId = id;
+  if (!data) { kfCloseLobby(); kfTeardownChallengeUI(); return; }
+
+  if (data.status === "lobby") {
+    kfNonParticipantToastShown = false;
+    kfShowLobby(id, data);
+  } else if (data.status === "active") {
+    kfCloseLobby();
+    const amParticipant = (data.participants || []).includes(myPlayerId);
+    if (amParticipant) {
+      kfEnsureActiveChallengeRunning(id, data);
+    } else {
+      kfTeardownChallengeUI();
+      if (!kfNonParticipantToastShown) {
+        kfNonParticipantToastShown = true;
+        const names = (data.participants || []).map(pid => gameState.players?.[pid]?.name).filter(Boolean).join(" & ");
+        toast(`🔥 ${names || "Teammates"} are handling a shared challenge — keep cooking, you're covered.`, "");
+      }
+    }
+  } else if (data.status === "abandoned-timeout") {
+    kfTeardownChallengeUI();
+    kfShowLobbyAverted();
+    if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 3200);
+  } else {
+    // resolved / abandoned
+    kfTeardownChallengeUI();
+    kfCloseLobby();
+    if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 1600);
+  }
+}
+
+function kfCloseLobby() {
+  document.getElementById("kf-lobby-overlay").classList.remove("active");
+  if (kfLobbyCountdownInterval) { clearInterval(kfLobbyCountdownInterval); kfLobbyCountdownInterval = null; kfLobbyCountdownForId = null; }
+  if (kfLobbyTimeoutInterval)   { clearInterval(kfLobbyTimeoutInterval);   kfLobbyTimeoutInterval = null;   kfLobbyTimeoutForId = null; }
+}
+
+function kfShowLobbyAverted() {
+  const overlay = document.getElementById("kf-lobby-overlay");
+  document.getElementById("kf-lobby-allhands").style.display = "none";
+  const subsetEl = document.getElementById("kf-lobby-subset");
+  subsetEl.style.display = "block";
+  document.getElementById("kf-lobby-subset-message").textContent = "Crisis averted.";
+  document.getElementById("kf-lobby-roster").innerHTML = "";
+  document.getElementById("kf-lobby-letsgo-btn").style.display = "none";
+  overlay.classList.add("active");
+  setTimeout(() => {
+    overlay.classList.remove("active");
+    document.getElementById("kf-lobby-letsgo-btn").style.display = "";
+  }, 3000);
+}
+
+function kfShowLobby(id, data) {
+  const overlay = document.getElementById("kf-lobby-overlay");
+  overlay.classList.add("active");
+  const allhandsEl = document.getElementById("kf-lobby-allhands");
+  const subsetEl   = document.getElementById("kf-lobby-subset");
+  if (data.scope === "all") {
+    allhandsEl.style.display = "block"; subsetEl.style.display = "none";
+    kfStartLobbyCountdownAllHands(id, data);
+  } else {
+    allhandsEl.style.display = "none"; subsetEl.style.display = "block";
+    document.getElementById("kf-lobby-subset-message").textContent =
+      `${data.subsetSize || 2} people are needed for this one.`;
+    kfRenderSubsetLobby(id, data);
+    kfStartLobbyTimeoutSubset(id, data);
+  }
+}
+
+function kfStartLobbyCountdownAllHands(id, data) {
+  if (kfLobbyCountdownForId === id && kfLobbyCountdownInterval) return; // already running for this challenge
+  if (kfLobbyCountdownInterval) clearInterval(kfLobbyCountdownInterval);
+  kfLobbyCountdownForId = id;
+  const numEl = document.getElementById("kf-lobby-countdown-num");
+  function tick() {
+    const remainMs = data.lobbyEndsAt - Date.now();
+    const remainSec = Math.max(0, Math.ceil(remainMs / 1000));
+    numEl.textContent = remainMs > 0 ? String(remainSec) : "GO";
+    if (remainMs <= 0) {
+      clearInterval(kfLobbyCountdownInterval); kfLobbyCountdownInterval = null;
+      if (amHost) kfResolveAllHandsLobby(id); // host is always a participant in an all-hands challenge
+    }
+  }
+  tick();
+  kfLobbyCountdownInterval = setInterval(tick, 200);
+}
+
+async function kfResolveAllHandsLobby(id) {
+  const snap = await get(ref(db, `games/${gameCode}/challenges/${id}/status`));
+  if (snap.val() !== "lobby") return; // already resolved by another callback — don't double-write
+  const participants = Object.keys(gameState.players || {});
+  const authorityPlayerId = [...participants].sort()[0];
+  await update(ref(db, `games/${gameCode}/challenges/${id}`), {
+    status: "active", participants, authorityPlayerId, startedAt: Date.now(),
+  });
+}
+
+/*
+  SUBSET LOBBY — groundwork only. No subset challenge type is registered
+  yet (see CHALLENGE_TYPES), so this code path has never actually run
+  against a real second challenge. Written now per the plan to have the
+  shape ready when a subset challenge (e.g. "reset the circuit breaker")
+  is designed, rather than as tested behavior.
+*/
+function kfRenderSubsetLobby(id, data) {
+  const rosterEl = document.getElementById("kf-lobby-roster");
+  const volunteers = data.volunteers || {};
+  rosterEl.innerHTML = "";
+  Object.entries(gameState.players || {}).forEach(([pid, p]) => {
+    const row = document.createElement("div");
+    row.className = "kf-lobby-roster-row";
+    const selected = !!volunteers[pid];
+    row.innerHTML = `<span class="name">${p.name}${pid === myPlayerId ? " (you)" : ""}</span>
+      <button class="kf-lobby-imonit-btn${selected ? " selected" : ""}" data-pid="${pid}">${selected ? "I'm on it ✓" : "I'm on it"}</button>`;
+    rosterEl.appendChild(row);
+  });
+  // Only wire your own button to write — everyone renders the whole
+  // roster, but each player can only toggle their own key.
+  const myBtn = rosterEl.querySelector(`button[data-pid="${myPlayerId}"]`);
+  if (myBtn) {
+    myBtn.onclick = () => {
+      const nowSelected = !!(data.volunteers || {})[myPlayerId];
+      const path = `games/${gameCode}/challenges/${id}/volunteers/${myPlayerId}`;
+      if (nowSelected) remove(ref(db, path)); else set(ref(db, path), true);
+    };
+  }
+  const count = Object.keys(volunteers).length;
+  const goBtn = document.getElementById("kf-lobby-letsgo-btn");
+  goBtn.disabled = count !== (data.subsetSize || 2);
+  goBtn.onclick = () => kfResolveSubsetLobby(id, data.subsetSize || 2);
+}
+
+async function kfResolveSubsetLobby(id, subsetSize) {
+  // Direct user action, not a passive condition — so unlike the all-hands
+  // case, this isn't gated on amHost (the host may not even be a
+  // volunteer). Re-checked against the live value at commit time so two
+  // near-simultaneous clicks can't both succeed.
+  const snap = await get(ref(db, `games/${gameCode}/challenges/${id}`));
+  const current = snap.val();
+  if (!current || current.status !== "lobby") return;
+  const participants = Object.keys(current.volunteers || {});
+  if (participants.length !== subsetSize) return; // stale click — count changed since render
+  const authorityPlayerId = [...participants].sort()[0];
+  await update(ref(db, `games/${gameCode}/challenges/${id}`), {
+    status: "active", participants, authorityPlayerId, startedAt: Date.now(),
+  });
+}
+
+function kfStartLobbyTimeoutSubset(id, data) {
+  if (kfLobbyTimeoutForId === id && kfLobbyTimeoutInterval) return;
+  if (kfLobbyTimeoutInterval) clearInterval(kfLobbyTimeoutInterval);
+  kfLobbyTimeoutForId = id;
+  kfLobbyTimeoutInterval = setInterval(async () => {
+    if (Date.now() < data.lobbyEndsAt) return;
+    clearInterval(kfLobbyTimeoutInterval); kfLobbyTimeoutInterval = null;
+    if (!amHost) return; // same background-condition convention as elsewhere
+    const snap = await get(ref(db, `games/${gameCode}/challenges/${id}/status`));
+    if (snap.val() === "lobby") {
+      await update(ref(db, `games/${gameCode}/challenges/${id}`), { status: "abandoned-timeout" });
+    }
+  }, 500);
+}
+
+/* ---- layer 2: field-of-targets engine (generic; unchanged from Step 1) --- */
 const KF_CONFIG = {
-  flamesPerPlayer: 4,
-  budgetSlack: 0.15,
-  baseRequiredSec: 3,
-  rateTable: { 1: 1.0, 2: 1.5, 3: 1.75 },
-  rateTableCap: 2.0,
-  sprayRadius: 46,
-  mercyThresholdSec: 14,
-  mercyFloorSec: 1.6,
-  mercyWindowSec: 10,
-  spawnCheckIntervalSec: 2.2,
-  maxSimultaneousMultiplier: 5,
-  maxTargetsPerZone: 5,
-  maxFoamBubbles: 85,
-  foamPileHeight: 30,
-  foamPileWidth: 22.5,
+  flamesPerPlayer: 4, budgetSlack: 0.15, baseRequiredSec: 3,
+  rateTable: { 1: 1.0, 2: 1.5, 3: 1.75 }, rateTableCap: 2.0, sprayRadius: 46,
+  mercyThresholdSec: 14, mercyFloorSec: 1.6, mercyWindowSec: 10,
+  spawnCheckIntervalSec: 2.2, maxSimultaneousMultiplier: 5, maxTargetsPerZone: 5,
+  maxFoamBubbles: 85, foamPileHeight: 30, foamPileWidth: 22.5,
 };
 const kfEngine = {
-  targets: [],
-  budgetRemaining: 0,
-  budgetTotal: 0,
-  lastSpawnCheck: 0,
+  targets: [], budgetRemaining: 0, budgetTotal: 0, lastSpawnCheck: 0,
   reset(playerCount) {
     this.targets = [];
     this.budgetTotal = Math.ceil(playerCount * KF_CONFIG.flamesPerPlayer * (1 + KF_CONFIG.budgetSlack));
@@ -5039,22 +5345,16 @@ const kfEngine = {
     this.lastSpawnCheck = 0;
   },
   maxSimultaneous(playerCount) { return playerCount * KF_CONFIG.maxSimultaneousMultiplier; },
-  spawnBurst(count, zonePicker) {
-    for (let i = 0; i < count && this.budgetRemaining > 0; i++) this.spawnOne(zonePicker);
-  },
+  spawnBurst(count, zonePicker) { for (let i = 0; i < count && this.budgetRemaining > 0; i++) this.spawnOne(zonePicker); },
   spawnOne(zonePicker) {
     if (this.budgetRemaining <= 0) return null;
     const zoneId = zonePicker(this.targets);
     if (!zoneId) return null;
     const [bx, by] = kfPickSafeSpawnPoint(zoneId);
-    const t = {
-      id: 'f_' + Math.random().toString(36).slice(2, 8),
-      zoneId, bx, by, spentSec: 0, requiredSec: KF_CONFIG.baseRequiredSec,
-      bornAt: performance.now(), stage: 0, status: 'burning', engagedBy: [], foamBubbles: [],
-    };
-    this.targets.push(t);
-    this.budgetRemaining--;
-    return t;
+    const t = { id: "f_" + Math.random().toString(36).slice(2, 8), zoneId, bx, by, spentSec: 0,
+      requiredSec: KF_CONFIG.baseRequiredSec, bornAt: performance.now(), stage: 0, status: "burning",
+      engagedBy: [], foamBubbles: [] };
+    this.targets.push(t); this.budgetRemaining--; return t;
   },
   rateFor(engagedCount) {
     if (engagedCount <= 0) return 0;
@@ -5063,7 +5363,7 @@ const kfEngine = {
   },
   tick(dtSec, nowMs) {
     for (const t of this.targets) {
-      if (t.status === 'out') continue;
+      if (t.status === "out") continue;
       const ageSec = (nowMs - t.bornAt) / 1000;
       if (ageSec > KF_CONFIG.mercyThresholdSec) {
         const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
@@ -5081,17 +5381,17 @@ const kfEngine = {
         const dx = (Math.random() - 0.5) * 2 * widthAtHeight;
         t.foamBubbles.push({ dx, dy, r: 2.5 + Math.random() * 3 });
       }
-      if (frac >= 1 && t.status === 'burning') { t.status = 'out'; t.outAt = nowMs; }
+      if (frac >= 1 && t.status === "burning") { t.status = "out"; t.outAt = nowMs; }
     }
-    this.targets = this.targets.filter(t => t.status !== 'out' || (nowMs - t.outAt) < 500);
+    this.targets = this.targets.filter(t => t.status !== "out" || (nowMs - t.outAt) < 500);
     this.lastSpawnCheck += dtSec;
     if (this.lastSpawnCheck >= KF_CONFIG.spawnCheckIntervalSec) {
       this.lastSpawnCheck = 0;
-      const activeCount = this.targets.filter(t => t.status === 'burning').length;
+      const activeCount = this.targets.filter(t => t.status === "burning").length;
       if (this.budgetRemaining > 0 && activeCount < kf.maxSimultaneous) this.spawnOne(kfZonePicker);
     }
   },
-  allCleared() { return this.budgetRemaining <= 0 && this.targets.filter(t => t.status === 'burning').length === 0; },
+  allCleared() { return this.budgetRemaining <= 0 && this.targets.filter(t => t.status === "burning").length === 0; },
 };
 
 /* ---- layer 3: Kitchen Fire skin (zones, flame asset, extinguisher) --- */
@@ -5198,9 +5498,9 @@ function kfZonePicker(existingTargets) {
   return eligible[0];
 }
 
-// Real uploaded flame asset (verbatim from the testbed) — internal ids are
-// rewritten per-instance in kfBuildFlameSVG() to avoid the id-collision bug
-// documented in the handoff briefing (many flames exist simultaneously).
+// Real uploaded flame asset — internal ids rewritten per-instance in
+// kfBuildFlameSVG() to avoid the id-collision bug documented in the
+// handoff briefing (many flames exist simultaneously).
 const KF_FLAME_ASSET_RAW = `<style>
 @keyframes kf_Frame_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } 20% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.061rad) translate(-42.152px, -160px); } 42% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.031rad) translate(-42.152px, -160px); } 60% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.038rad) translate(-42.152px, -160px); } 80% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.044rad) translate(-42.152px, -160px); } 100% { transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } }
 #Frame { transform-origin: 0 0; animation: kf_Frame_transform_0 2.4s linear infinite; }
@@ -5267,19 +5567,8 @@ function kfBuildFlameSVG(uid) {
   return `<svg viewBox="0 0 160 200" width="100%" height="100%">${svg}</svg>`;
 }
 
-/*
-  DYNAMIC SCALE FIX (Session 9) — the concretely-verified risk from the
-  handoff briefing: the canister's fixed-CSS-pixel rightward reach (~108px)
-  only clears the board's right margin once the board renders at ~731px+
-  wide, and the extinguisher and flames were BOTH fixed px, tuned at one
-  specific render width. Fix: measure the board's actual width every time
-  the challenge opens or the window resizes, and derive one multiplier
-  (kfScale) from it, applied uniformly to the canister geometry (below)
-  and to the flames (via the --kf-scale CSS var, set in kfApplyScale()).
-  KF_REFERENCE_BOARD_W is the width the original fixed sizes (105px-tall
-  canister, 84px-tall flame) were tuned at — recalibrate this constant if
-  that assumption turns out to be wrong once seen at real size.
-*/
+/* Dynamic scale fix (Session 9, Step 1) — see KF_REFERENCE_BOARD_W comment
+   for the calibration caveat. Unchanged in Step 2. */
 const KF_REFERENCE_BOARD_W = 700;
 let kfScale = 1;
 function kfComputeScale() {
@@ -5287,9 +5576,7 @@ function kfComputeScale() {
   kfScale = kfBoardRect.w > 0 ? kfBoardRect.w / KF_REFERENCE_BOARD_W : 1;
   return kfScale;
 }
-function kfApplyScale() {
-  document.getElementById('kf-blueprint').style.setProperty('--kf-scale', kfScale);
-}
+function kfApplyScale() { document.getElementById('kf-blueprint').style.setProperty('--kf-scale', kfScale); }
 
 const KF_EXT_SCALE_BASE = 105 / 375;
 const KF_EXT_CANISTER_ORIGIN = { x: 242.602, y: 12.605 };
@@ -5303,7 +5590,7 @@ const KF_EXT_HOSE_RAW = {
   cp2s2_offPmid: { x: 44.001, y: 0 }, cp1s3_offPmid: { x: -44.001, y: 0 },
   cp2s3_offP3: { x: 6, y: 64.5 }, cp1s4_offP3: { x: -2.93, y: -31.5 },
 };
-function kfExtScaleVal() { return KF_EXT_SCALE_BASE * kfScale; } // replaces the testbed's fixed EXT_SCALE
+function kfExtScaleVal() { return KF_EXT_SCALE_BASE * kfScale; }
 function kfExtScale(pt) { const s = kfExtScaleVal(); return { x: pt.x * s, y: pt.y * s }; }
 
 const KF_FOAM_VX_AVG = -360, KF_FOAM_VX_JITTER = 54;
@@ -5322,18 +5609,23 @@ function kfComputeFoamLandingOffset() {
   }
   return { x, y };
 }
-// Recomputed whenever kfScale changes (open + resize), not just once —
-// unlike the testbed, this offset now depends on a value that can change.
 let kfFoamLandingOffset = { x: 0, y: 0 };
 
-/* ---- runtime state: single local player for Step 1 ---- */
+/* ---- runtime state ---- */
 const kf = {
-  challenge: null,
   you: { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null },
-  particlesOver: [],
-  hoseWobble: { x: 0, y: 0 }, hoseWobbleVel: { x: 0, y: 0 }, _prevNozzle: null,
-  lastFrameMs: 0, loopHandle: null, maxSimultaneous: 5,
+  particlesOver: [], hoseWobble: { x: 0, y: 0 }, hoseWobbleVel: { x: 0, y: 0 }, _prevNozzle: null,
+  lastFrameMs: 0, loopHandle: null, maxSimultaneous: 5, _lastEngagementHeartbeat: 0,
 };
+let kfActiveChallengeId = null;
+let kfIsAuthority = false;
+let kfFlushInterval = null;
+let kfSyncedTargets = {};
+let kfSyncedBudgetRemaining = 0;
+let kfRemoteEngagement = {};
+let kfTargetsUnsub = null, kfBudgetUnsub = null, kfEngagementUnsub = null;
+let kfSyncListenersChallengeId = null;
+let kfLastWrittenEngagementTargetId = undefined;
 
 function kfSetupPointerInput() {
   const container = document.getElementById('kf-blueprint');
@@ -5350,20 +5642,30 @@ function kfSetupPointerInput() {
 
 const KF_ENGAGE_MIN_DWELL_MS = 1300;
 const KF_ENGAGE_SWITCH_MARGIN = 0.42;
-function kfRecomputeEngagement() {
-  kfEngine.targets.forEach(t => t.engagedBy = []);
+
+// Returns a normalized target list regardless of whether this client is
+// the authority (own live kfEngine.targets) or a synced participant
+// (kfSyncedTargets from Firebase) — the one seam that lets engagement,
+// rendering, and tag placement stay ignorant of which role they're in.
+function kfCurrentTargetsForEngagement() {
+  if (kfIsAuthority) return kfEngine.targets.map(t => ({ id: t.id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
+  return Object.entries(kfSyncedTargets).map(([id, t]) => ({ id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
+}
+
+function kfRecomputeMyEngagement() {
   const nowMs = performance.now();
   const p = kf.you;
   if (!p.spraying) { p._stickyTargetId = null; p._engagedTargetId = null; return; }
   const landX = p.x + kfFoamLandingOffset.x, landY = p.y + kfFoamLandingOffset.y;
+  const list = kfCurrentTargetsForEngagement();
   let best = null, bestD = Infinity;
-  kfEngine.targets.forEach(t => {
+  list.forEach(t => {
     if (t.status !== 'burning') return;
     const { x: tx, y: ty } = kfBoardToPx(t.bx, t.by);
     const d = Math.hypot(tx - landX, ty - landY);
     if (d <= KF_CONFIG.sprayRadius && d < bestD) { bestD = d; best = t; }
   });
-  const stickyTarget = p._stickyTargetId ? kfEngine.targets.find(t => t.id === p._stickyTargetId && t.status === 'burning') : null;
+  const stickyTarget = p._stickyTargetId ? list.find(t => t.id === p._stickyTargetId && t.status === 'burning') : null;
   let chosen = null;
   if (stickyTarget) {
     const { x: stx, y: sty } = kfBoardToPx(stickyTarget.bx, stickyTarget.by);
@@ -5375,8 +5677,31 @@ function kfRecomputeEngagement() {
   }
   if (!chosen) { chosen = best; if (chosen && chosen.id !== p._stickyTargetId) { p._stickyTargetId = chosen.id; p._stickySince = nowMs; } }
   if (!chosen) p._stickyTargetId = null;
-  if (chosen) chosen.engagedBy.push('you');
   p._engagedTargetId = chosen ? chosen.id : null;
+}
+
+function kfMergeRemoteEngagementIntoTargets() {
+  const now = Date.now();
+  Object.entries(kfRemoteEngagement).forEach(([pid, e]) => {
+    if (pid === myPlayerId) return; // your own contribution is added separately, from local state directly
+    if (!e || !e.targetId) return;
+    if (now - e.ts > 2000) return; // stale — that participant likely stopped spraying without a final write landing
+    const t = kfEngine.targets.find(x => x.id === e.targetId && x.status === 'burning');
+    if (t) t.engagedBy.push(pid);
+  });
+}
+
+function kfMaybeWriteEngagement() {
+  if (!kfActiveChallengeId) return;
+  const targetId = kf.you._engagedTargetId || null;
+  const now = Date.now();
+  const changed = targetId !== kfLastWrittenEngagementTargetId;
+  const heartbeatDue = targetId && (now - kf._lastEngagementHeartbeat) > 1200;
+  if (changed || heartbeatDue) {
+    kfLastWrittenEngagementTargetId = targetId;
+    kf._lastEngagementHeartbeat = now;
+    set(ref(db, `games/${gameCode}/challenges/${kfActiveChallengeId}/engagement/${myPlayerId}`), { targetId, ts: now }).catch(()=>{});
+  }
 }
 
 let kfFxUnderCtx, kfFxOverCtx;
@@ -5409,13 +5734,29 @@ function kfRenderTargets() {
       flamesLayer.appendChild(flameEl);
       kfFlameEls.set(t.id, flameEl);
     }
-    flameEl.style.left = px + 'px';
-    flameEl.style.top = py + 'px';
+    flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
     flameEl.className = 'kf-flame stage-' + t.stage + (t.status === 'out' ? ' puffing' : '');
   });
-  for (const [id, flameEl] of kfFlameEls) {
-    if (!seen.has(id)) { flameEl.remove(); kfFlameEls.delete(id); }
-  }
+  for (const [id, flameEl] of kfFlameEls) { if (!seen.has(id)) { flameEl.remove(); kfFlameEls.delete(id); } }
+}
+function kfRenderTargetsFromSync() {
+  const flamesLayer = document.getElementById('kf-flames-layer');
+  const seen = new Set();
+  Object.entries(kfSyncedTargets).forEach(([tid, t]) => {
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    seen.add(tid);
+    let flameEl = kfFlameEls.get(tid);
+    if (!flameEl) {
+      flameEl = document.createElement('div');
+      flameEl.className = 'kf-flame';
+      flameEl.innerHTML = kfBuildFlameSVG(tid);
+      flamesLayer.appendChild(flameEl);
+      kfFlameEls.set(tid, flameEl);
+    }
+    flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
+    flameEl.className = 'kf-flame stage-' + t.stage + (t.status === 'out' ? ' puffing' : '');
+  });
+  for (const [id, el] of kfFlameEls) { if (!seen.has(id)) { el.remove(); kfFlameEls.delete(id); } }
 }
 
 function kfRenderFoam() {
@@ -5433,6 +5774,73 @@ function kfRenderFoam() {
       kfFxUnderCtx.strokeStyle = 'rgba(184,147,92,0.45)';
       kfFxUnderCtx.stroke();
     });
+  });
+}
+function kfRenderFoamFromSync() {
+  const { width, height } = kfFxUnderCtx.canvas;
+  kfFxUnderCtx.clearRect(0, 0, width, height);
+  Object.values(kfSyncedTargets).forEach(t => {
+    if (!t.foamBubbles || !t.foamBubbles.length) return;
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    t.foamBubbles.forEach(b => {
+      kfFxUnderCtx.beginPath();
+      kfFxUnderCtx.arc(px + b.dx * kfScale, py + b.dy * kfScale, b.r * kfScale, 0, Math.PI * 2);
+      kfFxUnderCtx.fillStyle = 'rgba(255,253,246,0.92)';
+      kfFxUnderCtx.fill();
+      kfFxUnderCtx.lineWidth = 1;
+      kfFxUnderCtx.strokeStyle = 'rgba(184,147,92,0.45)';
+      kfFxUnderCtx.stroke();
+    });
+  });
+}
+
+// Every OTHER participant's name tag, anchored to their engaged target —
+// plus YOUR OWN, pinned to your canister every frame (per the testbed's
+// finding: a flame-anchored tag has an inherent lag for the one person
+// who already knows their own exact position). This is what Step 1 was
+// missing — there was no multiplayer state yet for it to attach to.
+const kfPlayerTagEls = new Map();
+function kfRenderPlayerTags() {
+  const tagsLayer = document.getElementById('kf-tags-layer');
+  const list = kfCurrentTargetsForEngagement();
+  const now = Date.now();
+  const visible = [];
+
+  let myTagEl = kfPlayerTagEls.get(myPlayerId);
+  if (!myTagEl) { myTagEl = document.createElement('div'); myTagEl.className = 'kf-flame-tag'; tagsLayer.appendChild(myTagEl); kfPlayerTagEls.set(myPlayerId, myTagEl); }
+  const extScaleVal = kfExtScaleVal();
+  const canisterX = kf.you.x + (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * extScaleVal;
+  const canisterTopY = kf.you.y + KF_EXT_CANISTER_ORIGIN.y * extScaleVal;
+  myTagEl.classList.add('pinned', 'visible');
+  myTagEl.style.left = canisterX + 'px';
+  myTagEl.style.top = (canisterTopY - 14) + 'px';
+  myTagEl.textContent = myPlayerName || 'You';
+  visible.push({ id: myPlayerId, tagEl: myTagEl, px: canisterX, py: canisterTopY });
+
+  const seen = new Set([myPlayerId]);
+  Object.entries(kfRemoteEngagement).forEach(([pid, e]) => {
+    if (pid === myPlayerId) return;
+    let tagEl = kfPlayerTagEls.get(pid);
+    if (!tagEl) { tagEl = document.createElement('div'); tagEl.className = 'kf-flame-tag'; tagsLayer.appendChild(tagEl); kfPlayerTagEls.set(pid, tagEl); }
+    seen.add(pid);
+    if (!e || !e.targetId || (now - e.ts) > 2000) { tagEl.classList.remove('visible'); tagEl.style.setProperty('--stack', '0px'); return; }
+    const t = list.find(x => x.id === e.targetId && x.status === 'burning');
+    if (!t) { tagEl.classList.remove('visible'); tagEl.style.setProperty('--stack', '0px'); return; }
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    const flameHalfWidth = 12 + (3 - t.stage) * 5;
+    tagEl.style.left = (px + flameHalfWidth + 10) + 'px';
+    tagEl.style.top = py + 'px';
+    tagEl.textContent = gameState.players?.[pid]?.name || 'Teammate';
+    tagEl.classList.add('visible');
+    visible.push({ id: pid, tagEl, px, py });
+  });
+  for (const [pid, el] of kfPlayerTagEls) { if (!seen.has(pid)) el.remove(), kfPlayerTagEls.delete(pid); }
+
+  visible.sort((a, b) => a.id.localeCompare(b.id));
+  visible.forEach((v, i) => {
+    let collisions = 0;
+    for (let j = 0; j < i; j++) { if (Math.hypot(v.px - visible[j].px, v.py - visible[j].py) < 65) collisions++; }
+    v.tagEl.style.setProperty('--stack', (collisions * 22) + 'px');
   });
 }
 
@@ -5535,61 +5943,141 @@ function kfRenderSpray(dtSec) {
   }
 }
 
-function kfLoop(ts) {
-  if (!kf.challenge || kf.challenge.status !== 'active') { kf.loopHandle = null; return; }
+function kfUpdateReadouts(remaining, budgetRemaining) {
+  document.getElementById('kf-flame-count-readout').textContent = `${remaining} fire${remaining !== 1 ? 's' : ''} still burning`;
+  document.getElementById('kf-budget-readout').textContent = `${budgetRemaining} more may still spawn`;
+}
+
+/* ---- authority loop: runs the real simulation, flushes to Firebase ---- */
+function kfAuthorityLoop(ts) {
+  if (!kfActiveChallengeId) { kf.loopHandle = null; return; }
   if (!kf.lastFrameMs) kf.lastFrameMs = ts;
-  let dtSec = Math.min((ts - kf.lastFrameMs) / 1000, 0.08);
+  const dtSec = Math.min((ts - kf.lastFrameMs) / 1000, 0.08);
   kf.lastFrameMs = ts;
 
-  kfRecomputeEngagement();
+  kfRecomputeMyEngagement();
+  kfEngine.targets.forEach(t => t.engagedBy = []);
+  if (kf.you._engagedTargetId) {
+    const t = kfEngine.targets.find(x => x.id === kf.you._engagedTargetId);
+    if (t) t.engagedBy.push(myPlayerId);
+  }
+  kfMergeRemoteEngagementIntoTargets();
   kfEngine.tick(dtSec, ts);
+
   kfRenderTargets();
   kfRenderFoam();
   kfRenderSpray(dtSec);
-  const remaining = kfEngine.targets.filter(t => t.status === 'burning').length;
-  document.getElementById('kf-flame-count-readout').textContent = `${remaining} fire${remaining !== 1 ? 's' : ''} still burning`;
-  document.getElementById('kf-budget-readout').textContent = `${kfEngine.budgetRemaining} more may still spawn`;
+  kfRenderPlayerTags();
+  kfMaybeWriteEngagement();
+  kfUpdateReadouts(kfEngine.targets.filter(t => t.status === 'burning').length, kfEngine.budgetRemaining);
 
-  if (kfEngine.allCleared()) { kfFinishChallenge('cleared'); return; }
-  kf.loopHandle = requestAnimationFrame(kfLoop);
+  if (kfEngine.allCleared()) { kfAuthorityFinish('cleared'); return; }
+  kf.loopHandle = requestAnimationFrame(kfAuthorityLoop);
 }
 
-function kfFinishChallenge(outcome) {
-  const ok = kfResolveChallenge(kf.challenge, outcome);
-  if (!ok) return; // round already ended — leave the screen alone, per the resolveChallenge gate
+function kfFlushTargetsToFirebase() {
+  if (!kfIsAuthority || !kfActiveChallengeId) return;
+  const targetsOut = {};
+  kfEngine.targets.forEach(t => { targetsOut[t.id] = { bx: t.bx, by: t.by, stage: t.stage, status: t.status, foamBubbles: t.foamBubbles }; });
+  update(ref(db, `games/${gameCode}/challenges/${kfActiveChallengeId}`), {
+    targets: targetsOut, budgetRemaining: kfEngine.budgetRemaining,
+  }).catch(()=>{});
+}
+
+function kfAuthorityFinish(outcome) {
+  const challengeId = kfActiveChallengeId;
+  const challengeData = kfTrackedChallenge();
+  kfFlushTargetsToFirebase(); // one last flush so everyone sees the cleared board
+  kfResolveChallenge(challengeId, { roundInstanceId: currentRoundInstanceId }, outcome);
   document.getElementById('kf-success-banner').classList.add('show');
   document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
   setTimeout(() => { document.getElementById('kf-overlay').classList.remove('active'); }, 1500);
 }
+// Small helper so kfAuthorityFinish doesn't need the whole challenge doc
+// threaded through the RAF loop just for its roundInstanceId.
+function kfTrackedChallenge() { return { roundInstanceId: currentRoundInstanceId }; }
 
-function kfTriggerChallenge() {
-  // Local-only guard for Step 1 (no Firebase activeChallengeId yet).
-  if (kf.challenge && kf.challenge.status === 'active') return;
+/* ---- non-authority participants: render from the synced snapshot ---- */
+function kfParticipantRenderLoop(ts) {
+  if (!kfActiveChallengeId) { kf.loopHandle = null; return; }
+  if (!kf.lastFrameMs) kf.lastFrameMs = ts;
+  const dtSec = Math.min((ts - kf.lastFrameMs) / 1000, 0.08);
+  kf.lastFrameMs = ts;
 
-  kf.challenge = kfCreateChallenge();
+  kfRecomputeMyEngagement();
+  kfRenderTargetsFromSync();
+  kfRenderFoamFromSync();
+  kfRenderSpray(dtSec);
+  kfRenderPlayerTags();
+  kfMaybeWriteEngagement();
+  const remaining = Object.values(kfSyncedTargets).filter(t => t.status === 'burning').length;
+  kfUpdateReadouts(remaining, kfSyncedBudgetRemaining);
+
+  kf.loopHandle = requestAnimationFrame(kfParticipantRenderLoop);
+}
+
+function kfSetupParticipantSync(id) {
+  kfDetachParticipantSync();
+  kfSyncListenersChallengeId = id;
+  kfTargetsUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/targets`), snap => { kfSyncedTargets = snap.val() || {}; });
+  kfBudgetUnsub   = onValue(ref(db, `games/${gameCode}/challenges/${id}/budgetRemaining`), snap => { kfSyncedBudgetRemaining = snap.val() || 0; });
+  kfEngagementUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/engagement`), snap => { kfRemoteEngagement = snap.val() || {}; });
+}
+function kfDetachParticipantSync() {
+  if (kfSyncListenersChallengeId) {
+    if (kfTargetsUnsub)    off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/targets`), 'value', kfTargetsUnsub);
+    if (kfBudgetUnsub)     off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/budgetRemaining`), 'value', kfBudgetUnsub);
+    if (kfEngagementUnsub) off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/engagement`), 'value', kfEngagementUnsub);
+  }
+  kfTargetsUnsub = null; kfBudgetUnsub = null; kfEngagementUnsub = null; kfSyncListenersChallengeId = null;
+  kfSyncedTargets = {}; kfSyncedBudgetRemaining = 0; kfRemoteEngagement = {};
+}
+
+function kfEnsureActiveChallengeRunning(id, data) {
   document.getElementById('kf-overlay').classList.add('active');
+  if (kfActiveChallengeId === id) return; // already running locally for this challenge
+
+  kfActiveChallengeId = id;
+  kfIsAuthority = (data.authorityPlayerId === myPlayerId);
   document.getElementById('kf-success-banner').classList.remove('show');
 
-  // Measure only after the overlay is visible — display:none gives a 0 rect.
-  kfComputeScale();
-  kfApplyScale();
-  kfResizeCanvases();
+  kfComputeScale(); kfApplyScale(); kfResizeCanvases();
   kfFoamLandingOffset = kfComputeFoamLandingOffset();
 
-  Object.keys(kfZoneLastActivity).forEach(k => delete kfZoneLastActivity[k]);
-  const playerCount = 1; // Step 1: solo local test; real player count comes in Step 2
-  kf.maxSimultaneous = kfEngine.maxSimultaneous(playerCount);
-  kfEngine.reset(playerCount);
-  kfEngine.spawnBurst(playerCount * KF_CONFIG.flamesPerPlayer, kfZonePicker);
-
   kf.you = { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null };
-  kf.particlesOver = [];
-  kf.hoseWobble = { x: 0, y: 0 };
-  kf.hoseWobbleVel = { x: 0, y: 0 };
-  kf._prevNozzle = null;
+  kf.particlesOver = []; kf.hoseWobble = { x: 0, y: 0 }; kf.hoseWobbleVel = { x: 0, y: 0 }; kf._prevNozzle = null;
+  kfLastWrittenEngagementTargetId = undefined;
+  document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
+  kfFlameEls.clear(); kfPlayerTagEls.clear();
 
-  kf.lastFrameMs = 0;
-  kf.loopHandle = requestAnimationFrame(kfLoop);
+  kfSetupParticipantSync(id);
+
+  if (kfIsAuthority) {
+    const participantCount = (data.participants || []).length || 1;
+    kf.maxSimultaneous = kfEngine.maxSimultaneous(participantCount);
+    Object.keys(kfZoneLastActivity).forEach(k => delete kfZoneLastActivity[k]);
+    kfEngine.reset(participantCount);
+    kfEngine.spawnBurst(participantCount * KF_CONFIG.flamesPerPlayer, kfZonePicker);
+    kf.lastFrameMs = 0;
+    kf.loopHandle = requestAnimationFrame(kfAuthorityLoop);
+    if (kfFlushInterval) clearInterval(kfFlushInterval);
+    kfFlushInterval = setInterval(kfFlushTargetsToFirebase, 180);
+    kfFlushTargetsToFirebase(); // immediate first flush so others don't wait a full interval to see the initial spawn
+  } else {
+    kf.lastFrameMs = 0;
+    kf.loopHandle = requestAnimationFrame(kfParticipantRenderLoop);
+  }
+}
+
+function kfTeardownChallengeUI() {
+  document.getElementById('kf-overlay').classList.remove('active');
+  if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
+  if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
+  kfDetachParticipantSync();
+  kfActiveChallengeId = null;
+  kfIsAuthority = false;
+  document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
+  kfFlameEls.clear(); kfPlayerTagEls.clear();
 }
 
 /* ---- boot ---- */
@@ -5610,12 +6098,12 @@ kfSetupPointerInput();
 })();
 window.addEventListener('resize', () => {
   if (!document.getElementById('kf-overlay').classList.contains('active')) return;
-  kfComputeScale();
-  kfApplyScale();
-  kfResizeCanvases();
+  kfComputeScale(); kfApplyScale(); kfResizeCanvases();
   kfFoamLandingOffset = kfComputeFoamLandingOffset();
 });
-document.getElementById('btn-trigger-challenge').addEventListener('click', kfTriggerChallenge);
+// Debug button now goes through the real, shared trigger path — same
+// function the natural clock calls, so there's one code path, not two.
+document.getElementById('btn-trigger-challenge').addEventListener('click', () => kfStartChallenge('manual'));
 
 init();
 </script>
