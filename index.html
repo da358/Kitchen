@@ -1296,7 +1296,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260713.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3612,7 +3612,23 @@ function enterGame() {
       if (v > prev) for (let i = prev; i < v; i++) newlyAdded.push(k);
     });
     Object.keys(localInventory).forEach(k => { if (RESOURCES[k]?.type === type) delete localInventory[k]; });
-    Object.entries(incoming).forEach(([k, v]) => { if (RESOURCES[k]?.type === type && v > 0) localInventory[k] = v; });
+    Object.entries(incoming).forEach(([k, v]) => {
+      if (RESOURCES[k]?.type !== type) return;
+      // 260713 fix: subtract whatever's currently committed to the ticket
+      // (taskZoneMap). Firebase still counts a committed item as "owned"
+      // until completeTask() flushes the post-completion inventory back up
+      // — dropIntoTask() only updates localInventory, by design, so it never
+      // touches this Firebase node. Without this subtraction, any unrelated
+      // write to this same node (e.g. a teammate's transfer arriving here)
+      // refires this listener and rebuilds localInventory straight from the
+      // stale, still-includes-committed Firebase snapshot — resurrecting the
+      // already-used item into the station grid alongside the genuinely new
+      // one. This was the "extra resources on transfer" bug: same-type-only,
+      // and only after a resource of that type had been committed once.
+      const committed = taskZoneMap[k] || 0;
+      const avail = v - committed;
+      if (avail > 0) localInventory[k] = avail;
+    });
     Object.keys(knownSub).forEach(k => delete knownSub[k]);
     Object.entries(incoming).forEach(([k, v]) => { if (RESOURCES[k]?.type === type && v > 0) knownSub[k] = v; });
     renderInventory(newlyAdded);
