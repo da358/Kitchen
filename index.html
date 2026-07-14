@@ -914,10 +914,10 @@
   }
   #kf-lobby-overlay.active { display: flex; }
   .kf-lobby-modal {
-    width: min(440px, calc(100vw - 32px));
+    width: min(528px, calc(100vw - 32px)); /* ~20% larger than the original 440px — text sizes below are unchanged */
     background: var(--bg); border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg); border: 3px solid var(--accent-2);
-    padding: 28px 24px; text-align: center;
+    padding: 34px 29px; text-align: center;
   }
   .kf-lobby-alert {
     font-weight: 700; color: var(--accent); font-size: 26px;
@@ -1296,7 +1296,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3791,6 +3791,21 @@ function enterGame() {
     if (gameState.status === "ended") {
       clearInterval(timerInterval); timerInterval = null;
       clearInterval(rescueInterval); rescueInterval = null;
+      // Shared challenges (Session 9) — a challenge can still be mid-flight
+      // when the round timer expires (this was the "other players stuck
+      // in the modal after the host reached summary" bug). Force every
+      // client out of it immediately rather than waiting on a challenge-
+      // doc status write that might race with, or never beat, this same
+      // "ended" transition. Only the host also clears the Firebase side,
+      // so the doc doesn't linger and block a future challenge's
+      // one-at-a-time guard.
+      kfTeardownChallengeUI();
+      kfCloseLobby();
+      if (amHost && gameState.activeChallengeId) {
+        update(ref(db, `games/${gameCode}/challenges/${gameState.activeChallengeId}`),
+          { status: "abandoned", outcome: "round-ended", endedAt: Date.now() }).catch(()=>{});
+        update(ref(db, `games/${gameCode}`), { activeChallengeId: null }).catch(()=>{});
+      }
       showSummary();
     }
   });
@@ -3843,6 +3858,7 @@ function resetToLanding() {
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
   if (typeof kfTeardownChallengeUI === "function") kfTeardownChallengeUI();
+  if (typeof kfCloseLobby === "function") kfCloseLobby();
   localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
@@ -5659,17 +5675,18 @@ function kfSetupPointerInput() {
     // kf.you.x/y is the rig's native (0,0) origin — which is where the
     // NOZZLE sits, since the artwork's geometry was authored relative to
     // that point. On a touch screen that put the nozzle right under the
-    // player's finger, hidden from view. Fix: treat the actual pointer
-    // position as the CANISTER'S CENTER instead, and back-solve the rig
-    // origin from that offset — every downstream consumer (rendering,
-    // spray, engagement, tag pinning) already reads kf.you.x/y as "rig
-    // origin" and needs no further changes, since this is the one seam
-    // all of them go through.
+    // player's finger, hidden from view. Centering on the canister instead
+    // still occluded it, so the anchor now sits low in the canister body
+    // (20% of its height up from the bottom) — near where a hand would
+    // actually grip it, leaving the rest of the canister visible above
+    // the finger. Every downstream consumer (rendering, spray, engagement,
+    // tag pinning) already reads kf.you.x/y as "rig origin" and needs no
+    // further changes, since this is the one seam all of them go through.
     const s = kfExtScaleVal();
-    const centerOffsetX = (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * s;
-    const centerOffsetY = (KF_EXT_CANISTER_ORIGIN.y + KF_EXT_CANISTER_SIZE.h / 2) * s;
-    kf.you.x = (e.clientX - rect.left) - centerOffsetX;
-    kf.you.y = (e.clientY - rect.top) - centerOffsetY;
+    const anchorOffsetX = (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * s;
+    const anchorOffsetY = (KF_EXT_CANISTER_ORIGIN.y + KF_EXT_CANISTER_SIZE.h * 0.8) * s;
+    kf.you.x = (e.clientX - rect.left) - anchorOffsetX;
+    kf.you.y = (e.clientY - rect.top) - anchorOffsetY;
   }
   container.addEventListener('pointerdown', e => { container.setPointerCapture(e.pointerId); updatePos(e); kf.you.spraying = true; });
   container.addEventListener('pointermove', e => { updatePos(e); });
