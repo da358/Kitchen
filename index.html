@@ -865,9 +865,18 @@
   }
   .kf-flame-tag {
     position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
-    background: var(--accent-2); color: var(--bg); font-size: 10.5px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 3px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none;
+    /* Sized and colored to match the on-board zone labels (GRILL, PANTRY,
+       etc.) exactly, at whatever size the board is currently rendering —
+       --kf-label-scale is the SVG viewBox's px-per-unit ratio (see
+       kfApplyScale()), same basis the zone labels themselves render at,
+       so a name tag reads as visually equivalent to a room label rather
+       than a smaller, differently-colored afterthought. */
+    background: var(--text); color: var(--bg);
+    font-size: calc(10px * var(--kf-label-scale, 1));
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: calc(3px * var(--kf-label-scale, 1)) calc(7px * var(--kf-label-scale, 1));
+    border-radius: calc(4px * var(--kf-label-scale, 1));
+    white-space: nowrap; pointer-events: none;
     opacity: 0; transition: opacity 0.3s ease, top 0.45s ease, left 0.45s ease;
   }
   .kf-flame-tag.pinned { transition: opacity 0.3s ease; }
@@ -911,12 +920,12 @@
     padding: 28px 24px; text-align: center;
   }
   .kf-lobby-alert {
-    font-weight: 700; color: var(--accent); font-size: 13px;
+    font-weight: 700; color: var(--accent); font-size: 26px;
     letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px;
   }
-  .kf-lobby-message { font-size: 16px; color: var(--text); margin-bottom: 18px; line-height: 1.4; }
+  .kf-lobby-message { font-size: 32px; color: var(--text); margin-bottom: 18px; line-height: 1.3; }
   .kf-lobby-countdown-num {
-    font-family: var(--font-display); font-size: 56px; font-weight: 700;
+    font-family: var(--font-display); font-size: 112px; font-weight: 700;
     color: var(--accent); line-height: 1;
   }
   .kf-lobby-roster { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; text-align: left; }
@@ -1287,7 +1296,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1345,10 +1354,10 @@
     <div class="game-header-right">
       <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
       <span class="paused-badge" id="paused-badge">Paused</span>
-      <!-- Session 9, Step 1: debug-only trigger, host + Round 3 only, same
-           visibility gate as Pause. Bypasses the (not-yet-built) random
-           clock entirely and ignores the future once-per-round limiter, so
-           it can be clicked repeatedly for sizing/pacing testing. -->
+      <!-- Session 9: debug-only trigger, host + Round 2/3 only, same
+           visibility gate as Pause. Bypasses the random clock entirely
+           and ignores the once-per-round limiter, so it can be clicked
+           repeatedly for sizing/pacing testing. -->
       <button class="btn btn-secondary" id="btn-trigger-challenge" style="display:none; font-size:12px; padding:7px 12px;">🔥 Trigger shared challenge</button>
       <button class="btn btn-pause" id="btn-pause" style="display:none;">⏸</button>
       <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
@@ -3478,15 +3487,16 @@ async function startRoundInFirebase(players, roundType, duration) {
   updates[`games/${gameCode}/transfers`]   = null;
   updates[`games/${gameCode}/taskTrades`]  = null;
 
-  // Shared challenges (Session 9) — Round 3 only, once per round for now.
-  // Stamped here (same moment as roundInstanceId/endTime) so every client
-  // agrees on the trigger time without any client needing to keep polling
-  // a clock nobody else can see — same idea as endTime itself.
+  // Shared challenges (Session 9) — Round 2 and Round 3 only (Round 1 has
+  // no timer/tasks for it to interrupt). Once per round for now. Stamped
+  // here (same moment as roundInstanceId/endTime) so every client agrees
+  // on the trigger time without any client needing to keep polling a
+  // clock nobody else can see — same idea as endTime itself.
   updates[`games/${gameCode}/activeChallengeId`]    = null;
-  updates[`games/${gameCode}/naturalChallengeFired`] = isR3 ? false : null;
-  updates[`games/${gameCode}/challengeTriggerAt`]    = isR3
-    ? Date.now() + (90_000 + Math.random() * 90_000) // 1.5–3 min into the round
-    : null;
+  updates[`games/${gameCode}/naturalChallengeFired`] = isR1 ? null : false;
+  updates[`games/${gameCode}/challengeTriggerAt`]    = isR1
+    ? null
+    : Date.now() + (90_000 + Math.random() * 90_000); // 1.5–3 min into the round
 
   playerIds.forEach(pid => {
     const allTasks = setup.playerTasks[pid] || [];
@@ -3545,9 +3555,9 @@ function enterGame() {
     // Show pause button to host only (R2/R3 have timers)
     const pauseBtn = document.getElementById("btn-pause");
     if (pauseBtn) pauseBtn.style.display = (amHost && currentRound !== "round1") ? "" : "none";
-    // Shared challenges (Session 9) are Round 3-only — see project briefing.
+    // Shared challenges (Session 9) are Round 2 and Round 3.
     const triggerBtn = document.getElementById("btn-trigger-challenge");
-    if (triggerBtn) triggerBtn.style.display = (amHost && currentRound === "round3") ? "" : "none";
+    if (triggerBtn) triggerBtn.style.display = (amHost && (currentRound === "round2" || currentRound === "round3")) ? "" : "none";
 
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
@@ -3745,14 +3755,17 @@ function enterGame() {
       if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
     }
 
-    // Shared challenges (Session 9) — natural clock trigger. Gated on
-    // amHost, matching this file's existing convention for "a background
-    // condition became true, someone has to be the one to act on it" (see
-    // the taskTarget check just above). Keyed off gameState.roundInstanceId
-    // directly (rather than the local currentRound var, whose refresh
-    // timing across round transitions isn't guaranteed) so the guard
-    // self-resets correctly every time a fresh round actually starts.
-    if (amHost && gameState.roundType === "round3" && gameState.status === "playing"
+    // Shared challenges (Session 9) — natural clock trigger. Round 2 and
+    // Round 3 both schedule a challengeTriggerAt (see startRoundInFirebase);
+    // gated on amHost, matching this file's existing convention for "a
+    // background condition became true, someone has to be the one to act
+    // on it" (see the taskTarget check just above). Keyed off
+    // gameState.roundInstanceId directly (rather than the local
+    // currentRound var, whose refresh timing across round transitions
+    // isn't guaranteed) so the guard self-resets correctly every time a
+    // fresh round actually starts.
+    if (amHost && (gameState.roundType === "round2" || gameState.roundType === "round3")
+        && gameState.status === "playing"
         && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
         && !gameState.activeChallengeId
         && kfNaturalTriggerHandledForRoundId !== gameState.roundInstanceId
@@ -5124,7 +5137,7 @@ async function kfStartChallenge(mode) {
     createdAt: Date.now(),
   };
   if (def.scope === "all") {
-    doc.lobbyEndsAt = Date.now() + 3000; // 3-2-1, no controls
+    doc.lobbyEndsAt = Date.now() + 6000; // 3-2-1 at half speed (2s/step) — see kfStartLobbyCountdownAllHands
   } else {
     doc.subsetSize   = def.subsetSize;
     doc.volunteers   = {};
@@ -5241,8 +5254,11 @@ function kfStartLobbyCountdownAllHands(id, data) {
   const numEl = document.getElementById("kf-lobby-countdown-num");
   function tick() {
     const remainMs = data.lobbyEndsAt - Date.now();
-    const remainSec = Math.max(0, Math.ceil(remainMs / 1000));
-    numEl.textContent = remainMs > 0 ? String(remainSec) : "GO";
+    // Half speed: each displayed number holds for 2s instead of 1s — the
+    // window itself is now 6000ms (see kfStartChallenge), so dividing by
+    // 2000 here keeps "3, 2, 1, GO" as the four states shown, just slower.
+    const remainStep = Math.max(0, Math.ceil(remainMs / 2000));
+    numEl.textContent = remainMs > 0 ? String(remainStep) : "GO";
     if (remainMs <= 0) {
       clearInterval(kfLobbyCountdownInterval); kfLobbyCountdownInterval = null;
       if (amHost) kfResolveAllHandsLobby(id); // host is always a participant in an all-hands challenge
@@ -5576,7 +5592,16 @@ function kfComputeScale() {
   kfScale = kfBoardRect.w > 0 ? kfBoardRect.w / KF_REFERENCE_BOARD_W : 1;
   return kfScale;
 }
-function kfApplyScale() { document.getElementById('kf-blueprint').style.setProperty('--kf-scale', kfScale); }
+function kfApplyScale() {
+  const el = document.getElementById('kf-blueprint');
+  el.style.setProperty('--kf-scale', kfScale);
+  // Distinct from --kf-scale (calibrated against KF_REFERENCE_BOARD_W for
+  // the canister/flame art): this is the SVG viewBox's actual px-per-unit
+  // ratio, i.e. the same basis the zone labels render at, so a value fed
+  // straight from a viewBox-unit font-size (10, matching KF_ZONE_LABEL_FONT)
+  // lands at the exact same on-screen size as the real zone labels.
+  el.style.setProperty('--kf-label-scale', kfBoardRect.w > 0 ? (kfBoardRect.w / KF_BOARD_VIEW_W) : 1);
+}
 
 const KF_EXT_SCALE_BASE = 105 / 375;
 const KF_EXT_CANISTER_ORIGIN = { x: 242.602, y: 12.605 };
@@ -5631,8 +5656,20 @@ function kfSetupPointerInput() {
   const container = document.getElementById('kf-blueprint');
   function updatePos(e) {
     const rect = container.getBoundingClientRect();
-    kf.you.x = e.clientX - rect.left;
-    kf.you.y = e.clientY - rect.top;
+    // kf.you.x/y is the rig's native (0,0) origin — which is where the
+    // NOZZLE sits, since the artwork's geometry was authored relative to
+    // that point. On a touch screen that put the nozzle right under the
+    // player's finger, hidden from view. Fix: treat the actual pointer
+    // position as the CANISTER'S CENTER instead, and back-solve the rig
+    // origin from that offset — every downstream consumer (rendering,
+    // spray, engagement, tag pinning) already reads kf.you.x/y as "rig
+    // origin" and needs no further changes, since this is the one seam
+    // all of them go through.
+    const s = kfExtScaleVal();
+    const centerOffsetX = (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * s;
+    const centerOffsetY = (KF_EXT_CANISTER_ORIGIN.y + KF_EXT_CANISTER_SIZE.h / 2) * s;
+    kf.you.x = (e.clientX - rect.left) - centerOffsetX;
+    kf.you.y = (e.clientY - rect.top) - centerOffsetY;
   }
   container.addEventListener('pointerdown', e => { container.setPointerCapture(e.pointerId); updatePos(e); kf.you.spraying = true; });
   container.addEventListener('pointermove', e => { updatePos(e); });
