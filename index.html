@@ -53,7 +53,9 @@
     --station-a:   #8B4A2B;       /* station panel gradient top */
     --station-b:   #5C2F1A;       /* station panel gradient bottom */
     --station-text:#FBF3E7;       /* light text for use on the station gradient — don't leave station headers at --text-2 */
-    --clip-a:      #4a4136;       /* ticket clip gradient — neutral, unchanged by palette */
+    --clip-a:      #4a4136;       /* superseded 260713 — old clip-shape gradient, no longer
+                                      referenced now that the clip is real artwork (see .clip-art).
+                                      Left defined, unused, per this project's dead-code convention. */
     --clip-b:      #221d16;
     --radius:      8px;
     --btn-pause:   #2B241C;       /* near-black pause button, retinted to new ink */
@@ -355,17 +357,29 @@
     align-items: center;
     width: 100%;
     max-width: 400px;
-    transform-origin: 50% 0;
+    /* 260713: pivot moved from the container's top edge to the underside of
+       the clip artwork's top loop (~44.5% down the clip's own height — see
+       .clip-art comment below), so the ticket sways as if hung from a nail
+       or wire through that loop, not from the clip's bounding-box top. */
+    transform-origin: 50% 17.8px;
     animation: ticketSway 5s ease-in-out infinite;
   }
   @keyframes ticketSway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
   body.is-dragging .ticket-col { animation-play-state: paused; }
-  .clip-shape {
-    width: 14px; height: 22px; margin: 0 auto -10px; position: relative; z-index: 3;
-    background: linear-gradient(180deg, var(--clip-a), var(--clip-b));
-    clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
-  }
-  .clip-shape.big { width: 26px; height: 40px; margin: 0 0 -20px; }
+  /* 260713: real clip artwork (uploaded SVGs) replaces the old CSS
+     clip-path/gradient placeholder (.clip-shape, removed). Two hand-tuned
+     scales are used rather than one SVG scaled by CSS — per the brief,
+     scaling a single version up/down distorted the corner rounding, so
+     the "big" (main ticket) and "small" (rail stub) variants are each the
+     artwork's own file at its intended size, sized via the <svg> width/
+     height attributes in the markup rather than here. This class only
+     handles placement: negative margin-bottom overlaps the clip's lower
+     portion behind the ticket below it (same technique as the old
+     placeholder), nudged up 5% of the clip's own height versus the old
+     placeholder's overlap amount, per the brief. */
+  .clip-art { display: block; position: relative; z-index: 3; }
+  .clip-art--big   { margin: 0 auto -22px; }
+  .clip-art--small { margin: 0 auto -11px; }
   .ticket-main {
     background: var(--surface);
     width: 100%;
@@ -1058,8 +1072,10 @@
   .stub-wrap.is-now .stub-tag  { visibility: visible; color: var(--accent); }
   .stub-wrap.is-next .stub-tag { visibility: visible; color: var(--text-2); }
   /* Clip and ticket share one rotating parent — rotation pivot is the
-     clip's top-center, not the stub's own bounding-box center (brief §3.6). */
-  .stub-ticket-group { transform-origin: 50% 0; }
+     underside of the clip artwork's top loop (~43% down its own height —
+     see the main ticket-col comment above for the same treatment),
+     not the stub's own bounding-box top (brief §3.6, updated 260713). */
+  .stub-ticket-group { transform-origin: 50% 9.5px; }
   .ticket-stub {
     width: 96px; background: var(--surface); border-radius: 2px; padding: 10px 8px; text-align: center;
     cursor: grab; box-shadow: 0 3px 6px rgba(43,36,28,0.14); transform: rotate(-0.8deg);
@@ -1296,7 +1312,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260713.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260713.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1389,7 +1405,14 @@
       <div class="task-panel" id="task-panel">
         <div class="ticket-wrap">
           <div class="ticket-col" id="ticket-col">
-            <div class="clip-shape big"></div>
+            <svg class="clip-art clip-art--big" width="35" height="40" viewBox="0 0 42 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M0.639394 25.9232C0.301638 23.5166 2.17035 21.3673 4.60057 21.3673H20.5102V44.9387H3.3081L0.639394 25.9232Z" fill="#5D301B"/>
+              <path d="M40.381 25.9232C40.7187 23.5166 38.85 21.3673 36.4198 21.3673H20.5102V44.9387H37.7123L40.381 25.9232Z" fill="#5D301B"/>
+              <rect x="3.06116" y="42.1837" width="8.2653" height="5.81632" rx="1" fill="#121211"/>
+              <rect x="16.2245" y="42.1837" width="8.2653" height="5.81632" rx="1" fill="#121211"/>
+              <rect x="29.3877" y="42.1837" width="8.2653" height="5.81632" rx="1" fill="#121211"/>
+              <path d="M20.5471 0.00213388C21.4313 0.0190751 24.0333 0.270284 26.3497 1.53959C27.566 2.20615 28.761 3.18478 29.5588 4.61985C30.3677 6.07526 30.7144 7.90251 30.3719 10.1359C30.0161 12.4548 28.7454 14.0466 27.7382 15.3116C26.6578 16.6686 25.9752 17.564 25.9196 18.7088C25.8167 20.8322 26.224 25.2442 26.8682 29.9596C27.5087 34.6484 28.3637 39.4945 29.1169 42.4407C29.2478 42.9517 29.738 43.3428 30.5516 43.5887C30.9235 43.7011 31.2898 43.7596 31.5679 43.7882C31.7052 43.8024 31.8171 43.8075 31.892 43.8106C31.9292 43.8122 31.9575 43.8136 31.9745 43.8138C31.9825 43.814 31.9883 43.8138 31.9912 43.8138L32 45.9989H31.998L31.9941 46C31.9909 46 31.9862 45.999 31.9813 45.9989C31.9718 45.9989 31.9586 45.9992 31.943 45.9989C31.9117 45.9984 31.8678 45.9969 31.8144 45.9947C31.7073 45.9902 31.5577 45.9822 31.3784 45.9637C31.0227 45.9271 30.5322 45.8508 30.0125 45.6938C29.0427 45.4007 27.6091 44.7052 27.1794 43.0254C26.3936 39.9516 25.5238 35.0042 24.8787 30.2819C24.2372 25.5864 23.7975 20.9665 23.9124 18.5935C24.0111 16.5619 25.2566 15.0883 26.2171 13.8819C27.2511 12.5834 28.1358 11.4158 28.3873 9.77636C28.6603 7.99653 28.3712 6.70861 27.8384 5.74973C27.2943 4.77088 26.4401 4.0357 25.4443 3.48996C23.4737 2.41022 21.1733 2.19687 20.499 2.18722C19.8226 2.19721 17.5247 2.41113 15.5557 3.48996C14.5598 4.03571 13.7057 4.77082 13.1616 5.74973C12.6287 6.70862 12.3397 7.99646 12.6127 9.77636C12.8642 11.4157 13.748 12.5835 14.7819 13.8819C15.7424 15.0883 16.9889 16.5619 17.0876 18.5935C17.2025 20.9665 16.7628 25.5864 16.1213 30.2819C15.4762 35.0041 14.6064 39.9516 13.8206 43.0254C13.3909 44.7051 11.9573 45.4006 10.9875 45.6938C10.4679 45.8508 9.97732 45.9271 9.6216 45.9637C9.44245 45.9821 9.29267 45.9902 9.18559 45.9947C9.13223 45.9969 9.08834 45.9984 9.05696 45.9989C9.04143 45.9992 9.02827 45.9989 9.01866 45.9989C9.01383 45.999 9.00913 46 9.00589 46L9.00196 45.9989H9L9.00884 43.8138C9.01178 43.8138 9.01766 43.814 9.02553 43.8138C9.04257 43.8135 9.07098 43.8122 9.10802 43.8106C9.18287 43.8075 9.29495 43.8023 9.43207 43.7882C9.71017 43.7596 10.0766 43.7011 10.4484 43.5887C11.262 43.3428 11.7522 42.9518 11.8831 42.4407C12.6363 39.4945 13.4913 34.6484 14.1318 29.9596C14.776 25.2442 15.1823 20.8322 15.0795 18.7088C15.0238 17.564 14.3422 16.6686 13.2618 15.3116C12.2545 14.0466 10.9839 12.4548 10.6281 10.1359C10.2856 7.90262 10.6314 6.07522 11.4402 4.61985C12.2379 3.18492 13.4331 2.20616 14.6493 1.53959C16.9659 0.270139 19.5689 0.0190331 20.4529 0.00213388V0C20.4679 1.01727e-06 20.4836 0.000895643 20.5 0.00106694C20.5164 0.000896773 20.5322 4.35304e-07 20.5471 0V0.00213388Z" fill="black"/>
+            </svg>
             <div class="ticket-main task-drop-zone" id="ticket-main">
               <div class="now-tag">Now prepping</div>
               <div class="task-name" id="task-name">—</div>
@@ -2816,7 +2839,14 @@ function makeStub(taskId, idx) {
   wrap.innerHTML = `
     <div class="stub-tag">${idx === 0 ? "Now prepping" : idx === 1 ? "Next up" : ""}</div>
     <div class="stub-ticket-group">
-      <div class="clip-shape"></div>
+      <svg class="clip-art clip-art--small" width="18.33" height="22" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M0.159849 11.5568C0.0754095 10.9552 0.542587 10.4178 1.15014 10.4178H10V21.9104H1.6129L0.159849 11.5568Z" fill="#5D301B"/>
+        <path d="M19.8402 11.5568C19.9246 10.9552 19.4574 10.4178 18.8499 10.4178H10V21.9104H18.3871L19.8402 11.5568Z" fill="#5D301B"/>
+        <rect x="1.49255" y="20.5671" width="4.02985" height="2.83582" rx="0.4" fill="#121211"/>
+        <rect x="7.9104" y="20.5671" width="4.02985" height="2.83582" rx="0.4" fill="#121211"/>
+        <rect x="14.3284" y="20.5671" width="4.02985" height="2.83582" rx="0.4" fill="#121211"/>
+        <path d="M10.018 0.0010404C10.4491 0.00930031 11.7178 0.13178 12.8471 0.750648C13.4402 1.07564 14.0228 1.55278 14.4118 2.25246C14.8062 2.96207 14.9752 3.85297 14.8082 4.94189C14.6347 6.07249 14.0152 6.8486 13.5241 7.46538C12.9973 8.12698 12.6645 8.56354 12.6374 9.12169C12.5873 10.157 12.7858 12.3081 13.0999 14.6072C13.4122 16.8932 13.8291 19.256 14.1963 20.6925C14.2601 20.9417 14.4991 21.1323 14.8958 21.2522C15.0771 21.307 15.2557 21.3356 15.3913 21.3495C15.4583 21.3564 15.5128 21.3589 15.5493 21.3604C15.5675 21.3612 15.5813 21.3618 15.5895 21.362C15.5935 21.362 15.5963 21.362 15.5977 21.362L15.602 22.4274H15.601L15.5991 22.4279C15.5975 22.4279 15.5952 22.4274 15.5929 22.4274C15.5882 22.4273 15.5818 22.4275 15.5742 22.4274C15.5589 22.4271 15.5375 22.4264 15.5115 22.4253C15.4593 22.4231 15.3863 22.4192 15.2989 22.4102C15.1255 22.3923 14.8864 22.3552 14.633 22.2786C14.1601 22.1357 13.4612 21.7966 13.2517 20.9776C12.8685 19.4789 12.4444 17.0667 12.1299 14.7643C11.8171 12.475 11.6028 10.2225 11.6588 9.06551C11.7069 8.07498 12.3142 7.35647 12.7825 6.76831C13.2866 6.13517 13.718 5.56591 13.8406 4.76659C13.9737 3.89881 13.8328 3.27087 13.5729 2.80335C13.3077 2.3261 12.8912 1.96766 12.4057 1.70157C11.4449 1.17513 10.3233 1.07111 9.99455 1.06641C9.66474 1.07128 8.54436 1.17558 7.58438 1.70157C7.09883 1.96766 6.6824 2.32607 6.41712 2.80335C6.15729 3.27087 6.01638 3.89877 6.14949 4.76659C6.27209 5.56585 6.70303 6.13522 7.20711 6.76831C7.67542 7.35648 8.28314 8.07494 8.33128 9.06551C8.3873 10.2225 8.17291 12.475 7.86016 14.7643C7.54561 17.0667 7.12153 19.4789 6.73838 20.9776C6.52891 21.7965 5.82995 22.1356 5.35711 22.2786C5.10375 22.3551 4.86457 22.3923 4.69113 22.4102C4.60378 22.4192 4.53075 22.4231 4.47855 22.4253C4.45253 22.4264 4.43113 22.4271 4.41583 22.4274C4.40826 22.4275 4.40184 22.4273 4.39716 22.4274C4.39481 22.4274 4.39251 22.4279 4.39093 22.4279L4.38902 22.4274H4.38806L4.39237 21.362C4.39381 21.362 4.39667 21.362 4.40051 21.362C4.40882 21.3618 4.42267 21.3612 4.44073 21.3604C4.47722 21.3589 4.53187 21.3564 4.59872 21.3495C4.73432 21.3355 4.91296 21.307 5.09426 21.2522C5.49093 21.1323 5.72995 20.9417 5.79375 20.6925C6.161 19.256 6.57785 16.8932 6.89015 14.6072C7.20423 12.3081 7.40231 10.157 7.35218 9.12169C7.32506 8.56355 6.99273 8.12697 6.46596 7.46538C5.97486 6.84859 5.35534 6.07251 5.18188 4.94189C5.01486 3.85302 5.18347 2.96205 5.57782 2.25246C5.96674 1.55285 6.5495 1.07564 7.14247 0.750648C8.27194 0.13171 9.54106 0.0092798 9.97205 0.0010404V0C9.97936 4.95984e-07 9.98702 0.000436682 9.99503 0.000520199C10.003 0.000437233 10.0107 2.12238e-07 10.018 0V0.0010404Z" fill="black"/>
+      </svg>
       <div class="ticket-stub" data-task-id="${taskId}" data-rail-idx="${idx}">
         <div class="stub-emoji">📋</div>
         <div class="stub-name">${task.name}</div>
