@@ -1296,7 +1296,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -5895,9 +5895,15 @@ function kfRenderPlayerTags() {
   const canisterX = kf.you.x + (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * extScaleVal;
   const canisterTopY = kf.you.y + KF_EXT_CANISTER_ORIGIN.y * extScaleVal;
   myTagEl.classList.add('pinned', 'visible');
-  myTagEl.style.left = canisterX + 'px';
-  myTagEl.style.top = (canisterTopY - 14) + 'px';
   myTagEl.textContent = 'YOU';
+  // Nudged up an additional 20% of the label's own rendered height, per
+  // feedback — measured directly (offsetHeight) rather than computed from
+  // font-size/padding by hand, since the chip's actual box height is a
+  // function of line-height too, and this stays correct automatically as
+  // --kf-label-scale changes the chip's size at different board widths.
+  const tagHeight = myTagEl.offsetHeight || 0;
+  myTagEl.style.left = canisterX + 'px';
+  myTagEl.style.top = (canisterTopY - 14 - tagHeight * 0.2) + 'px';
   visible.push({ id: myPlayerId, tagEl: myTagEl, px: canisterX, py: canisterTopY });
 
   const seen = new Set([myPlayerId]);
