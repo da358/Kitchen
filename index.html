@@ -865,13 +865,13 @@
   }
   .kf-flame-tag {
     position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
-    /* Sized and colored to match the on-board zone labels (GRILL, PANTRY,
-       etc.) exactly, at whatever size the board is currently rendering —
-       --kf-label-scale is the SVG viewBox's px-per-unit ratio (see
-       kfApplyScale()), same basis the zone labels themselves render at,
-       so a name tag reads as visually equivalent to a room label rather
-       than a smaller, differently-colored afterthought. */
-    background: var(--text); color: var(--bg);
+    /* Sized to match the on-board zone labels (GRILL, PANTRY, etc.) at
+       whatever size the board is currently rendering — --kf-label-scale
+       is the SVG viewBox's px-per-unit ratio (see kfApplyScale()), same
+       basis the zone labels themselves render at. Color is intentionally
+       NOT matched to the zone labels (that read as gray/near-black against
+       the warm palette) — warm brown instead, same for self and teammates. */
+    background: var(--accent-2); color: var(--bg);
     font-size: calc(10px * var(--kf-label-scale, 1));
     font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
     padding: calc(3px * var(--kf-label-scale, 1)) calc(7px * var(--kf-label-scale, 1));
@@ -1296,7 +1296,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260712.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2066,6 +2066,7 @@ let gameRef        = null;
 let playersRef     = null;
 let timerInterval  = null;
 let rescueInterval = null;   // R3: periodic rescue spawn, host-only
+let kfNaturalTriggerCheckInterval = null; // Session 9: host-only poll, see kfCheckNaturalTrigger()
 let gameState      = {};    // mirror of Firebase state
 let localInventory = {};    // { resourceName: count } — kept in sync with Firebase
 let taskZoneItems  = [];    // resources dragged into task zone
@@ -3590,6 +3591,14 @@ function enterGame() {
     if (isR3 && amHost) {
       rescueInterval = setInterval(() => runRescueScan(), 30000);
     }
+
+    // Shared challenges (Session 9) — host-only poll every 1s. This is the
+    // actual fix for "the natural trigger only fires right after some
+    // unrelated Firebase write" — see kfCheckNaturalTrigger() for why
+    // onValue alone isn't sufficient here.
+    if (amHost) {
+      kfNaturalTriggerCheckInterval = setInterval(() => kfCheckNaturalTrigger(), 1000);
+    }
   });
 
   // ── 2. Watch MY inventory ────────────────────────────────────
@@ -3755,24 +3764,17 @@ function enterGame() {
       if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
     }
 
-    // Shared challenges (Session 9) — natural clock trigger. Round 2 and
-    // Round 3 both schedule a challengeTriggerAt (see startRoundInFirebase);
-    // gated on amHost, matching this file's existing convention for "a
-    // background condition became true, someone has to be the one to act
-    // on it" (see the taskTarget check just above). Keyed off
-    // gameState.roundInstanceId directly (rather than the local
-    // currentRound var, whose refresh timing across round transitions
-    // isn't guaranteed) so the guard self-resets correctly every time a
-    // fresh round actually starts.
-    if (amHost && (gameState.roundType === "round2" || gameState.roundType === "round3")
-        && gameState.status === "playing"
-        && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
-        && !gameState.activeChallengeId
-        && kfNaturalTriggerHandledForRoundId !== gameState.roundInstanceId
-        && Date.now() >= gameState.challengeTriggerAt) {
-      kfNaturalTriggerHandledForRoundId = gameState.roundInstanceId;
-      kfStartChallenge("natural");
-    }
+    // Shared challenges (Session 9) — natural clock trigger, re-checked
+    // here AND on a real setInterval poll (see kfNaturalTriggerCheckInterval,
+    // set up in enterGame()). onValue only re-fires when something under
+    // games/{code} actually changes — during a quiet stretch with no other
+    // writes, an already-elapsed challengeTriggerAt was silently sitting
+    // unevaluated until some unrelated write (like a manually-triggered
+    // challenge finishing) happened to nudge this listener again, which is
+    // exactly the "natural trigger fires right after the debug button"
+    // symptom. The interval poll is the actual fix; this call just keeps
+    // reaction time snappy when data does change anyway.
+    kfCheckNaturalTrigger();
 
     // Shared challenges (Session 9) — track the active challenge doc.
     if (gameState.activeChallengeId !== kfLastSeenActiveChallengeId) {
@@ -3791,6 +3793,7 @@ function enterGame() {
     if (gameState.status === "ended") {
       clearInterval(timerInterval); timerInterval = null;
       clearInterval(rescueInterval); rescueInterval = null;
+  clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
       // Shared challenges (Session 9) — a challenge can still be mid-flight
       // when the round timer expires (this was the "other players stuck
       // in the modal after the host reached summary" bug). Force every
@@ -3857,6 +3860,7 @@ function resetToLanding() {
   roundStartInFlight = false;
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
+  clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
   if (typeof kfTeardownChallengeUI === "function") kfTeardownChallengeUI();
   if (typeof kfCloseLobby === "function") kfCloseLobby();
   localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
@@ -3996,6 +4000,7 @@ async function showSummary() {
       Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
       clearInterval(timerInterval); timerInterval = null;
       clearInterval(rescueInterval); rescueInterval = null;
+  clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
       const btnReady = document.getElementById("btn-ready");
       btnReady.disabled = false; btnReady.textContent = "I'm ready ✓";
       enterLobby(); // enterLobby() itself now clears `unsubscribers`, incl. this listener
@@ -4473,6 +4478,7 @@ async function enterBetweenRoundLobby(nextRoundType, duration) {
   Object.keys(lastKnownInventoryRef.tools).forEach(k => delete lastKnownInventoryRef.tools[k]);
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
+  clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
 
   // Reset the Ready button so the host (and anyone else on this device) can click it again
   const btnReady = document.getElementById("btn-ready");
@@ -5173,6 +5179,29 @@ let kfLastSeenActiveChallengeId = undefined;
 let kfChallengeDocUnsub = null;
 let kfChallengeDocUnsubId = null;
 
+// Gated on amHost, matching this file's existing convention for "a
+// background condition became true, someone has to be the one to act on
+// it" (see the taskTarget auto-end check in the game-level listener).
+// Keyed off gameState.roundInstanceId directly (rather than the local
+// currentRound var, whose refresh timing across round transitions isn't
+// guaranteed) so the guard self-resets correctly every time a fresh round
+// actually starts. Called both from onValue (for snappy reaction when
+// data changes anyway) and from a real setInterval (kfNaturalTriggerCheckInterval,
+// set up in enterGame()) — the interval is what actually guarantees this
+// runs on a real clock tick instead of only when something else happens
+// to write to games/{code} first.
+function kfCheckNaturalTrigger() {
+  if (amHost && (gameState.roundType === "round2" || gameState.roundType === "round3")
+      && gameState.status === "playing"
+      && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
+      && !gameState.activeChallengeId
+      && kfNaturalTriggerHandledForRoundId !== gameState.roundInstanceId
+      && Date.now() >= gameState.challengeTriggerAt) {
+    kfNaturalTriggerHandledForRoundId = gameState.roundInstanceId;
+    kfStartChallenge("natural");
+  }
+}
+
 function kfSetupChallengeDocListener(challengeId) {
   if (kfChallengeDocUnsub) {
     off(ref(db, `games/${gameCode}/challenges/${kfChallengeDocUnsubId}`), "value", kfChallengeDocUnsub);
@@ -5868,7 +5897,7 @@ function kfRenderPlayerTags() {
   myTagEl.classList.add('pinned', 'visible');
   myTagEl.style.left = canisterX + 'px';
   myTagEl.style.top = (canisterTopY - 14) + 'px';
-  myTagEl.textContent = myPlayerName || 'You';
+  myTagEl.textContent = 'YOU';
   visible.push({ id: myPlayerId, tagEl: myTagEl, px: canisterX, py: canisterTopY });
 
   const seen = new Set([myPlayerId]);
