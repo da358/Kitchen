@@ -1067,6 +1067,24 @@
     font-weight: 600; font-size: 14px;
   }
   .complete-banner.show { display: flex; }
+  /* Session 11: covers the entire mini-game modal while the round is paused
+     — freezes it in place (blocks all input via the capture-phase listener
+     below) rather than closing it, so it resumes exactly where it left off
+     on unpause. Sits above the canvas and buttons via z-index; `.modal`
+     is already `position: relative`, so this anchors to it directly. */
+  .activity-freeze-cover {
+    display: none; position: absolute; inset: 0; z-index: 20;
+    background: rgba(20,18,15,0.6); backdrop-filter: blur(2px);
+    border-radius: var(--radius-lg);
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 6px; text-align: center; padding: 20px; color: #fff;
+    font-weight: 700; font-size: 16px; letter-spacing: 0.02em;
+  }
+  .activity-freeze-cover .sub {
+    font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.75);
+    letter-spacing: normal;
+  }
+  .activity-freeze-cover.show { display: flex; }
   .modal-actions { display: flex; gap: 10px; }
   .btn {
     flex: 1; padding: 11px 18px; border-radius: var(--radius);
@@ -1364,7 +1382,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1592,6 +1610,10 @@
 <!-- ══ COOKING ACTIVITY MODAL ══════════════════════════════════ -->
 <div id="activity-modal-overlay">
   <div class="modal">
+    <div class="activity-freeze-cover" id="activity-freeze-cover">
+      <span>⏸ Paused</span>
+      <span class="sub">Play will resume right where you left off.</span>
+    </div>
     <button class="modal-close" id="activity-modal-close-btn">✕</button>
     <div class="modal-header">
       <span class="modal-tool-icon" id="activity-tool-icon">🔪</span>
@@ -3896,19 +3918,21 @@ function enterGame() {
       clearInterval(timerInterval); timerInterval = null;
       if (gameState.endTime) _pausedTimeRemaining = Math.max(0, gameState.endTime - Date.now());
       applyPausedState(true);
-      // Session 11: a mini-game already open when pause hits is the one action
-      // entry point a simple guard-on-mutation can't cover — the player could
-      // still finish the gesture puzzle and tap Complete. Force everyone out
-      // of it immediately, same pattern as kfTeardownChallengeUI() below for
-      // round-end, rather than leaving it to the completeTask() guard to
-      // silently no-op on Complete (confusing: the mini-game would say
-      // "done" but nothing would happen).
-      if (document.getElementById("activity-modal-overlay").classList.contains("active")) {
-        closeActivityModal(false);
-        toast("Game paused", "bad");
-      }
+      // Session 11 (revised): a mini-game already open when pause hits is the
+      // one action entry point a simple guard-on-mutation can't cover — the
+      // player could still finish the gesture puzzle and tap Complete.
+      // Originally this force-closed the modal (mirroring
+      // kfTeardownChallengeUI()'s round-end teardown), but that discarded
+      // whatever progress the player had made, forcing a restart on resume —
+      // reported as unwanted. Freezing in place instead: the modal stays
+      // open exactly as it was, a cover overlay blocks all input (see
+      // setActivityFrozen() and the capture-phase listener near it), and
+      // unfreezing on resume hands input back to the same still-running
+      // mini-game with no state lost.
+      setActivityFrozen(true);
     } else if (gameState.status === "playing") {
       applyPausedState(false);
+      setActivityFrozen(false);
     }
 
     if (gameState.status === "ended") {
@@ -3984,6 +4008,7 @@ function resetToLanding() {
   clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
   if (typeof kfTeardownChallengeUI === "function") kfTeardownChallengeUI();
   if (typeof kfCloseLobby === "function") kfCloseLobby();
+  setActivityFrozen(false); // Session 11: don't let a stale freeze leak into a future round
   localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
@@ -4480,6 +4505,47 @@ function applyPausedState(paused) {
   if (pauseModal && amHost) pauseModal.style.display = paused ? "flex" : "none";
 }
 
+/* ─── FREEZE AN IN-PROGRESS MINI-GAME DURING PAUSE (Session 11) ──────
+   Each ACTIVITY_DEFS entry wires its own input handlers — some on the
+   canvas element, some on `document` (mousemove/mouseup, so a drag that
+   started on-canvas keeps tracking even if the pointer leaves it). There's
+   no single shared per-activity "stop accepting input" hook, and adding one
+   to all nine activity definitions individually would be the invasive,
+   error-prone route. Instead: one capture-phase listener on `document`,
+   registered once, that runs before *any* of those handlers — canvas-bound
+   or document-bound — regardless of which activity is live or where its
+   internal drag-state lives. While frozen, it swallows every pointer/mouse/
+   touch/click event whose target is inside the activity modal, including a
+   drag that was already mid-stroke the instant pause landed (that in-flight
+   drag's own document-level mousemove/mouseup listeners never get a chance
+   to fire). Buttons inside the modal (Cancel, ✕, Complete task) are
+   swallowed the same way — paused means paused, no exits either.
+   The mini-game's own rAF render loop keeps running underneath (harmless —
+   nothing in these activities scores or advances on a timer, only on
+   gesture input, so nothing progresses on its own) but is visually hidden
+   by the cover overlay, so nothing about resuming is state you have to
+   reconstruct: unfreezing just hands input back to the same instance. */
+let _activityFrozen = false;
+
+function setActivityFrozen(frozen) {
+  _activityFrozen = frozen;
+  const cover = document.getElementById("activity-freeze-cover");
+  const modalOpen = document.getElementById("activity-modal-overlay").classList.contains("active");
+  if (cover) cover.classList.toggle("show", frozen && modalOpen);
+}
+
+const _ACTIVITY_FREEZE_EVENTS = ["mousedown","mousemove","mouseup","touchstart","touchmove","touchend","click"];
+_ACTIVITY_FREEZE_EVENTS.forEach(type => {
+  document.addEventListener(type, e => {
+    if (!_activityFrozen) return;
+    const modal = document.getElementById("activity-modal-overlay");
+    if (modal && modal.contains(e.target)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, { capture: true, passive: false });
+});
+
 // Make pause modal draggable
 (function() {
   let isDragging = false, dragOX = 0, dragOY = 0;
@@ -4613,6 +4679,7 @@ async function enterBetweenRoundLobby(nextRoundType, duration) {
   clearInterval(timerInterval);  timerInterval  = null;
   clearInterval(rescueInterval); rescueInterval = null;
   clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
+  setActivityFrozen(false); // Session 11: don't let a stale freeze leak into the next round
 
   // Reset the Ready button so the host (and anyone else on this device) can click it again
   const btnReady = document.getElementById("btn-ready");
