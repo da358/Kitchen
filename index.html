@@ -1364,7 +1364,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260713.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2393,6 +2393,7 @@ document.addEventListener("visibilitychange", () => {
 
 function onTileMouseDown(e) {
   if (e.button !== 0) return;
+  if (isGamePaused()) return; // Session 11: no drag while paused
   e.preventDefault(); // stop browser text-selection on mousedown
   initPointer(e.currentTarget, e.clientX, e.clientY);
   document.addEventListener("mousemove", onMouseMove);
@@ -2400,6 +2401,7 @@ function onTileMouseDown(e) {
 }
 
 function onTileTouchStart(e) {
+  if (isGamePaused()) return; // Session 11: no drag while paused
   const touch = e.touches[0];
   e.preventDefault();
   initPointer(e.currentTarget, touch.clientX, touch.clientY);
@@ -2573,6 +2575,7 @@ function renderTaskZone() {
 }
 
 function dropIntoTask(name) {
+  if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   if (!localInventory[name]) { toast("You don't have that resource", "bad"); return; }
   if (!currentTask) return;
 
@@ -2616,6 +2619,7 @@ function checkTaskComplete() {
 
 async function completeTask() {
   if (!currentTask) return;
+  if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   const taskName = currentTask.name;
   const isR3 = currentRound === "round3";
   const myRoundInstanceId = currentRoundInstanceId;
@@ -3011,12 +3015,14 @@ let taskOffX = 0, taskOffY = 0;
 
 function onTaskTileMouseDown(e) {
   if (e.button !== 0) return;
+  if (isGamePaused()) return; // Session 11: no drag while paused
   e.preventDefault();
   initTaskPointer(e.currentTarget, e.clientX, e.clientY);
   document.addEventListener("mousemove", onTaskMouseMove);
   document.addEventListener("mouseup",   onTaskMouseUp);
 }
 function onTaskTileTouchStart(e) {
+  if (isGamePaused()) return; // Session 11: no drag while paused
   const touch = e.touches[0];
   e.preventDefault();
   initTaskPointer(e.currentTarget, touch.clientX, touch.clientY);
@@ -3124,6 +3130,7 @@ function endTaskPointer(cx, cy) {
 // gesture IS promotion; there is no separate promote/demote mechanism
 // (brief §3.2). Resource-return (brief §3.8) is handled by setRailFromArray.
 function handleRailReorder(taskId, fromIdx, cx) {
+  if (isGamePaused()) return; // Session 11: no rail reorder while paused
   const stubs = [...document.querySelectorAll("#rail-row .ticket-stub")]
     .filter(s => s.dataset.taskId !== taskId);
   let toIdx = stubs.length;
@@ -3160,6 +3167,7 @@ function handleRailReorder(taskId, fromIdx, cx) {
 }
 
 async function handleTaskTrade(taskId, fromIdx, targetPlayerId) {
+  if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   const targetName = gameState.players?.[targetPlayerId]?.name || "teammate";
   const taskDef    = localTaskDefs[taskId];
 
@@ -3179,6 +3187,7 @@ async function handleTaskTrade(taskId, fromIdx, targetPlayerId) {
 }
 
 async function executeTaskTrade(taskId, targetPlayerId, targetName, taskDef) {
+  if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   const rail = getRail();
   const idx  = rail.indexOf(taskId);
   if (idx !== -1) rail.splice(idx, 1);
@@ -3246,6 +3255,7 @@ function closeConfirmModal(confirmed) {
 // Both sender and receiver displays update via their Firebase listeners.
 // This eliminates races between optimistic state and listener-driven state.
 async function sendResource(name, targetPlayerId) {
+  if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   if (!localInventory[name]) {
     toast("You don't have that resource anymore", "bad");
     return;
@@ -3886,6 +3896,17 @@ function enterGame() {
       clearInterval(timerInterval); timerInterval = null;
       if (gameState.endTime) _pausedTimeRemaining = Math.max(0, gameState.endTime - Date.now());
       applyPausedState(true);
+      // Session 11: a mini-game already open when pause hits is the one action
+      // entry point a simple guard-on-mutation can't cover — the player could
+      // still finish the gesture puzzle and tap Complete. Force everyone out
+      // of it immediately, same pattern as kfTeardownChallengeUI() below for
+      // round-end, rather than leaving it to the completeTask() guard to
+      // silently no-op on Complete (confusing: the mini-game would say
+      // "done" but nothing would happen).
+      if (document.getElementById("activity-modal-overlay").classList.contains("active")) {
+        closeActivityModal(false);
+        toast("Game paused", "bad");
+      }
     } else if (gameState.status === "playing") {
       applyPausedState(false);
     }
@@ -4406,6 +4427,19 @@ function drawNetworkR3(players, transfers, svgId, mode) {
   });
 }
 /* ─── PAUSE / RESUME ────────────────────────────────────────── */
+// Single source of truth for "is the game currently paused" — every action
+// entry point (drop-into-ticket, send-to-teammate, task trade, rail reorder,
+// mini-game completion, and drag initiation) checks this before doing
+// anything. Session 11: previously only the Cook button's disabled state
+// gated actions, which stopped a *new* mini-game from being launched but did
+// nothing for any other entry point, or for a mini-game already in progress
+// when pause was pressed. Function declarations are hoisted, so this is
+// callable from functions defined earlier in the file (dropIntoTask,
+// sendResource, etc.) despite appearing later here.
+function isGamePaused() {
+  return gameState.status === "paused";
+}
+
 let _pausedTimeRemaining = 0; // ms remaining when paused
 
 function pauseGame() {
