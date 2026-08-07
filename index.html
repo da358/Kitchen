@@ -135,10 +135,10 @@
     margin-bottom: 4px;
   }
   .landing-card-intro {
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--text-2);
     margin-bottom: 16px;
-    line-height: 1.4;
+    line-height: 1.45;
   }
   .input-group { display: flex; flex-direction: column; gap: 10px; }
   .input-group input {
@@ -804,7 +804,7 @@
   }
   .hcard:hover { box-shadow: var(--shadow-lg); }
   .hcard .hc-title { font-size: 15px; font-weight: 700; }
-  .hcard .hc-desc { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+  .hcard .hc-desc { font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
   .hcard.hc-active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .hcard.hc-active .hc-desc { color: rgba(255,255,255,0.88); }
   /* hc-hoverable: debrief cards only — each one arms/disarms independently,
@@ -816,10 +816,9 @@
     .hcard.hc-hoverable:hover:not(.hc-active) .hc-desc { color: rgba(255,255,255,0.88); }
   }
   .hcard-stack { display: flex; flex-direction: column; gap: 10px; }
-  .field-label {
-    font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--text-3); margin-top: 4px;
-  }
+  /* .field-label removed Session 12 — its only use, "Choose a level," was
+     dropped as redundant: three cards clearly named Level 1/2/3 don't need
+     a label above them saying they're levels to choose from. */
 
   /* Loading overlay */
   #loading-overlay {
@@ -1351,9 +1350,8 @@
              functionality described for a future session. Forced-uppercase
              input handling is wired below alongside join-code, so it's
              already consistent whenever it does get used. -->
-        <input id="create-session-code" type="text" placeholder="SESSION CODE (OPTIONAL)" maxlength="24" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
-        <div class="field-label">Choose a level</div>
-        <div class="hcard-stack">
+        <input id="create-session-code" type="text" placeholder="SESSION CODE (OPTIONAL)" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
+        <div class="hcard-stack" style="margin-top:2px;">
           <button type="button" class="hcard hc-active" id="level-card-round1">
             <span class="hc-title">Level 1</span>
             <span class="hc-desc">Start here. Onboarding — one task each, learn the basics.</span>
@@ -1374,14 +1372,14 @@
       <h2>Join a game</h2>
       <p class="landing-card-intro">Join a game someone has created.</p>
       <div class="input-group">
-        <input id="join-code" type="text" placeholder="GAME CODE (E.G., TIGER6)" maxlength="8" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
+        <input id="join-code" type="text" placeholder="GAME CODE (E.G., TIGER6)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
         <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <button type="button" class="btn btn-secondary" id="btn-join">Join game →</button>
+        <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join game →</button>
         <div class="error-msg" id="join-error"></div>
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
