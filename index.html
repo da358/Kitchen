@@ -721,7 +721,7 @@
   }
 
   /* ── SUMMARY SCREEN ────────────────────────────────────────── */
-  #screen-summary {
+  #screen-summary-level2 {
     flex-direction: column;
     align-items: center;
     padding: 40px 20px;
@@ -1262,7 +1262,7 @@
   .confirm-modal-actions { display: flex; gap: 10px; }
 
   /* ── R3 LOBBY ORIENTATION ────────────────────────────────── */
-  .r3-orientation {
+  .level3-orientation {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -1271,9 +1271,9 @@
     width: 100%;
     box-shadow: var(--shadow);
   }
-  .r3-orientation-section { margin-bottom: 14px; }
-  .r3-orientation-section:last-child { margin-bottom: 0; }
-  .r3-orientation-section h4 {
+  .level3-orientation-section { margin-bottom: 14px; }
+  .level3-orientation-section:last-child { margin-bottom: 0; }
+  .level3-orientation-section h4 {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -1281,21 +1281,21 @@
     color: var(--accent);
     margin-bottom: 5px;
   }
-  .r3-orientation-section p {
+  .level3-orientation-section p {
     font-size: 13px;
     color: var(--text-2);
     line-height: 1.5;
   }
 
   /* ── ROUND 3 SUMMARY ─────────────────────────────────────── */
-  #screen-summary-r3 {
+  #screen-summary-level3 {
     flex-direction: column;
     align-items: center;
     padding: 40px 20px;
     gap: 32px;
     overflow-y: auto;
   }
-  .r3-summary-diagrams {
+  .level3-summary-diagrams {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
@@ -1386,7 +1386,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1401,12 +1401,12 @@
        display text says "Level"; the internal roundType value still reads
        "round3" but means LEVEL 3 — see the VOCABULARY block at the top of
        the <script> element. -->
-  <div id="r3-orientation-block" class="r3-orientation" style="display:none;">
-    <div class="r3-orientation-section">
+  <div id="level3-orientation-block" class="level3-orientation" style="display:none;">
+    <div class="level3-orientation-section">
       <h4>What's new</h4>
       <p>In Level 3, unlike Level 2, you can transfer <strong>tasks</strong> to teammates. Talk to your teammates about who has capacity and who is backlogged.</p>
     </div>
-    <div class="r3-orientation-section">
+    <div class="level3-orientation-section">
       <h4>What's the same</h4>
       <p>In Level 3, just like Level 2, you can transfer <strong>resources</strong> to teammates.</p>
     </div>
@@ -1462,7 +1462,7 @@
 
   <!-- Round 3: rail (shown only in round3). Position 0 IS "now prepping" —
        no separate active-task-slot (brief §3.2). -->
-  <div id="r3-rail-section" class="rail-section" style="display:none;">
+  <div id="level3-rail-section" class="rail-section" style="display:none;">
     <div class="rail-label">On the rail <span class="hint">tap a ticket to preview · drag along the rail to reorder · drag to a teammate to send</span></div>
     <div class="rail-track">
       <button class="rail-arrow" id="rail-arrow-left" type="button">‹</button>
@@ -1652,41 +1652,41 @@
 </div>
 
 <!-- ══ SCREEN: ROUND 1 SUMMARY ══════════════════════════════════ -->
-<div id="screen-summary-r1" class="screen" style="flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:28px;">
+<div id="screen-summary-level1" class="screen" style="flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:28px;">
   <div style="text-align:center; max-width:480px;">
-    <span class="level-badge summary" id="level-badge-summary-r1"></span>
-    <p id="summary-r1-event-name" style="font-family:var(--font-display); font-size:22px; color:var(--accent); font-style:italic; min-height:28px; line-height:1.2;"></p>
+    <span class="level-badge summary" id="level-badge-summary-level1"></span>
+    <p id="summary-level1-event-name" style="font-family:var(--font-display); font-size:22px; color:var(--accent); font-style:italic; min-height:28px; line-height:1.2;"></p>
     <h2 style="font-family:var(--font-display); font-size:32px; font-weight:normal; margin-top:8px;">Your team completed all the dishes!</h2>
-    <p id="summary-r1-transfers" style="margin-top:12px; font-size:15px; color:var(--text-2);"></p>
+    <p id="summary-level1-transfers" style="margin-top:12px; font-size:15px; color:var(--text-2);"></p>
   </div>
 
   <!-- Non-host message + exit -->
-  <div id="summary-r1-guest" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; max-width:400px;">
+  <div id="summary-level1-guest" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; max-width:400px;">
     <p style="font-size:14px; color:var(--text-2);">Check with your host — they might move you on to a bigger challenge.</p>
-    <button class="btn btn-secondary" id="btn-exit-r1" style="min-width:200px;">Exit this team</button>
+    <button class="btn btn-secondary" id="btn-exit-level1" style="min-width:200px;">Exit this team</button>
   </div>
 
   <!-- Host controls -->
-  <div id="summary-r1-host" style="display:none; flex-direction:column; align-items:center; gap:20px; width:100%; max-width:480px;">
+  <div id="summary-level1-host" style="display:none; flex-direction:column; align-items:center; gap:20px; width:100%; max-width:480px;">
     <div class="hcard-stack" style="width:100%;">
-      <button type="button" class="hcard hc-hoverable" id="debrief-r1-repeat">
+      <button type="button" class="hcard hc-hoverable" id="debrief-level1-repeat">
         <span class="hc-title">↩ Repeat Level 1</span>
         <span class="hc-desc">Still figuring out the game? Run Level 1 again with the same team.</span>
       </button>
-      <button type="button" class="hcard hc-hoverable" id="debrief-r1-advance">
+      <button type="button" class="hcard hc-hoverable" id="debrief-level1-advance">
         <span class="hc-title">Move to Level 2 →</span>
         <span class="hc-desc">Ready for a bigger challenge? Move the team up to Level 2.</span>
       </button>
     </div>
 
-    <button class="btn btn-secondary" id="btn-exit-r1-host" style="min-width:200px; margin-top:4px;">Exit this team</button>
+    <button class="btn btn-secondary" id="btn-exit-level1-host" style="min-width:200px; margin-top:4px;">Exit this team</button>
   </div>
 </div>
 
 <!-- ══ SCREEN: SUMMARY ══════════════════════════════════════════ -->
-<div id="screen-summary" class="screen">
+<div id="screen-summary-level2" class="screen">
   <div class="summary-header">
-    <span class="level-badge summary" id="level-badge-summary-r2"></span>
+    <span class="level-badge summary" id="level-badge-summary-level2"></span>
     <p id="summary-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;" id="summary-title">Event complete</h2>
     <p id="summary-subtitle">Here's how your team did</p>
@@ -1705,69 +1705,69 @@
   </div>
 
   <!-- R2 summary — host actions -->
-  <div id="summary-r2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:480px; margin-bottom:40px;">
+  <div id="summary-level2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:480px; margin-bottom:40px;">
     <div class="hcard-stack" style="width:100%;">
-      <button type="button" class="hcard hc-hoverable" id="debrief-r2-repeat">
+      <button type="button" class="hcard hc-hoverable" id="debrief-level2-repeat">
         <span class="hc-title">↩ Repeat Level 2</span>
         <span class="hc-desc">Want more practice at this pace? Run Level 2 again.</span>
       </button>
-      <button type="button" class="hcard hc-hoverable" id="debrief-r2-advance">
+      <button type="button" class="hcard hc-hoverable" id="debrief-level2-advance">
         <span class="hc-title">Move to Level 3 →</span>
         <span class="hc-desc">Ready to add task trading? Move the team up to Level 3.</span>
       </button>
     </div>
-    <button class="btn btn-secondary" id="btn-exit-r2" style="min-width:200px;">Exit this team</button>
+    <button class="btn btn-secondary" id="btn-exit-level2" style="min-width:200px;">Exit this team</button>
   </div>
 
   <!-- R2 summary — guest actions -->
-  <div id="summary-r2-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
-    <button class="btn btn-secondary" id="btn-exit-r2-guest" style="min-width:200px;">Exit this team</button>
+  <div id="summary-level2-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
+    <button class="btn btn-secondary" id="btn-exit-level2-guest" style="min-width:200px;">Exit this team</button>
   </div>
 </div>
 
 <!-- ══ SCREEN: ROUND 3 SUMMARY ═══════════════════════════════════ -->
-<div id="screen-summary-r3" class="screen">
+<div id="screen-summary-level3" class="screen">
   <div class="summary-header">
-    <span class="level-badge summary" id="level-badge-summary-r3"></span>
-    <p id="summary-r3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
-    <h2 style="margin-top:6px;" id="summary-r3-title">Event complete</h2>
-    <p id="summary-r3-subtitle">Here's how your team did</p>
+    <span class="level-badge summary" id="level-badge-summary-level3"></span>
+    <p id="summary-level3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
+    <h2 style="margin-top:6px;" id="summary-level3-title">Event complete</h2>
+    <p id="summary-level3-subtitle">Here's how your team did</p>
   </div>
 
-  <div class="r3-summary-diagrams">
+  <div class="level3-summary-diagrams">
     <div class="summary-card" style="min-width:320px;">
       <h3>Resource transfers</h3>
-      <div id="r3-network-resource-container">
-        <svg id="r3-network-resource-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="level3-network-resource-container">
+        <svg id="level3-network-resource-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
     <div class="summary-card" style="min-width:320px;">
       <h3>Task trades</h3>
-      <div id="r3-network-task-container">
-        <svg id="r3-network-task-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="level3-network-task-container">
+        <svg id="level3-network-task-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
   </div>
 
   <div class="summary-card" style="max-width:900px; width:100%;">
     <h3>Tasks completed</h3>
-    <div id="summary-r3-tasks"></div>
+    <div id="summary-level3-tasks"></div>
   </div>
 
   <!-- R3 summary — host actions -->
-  <div id="summary-r3-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:400px; margin-bottom:40px;">
+  <div id="summary-level3-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:400px; margin-bottom:40px;">
     <div class="hcard-stack" style="width:100%;">
-      <button type="button" class="hcard hc-hoverable" id="debrief-r3-repeat">
+      <button type="button" class="hcard hc-hoverable" id="debrief-level3-repeat">
         <span class="hc-title">↩ Repeat Level 3</span>
         <span class="hc-desc">Run Level 3 again with the same team.</span>
       </button>
     </div>
-    <button class="btn btn-secondary" id="btn-exit-r3" style="min-width:200px;">Exit this team</button>
+    <button class="btn btn-secondary" id="btn-exit-level3" style="min-width:200px;">Exit this team</button>
   </div>
 
   <!-- R3 summary — guest actions -->
-  <div id="summary-r3-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
-    <button class="btn btn-secondary" id="btn-exit-r3-guest" style="min-width:200px;">Exit this team</button>
+  <div id="summary-level3-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
+    <button class="btn btn-secondary" id="btn-exit-level3-guest" style="min-width:200px;">Exit this team</button>
   </div>
 </div>
 
@@ -3012,7 +3012,7 @@ function showPreview(stubWrap, taskId) {
     return `<span class="preview-item"><span class="em">${res.emoji}</span>${res.label}</span>`;
   }).join("");
 
-  const railRect = document.getElementById("r3-rail-section").getBoundingClientRect();
+  const railRect = document.getElementById("level3-rail-section").getBoundingClientRect();
   const stubRect = stubWrap.querySelector(".ticket-stub").getBoundingClientRect();
   const popWidth = 200;
   pop.style.right = (railRect.right - stubRect.right) + "px";
@@ -3184,7 +3184,7 @@ function endTaskPointer(cx, cy) {
 
   const el       = document.elementFromPoint(cx, cy);
   const tmZone   = el?.closest(".teammate-drop");
-  const railArea = el?.closest("#r3-rail-section");
+  const railArea = el?.closest("#level3-rail-section");
 
   if (tmZone) {
     handleTaskTrade(draggedTaskId, draggedRailIdx, tmZone.dataset.playerId);
@@ -3577,7 +3577,7 @@ function enterLobby() {
     }
 
     // Show R3 orientation message
-    const r3block = document.getElementById("r3-orientation-block");
+    const r3block = document.getElementById("level3-orientation-block");
     if (r3block) {
       const rt = gameState.pendingRoundType || gameState.roundType || "";
       r3block.style.display = rt === "round3" ? "block" : "none";
@@ -3704,7 +3704,7 @@ function enterGame() {
 
     // Show/hide R3-specific UI elements
     const isR3 = currentRound === "round3";
-    document.getElementById("r3-rail-section").style.display     = isR3 ? "block" : "none";
+    document.getElementById("level3-rail-section").style.display     = isR3 ? "block" : "none";
 
     // Load my task state
     const myData = data.players?.[myPlayerId] || {};
@@ -4083,34 +4083,34 @@ async function showSummary() {
   const roundLabel = ROUND_LABELS[roundType] || "";
 
   if (isR1) {
-    showScreen("summary-r1");
-    document.getElementById("level-badge-summary-r1").textContent = roundLabel;
-    document.getElementById("summary-r1-event-name").textContent = evtName;
-    document.getElementById("summary-r1-transfers").textContent =
+    showScreen("summary-level1");
+    document.getElementById("level-badge-summary-level1").textContent = roundLabel;
+    document.getElementById("summary-level1-event-name").textContent = evtName;
+    document.getElementById("summary-level1-transfers").textContent =
       transferArr.length === 0
         ? "No resource transfers recorded."
         : `Your team made ${transferArr.length} resource transfer${transferArr.length !== 1 ? "s" : ""}.`;
-    document.getElementById("summary-r1-host").style.display  = isHost ? "flex" : "none";
-    document.getElementById("summary-r1-guest").style.display = isHost ? "none" : "flex";
+    document.getElementById("summary-level1-host").style.display  = isHost ? "flex" : "none";
+    document.getElementById("summary-level1-guest").style.display = isHost ? "none" : "flex";
 
   } else if (isR3) {
-    showScreen("summary-r3");
-    document.getElementById("level-badge-summary-r3").textContent = roundLabel;
-    document.getElementById("summary-r3-event-name").textContent = evtName;
+    showScreen("summary-level3");
+    document.getElementById("level-badge-summary-level3").textContent = roundLabel;
+    document.getElementById("summary-level3-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
     const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     const won   = tgt > 0 && total >= tgt;
-    document.getElementById("summary-r3-title").textContent =
+    document.getElementById("summary-level3-title").textContent =
       (data.startTime && data.endedAt)
         ? (won ? `Event completed in ${formatElapsedMMSS(data.endedAt - data.startTime)}`
                 : `Event ended at ${formatElapsedMMSS(data.endedAt - data.startTime)}`)
         : "Event complete";
-    document.getElementById("summary-r3-subtitle").textContent =
+    document.getElementById("summary-level3-subtitle").textContent =
       tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
 
     // Tasks completed table
-    const taskEl = document.getElementById("summary-r3-tasks");
+    const taskEl = document.getElementById("summary-level3-tasks");
     taskEl.innerHTML = Object.values(players).map(p => `
       <div class="stat-row">
         <span>${p.name}</span>
@@ -4129,17 +4129,17 @@ async function showSummary() {
     }
 
     // Resource transfer network with per-node annotations
-    drawNetworkR3(players, transferArr, "r3-network-resource-svg", "resource");
+    drawNetworkR3(players, transferArr, "level3-network-resource-svg", "resource");
     // Task trade network with per-node annotations
-    drawNetworkR3(players, taskTradeArr, "r3-network-task-svg", "task");
+    drawNetworkR3(players, taskTradeArr, "level3-network-task-svg", "task");
 
-    document.getElementById("summary-r3-host-actions").style.display  = isHost ? "flex" : "none";
-    document.getElementById("summary-r3-guest-actions").style.display = isHost ? "none" : "flex";
+    document.getElementById("summary-level3-host-actions").style.display  = isHost ? "flex" : "none";
+    document.getElementById("summary-level3-guest-actions").style.display = isHost ? "none" : "flex";
 
   } else {
     // ── ROUND 2: summary ─────────────────────────────────────────
-    showScreen("summary");
-    document.getElementById("level-badge-summary-r2").textContent = roundLabel;
+    showScreen("summary-level2");
+    document.getElementById("level-badge-summary-level2").textContent = roundLabel;
     document.getElementById("summary-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
@@ -4173,8 +4173,8 @@ async function showSummary() {
 
     drawNetwork(players, transferArr);
 
-    document.getElementById("summary-r2-host-actions").style.display  = isHost ? "flex" : "none";
-    document.getElementById("summary-r2-guest-actions").style.display = isHost ? "none" : "flex";
+    document.getElementById("summary-level2-host-actions").style.display  = isHost ? "flex" : "none";
+    document.getElementById("summary-level2-guest-actions").style.display = isHost ? "none" : "flex";
   }
 
   // Watch for host advancing — registered AFTER screen renders
@@ -4758,12 +4758,12 @@ function exitTeam() {
   }
   resetToLanding();
 }
-document.getElementById("btn-exit-r1").addEventListener("click", exitTeam);
-document.getElementById("btn-exit-r1-host").addEventListener("click", exitTeam);
-document.getElementById("btn-exit-r2").addEventListener("click", exitTeam);
-document.getElementById("btn-exit-r2-guest").addEventListener("click", exitTeam);
-document.getElementById("btn-exit-r3").addEventListener("click", exitTeam);
-document.getElementById("btn-exit-r3-guest").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level1").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level1-host").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level2").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level2-guest").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level3").addEventListener("click", exitTeam);
+document.getElementById("btn-exit-level3-guest").addEventListener("click", exitTeam);
 
 // ── BETWEEN-ROUND LOBBY ────────────────────────────────────────
 // Moves all players back through the ready-check before starting the next round.
@@ -4843,11 +4843,11 @@ document.addEventListener("click", (e) => {
   });
 });
 
-wireDebriefCard(document.getElementById("debrief-r1-repeat"),  () => enterBetweenRoundLobby("round1"));
-wireDebriefCard(document.getElementById("debrief-r1-advance"), () => enterBetweenRoundLobby("round2"));
-wireDebriefCard(document.getElementById("debrief-r2-repeat"),  () => enterBetweenRoundLobby("round2"));
-wireDebriefCard(document.getElementById("debrief-r2-advance"), () => enterBetweenRoundLobby("round3"));
-wireDebriefCard(document.getElementById("debrief-r3-repeat"),  () => enterBetweenRoundLobby("round3"));
+wireDebriefCard(document.getElementById("debrief-level1-repeat"),  () => enterBetweenRoundLobby("round1"));
+wireDebriefCard(document.getElementById("debrief-level1-advance"), () => enterBetweenRoundLobby("round2"));
+wireDebriefCard(document.getElementById("debrief-level2-repeat"),  () => enterBetweenRoundLobby("round2"));
+wireDebriefCard(document.getElementById("debrief-level2-advance"), () => enterBetweenRoundLobby("round3"));
+wireDebriefCard(document.getElementById("debrief-level3-repeat"),  () => enterBetweenRoundLobby("round3"));
 
 // Old new-game button removed — replaced by exit/replay buttons above.
 
