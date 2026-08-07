@@ -1386,7 +1386,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1777,7 +1777,9 @@
 <script type="module">
 import { initializeApp }                    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTransaction }
-                                            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";/* ═══ VOCABULARY: "LEVEL" vs "ROUND" — READ BEFORE RENAMING ANYTHING ═══
+                                            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ═══ VOCABULARY: "LEVEL" vs "ROUND" — READ BEFORE RENAMING ANYTHING ═══
 
    *** RENAME IN PROGRESS as of 260806.3. This block describes the
    *** PRE-rename state and is being worked through in staged passes.
@@ -1836,7 +1838,9 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
       what it means. If the stored value ever changes, all clients have
       to be on the same deployed build — never deploy mid-session, and
       hard-refresh every browser before a facilitated run.
-══════════════════════════════════════════════════════════════════════ *//* ─── FIREBASE CONFIG ──────────────────────────────────────────
+══════════════════════════════════════════════════════════════════════ */
+
+/* ─── FIREBASE CONFIG ──────────────────────────────────────────
    Replace this object with your own Firebase project config.
    Steps:
    1. Go to https://console.firebase.google.com
@@ -3459,7 +3463,7 @@ async function createGame(levelType) {
     code:          gameCode,
     status:        "lobby",
     created:       Date.now(),
-    roundType:     levelType,
+    levelType:     levelType,
     hostPlayerId:  myPlayerId,
     eventName:     lobbyEventName,
     players: {
@@ -3557,11 +3561,11 @@ function enterLobby() {
         roundStartInFlight = true;
         try {
           // Resolve pending round type (set by enterBetweenRoundLobby) vs initial config
-          const rt = gameState.pendingRoundType || gameState.roundType || "round2";
+          const rt = gameState.pendingLevelType || gameState.levelType || "round2";
           // Promote pending field to live before starting — clear pending to avoid re-trigger
           await update(ref(db, `games/${gameCode}`), {
-            roundType:        rt,
-            pendingRoundType: null,
+            levelType:        rt,
+            pendingLevelType: null,
           });
           await startRoundInFirebase(players, rt);
         } finally {
@@ -3577,7 +3581,7 @@ function enterLobby() {
     // Show R3 orientation message
     const level3Block = document.getElementById("level3-orientation-block");
     if (level3Block) {
-      const rt = gameState.pendingRoundType || gameState.roundType || "";
+      const rt = gameState.pendingLevelType || gameState.levelType || "";
       level3Block.style.display = rt === "round3" ? "block" : "none";
     }
 
@@ -3616,7 +3620,7 @@ async function startRoundInFirebase(players, levelType) {
   updates[`games/${gameCode}/status`]      = "playing";
   updates[`games/${gameCode}/roundInstanceId`] = roundInstanceId;
   updates[`games/${gameCode}/startTime`]   = startTime;
-  updates[`games/${gameCode}/roundType`]   = levelType;
+  updates[`games/${gameCode}/levelType`]   = levelType;
   updates[`games/${gameCode}/eventName`]   = evtName;
   updates[`games/${gameCode}/taskTarget`]  = tgt;
   updates[`games/${gameCode}/taskDefs`]    = setup.taskById;
@@ -3671,7 +3675,7 @@ function enterGame() {
     const data = snap.val() || {};
     eventName    = data.eventName    || "";
     taskTarget   = data.taskTarget   || 0;
-    currentLevel = data.roundType    || "round2";
+    currentLevel = data.levelType    || "round2";
     currentRoundInstanceId = data.roundInstanceId || null;
     hostPlayerId = data.hostPlayerId || null;
     amHost       = (myPlayerId === hostPlayerId);
@@ -3905,7 +3909,7 @@ function enterGame() {
     if (!eventName && gameState.eventName) {
       eventName    = gameState.eventName;
       taskTarget   = gameState.taskTarget || 0;
-      currentLevel = gameState.roundType  || "round2";
+      currentLevel = gameState.levelType  || "round2";
       document.getElementById("event-name-display").textContent = eventName;
       updateLevelBadge(document.getElementById("level-badge-header"));
     }
@@ -4068,7 +4072,7 @@ function formatElapsedMMSS(ms) {
 async function showSummary() {
   const snap = await get(ref(db, `games/${gameCode}`));
   const data = snap.val() || {};
-  const levelType  = data.roundType || "round2";
+  const levelType  = data.levelType || "round2";
   const isLevel1       = levelType === "round1";
   const isLevel3       = levelType === "round3";
   const isHost     = (myPlayerId === (data.hostPlayerId || null));
@@ -4765,7 +4769,7 @@ document.getElementById("btn-exit-level3-guest").addEventListener("click", exitT
 
 // ── BETWEEN-ROUND LOBBY ────────────────────────────────────────
 // Moves all players back through the ready-check before starting the next round.
-// The host calls this; levelType is passed through Firebase as pendingRoundType.
+// The host calls this; levelType is passed through Firebase as pendingLevelType.
 async function enterBetweenRoundLobby(nextLevelType) {
   // Detach every listener registered by the round we're leaving (game-level
   // state, inventory, notifications, my-player doc) BEFORE touching anything
@@ -4781,7 +4785,7 @@ async function enterBetweenRoundLobby(nextLevelType) {
   // Write pending round config and reset everyone's ready state
   const playerIds = Object.keys(gameState.players || {});
   const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null };
-  updates[`games/${gameCode}/pendingRoundType`] = nextLevelType;
+  updates[`games/${gameCode}/pendingLevelType`] = nextLevelType;
   playerIds.forEach(pid => {
     updates[`games/${gameCode}/players/${pid}/ready`] = false;
   });
@@ -5515,7 +5519,7 @@ let kfChallengeDocUnsubId = null;
 // runs on a real clock tick instead of only when something else happens
 // to write to games/{code} first.
 function kfCheckNaturalTrigger() {
-  if (amHost && (gameState.roundType === "round2" || gameState.roundType === "round3")
+  if (amHost && (gameState.levelType === "round2" || gameState.levelType === "round3")
       && gameState.status === "playing"
       && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
       && !gameState.activeChallengeId
