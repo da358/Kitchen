@@ -11,6 +11,13 @@
   This code is proprietary and not licensed for reuse, modification,
   or redistribution without express written permission from Set Forth LLC.
 -->
+<!--
+  TERMINOLOGY NOTE: this file uses "level" and "round" to mean two
+  different things, and some internal names are currently inconsistent
+  about which is which. Read the VOCABULARY block at the top of the
+  <script> element before renaming, or adding, anything level/round
+  related. A plain find-and-replace on "round" WILL break this file.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -289,7 +296,7 @@
     font-size: 20px;
     font-weight: normal;
   }
-  .round-badge {
+  .level-badge {
     display: inline-block;
     font-size: 11px;
     font-weight: 700;
@@ -301,10 +308,10 @@
     color: #fff;
     vertical-align: middle;
   }
-  .round-badge.summary {
+  .level-badge.summary {
     margin-bottom: 8px;
   }
-  .round-badge:empty { display: none; }
+  .level-badge:empty { display: none; }
   .timer-display {
     font-size: 22px;
     font-weight: 700;
@@ -787,7 +794,7 @@
   .transfer-entry:last-child { border-bottom: none; }
   .transfer-entry strong { color: var(--text); }
 
-  /* ── HYBRID ACTION CARDS — Session 12 ─────────────────────────
+  /* ── HYBRID ACTION CARDS — Session 11 ─────────────────────────
      Used by the landing page's Level picker and the debrief "Repeat /
      Move up" cards. Two different arming behaviors share this same
      visual language — see the JS near wireDebriefCard() and the Level
@@ -816,7 +823,7 @@
     .hcard.hc-hoverable:hover:not(.hc-active) .hc-desc { color: rgba(255,255,255,0.88); }
   }
   .hcard-stack { display: flex; flex-direction: column; gap: 10px; }
-  /* .field-label removed Session 12 — its only use, "Choose a level," was
+  /* .field-label removed Session 11 — its only use, "Choose a level," was
      dropped as redundant: three cards clearly named Level 1/2/3 don't need
      a label above them saying they're levels to choose from. */
 
@@ -1345,22 +1352,22 @@
       <p class="landing-card-intro">Create a new game for a team.</p>
       <div class="input-group">
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <!-- Session 12: visual-only for now, not read by createGame() or written
+        <!-- Session 11: visual-only for now, not read by createGame() or written
              anywhere — the field exists so the design is in place ahead of the
              functionality described for a future session. Forced-uppercase
              input handling is wired below alongside join-code, so it's
              already consistent whenever it does get used. -->
         <input id="create-session-code" type="text" placeholder="SESSION CODE (OPTIONAL)" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
         <div class="hcard-stack" style="margin-top:2px;">
-          <button type="button" class="hcard hc-active" id="level-card-round1">
+          <button type="button" class="hcard hc-active" id="level-card-1">
             <span class="hc-title">Level 1</span>
             <span class="hc-desc">Start here. Onboarding — one task each, learn the basics.</span>
           </button>
-          <button type="button" class="hcard" id="level-card-round2">
+          <button type="button" class="hcard" id="level-card-2">
             <span class="hc-title">Level 2</span>
             <span class="hc-desc">Core challenge — trade resources under time pressure.</span>
           </button>
-          <button type="button" class="hcard" id="level-card-round3">
+          <button type="button" class="hcard" id="level-card-3">
             <span class="hc-title">Level 3</span>
             <span class="hc-desc">Task trading — deeper coordination, uneven workloads.</span>
           </button>
@@ -1379,7 +1386,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1390,9 +1397,10 @@
     <p>Share the code with your team</p>
   </div>
 
-  <!-- Level 3 orientation — shown only when roundType === "round3" (display
-       text says "Level"; the internal roundType value stays "round3" — see
-       Session 12 notes on keeping internal identifiers as-is for now) -->
+  <!-- Level 3 orientation — shown only when roundType === "round3". The
+       display text says "Level"; the internal roundType value still reads
+       "round3" but means LEVEL 3 — see the VOCABULARY block at the top of
+       the <script> element. -->
   <div id="r3-orientation-block" class="r3-orientation" style="display:none;">
     <div class="r3-orientation-section">
       <h4>What's new</h4>
@@ -1424,7 +1432,7 @@
       <div style="display:flex; flex-direction:column; gap:1px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="game-title">The Kitchen</span>
-          <span class="round-badge" id="round-badge-header"></span>
+          <span class="level-badge" id="level-badge-header"></span>
         </div>
         <span id="event-name-display" style="font-size:11px; color:var(--text-3); letter-spacing:0.02em;"></span>
       </div>
@@ -1646,7 +1654,7 @@
 <!-- ══ SCREEN: ROUND 1 SUMMARY ══════════════════════════════════ -->
 <div id="screen-summary-r1" class="screen" style="flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:28px;">
   <div style="text-align:center; max-width:480px;">
-    <span class="round-badge summary" id="round-badge-summary-r1"></span>
+    <span class="level-badge summary" id="level-badge-summary-r1"></span>
     <p id="summary-r1-event-name" style="font-family:var(--font-display); font-size:22px; color:var(--accent); font-style:italic; min-height:28px; line-height:1.2;"></p>
     <h2 style="font-family:var(--font-display); font-size:32px; font-weight:normal; margin-top:8px;">Your team completed all the dishes!</h2>
     <p id="summary-r1-transfers" style="margin-top:12px; font-size:15px; color:var(--text-2);"></p>
@@ -1678,7 +1686,7 @@
 <!-- ══ SCREEN: SUMMARY ══════════════════════════════════════════ -->
 <div id="screen-summary" class="screen">
   <div class="summary-header">
-    <span class="round-badge summary" id="round-badge-summary-r2"></span>
+    <span class="level-badge summary" id="level-badge-summary-r2"></span>
     <p id="summary-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;" id="summary-title">Event complete</h2>
     <p id="summary-subtitle">Here's how your team did</p>
@@ -1720,7 +1728,7 @@
 <!-- ══ SCREEN: ROUND 3 SUMMARY ═══════════════════════════════════ -->
 <div id="screen-summary-r3" class="screen">
   <div class="summary-header">
-    <span class="round-badge summary" id="round-badge-summary-r3"></span>
+    <span class="level-badge summary" id="level-badge-summary-r3"></span>
     <p id="summary-r3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 style="margin-top:6px;" id="summary-r3-title">Event complete</h2>
     <p id="summary-r3-subtitle">Here's how your team did</p>
@@ -1770,7 +1778,66 @@
 import { initializeApp }                    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTransaction }
                                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+/* ═══ VOCABULARY: "LEVEL" vs "ROUND" — READ BEFORE RENAMING ANYTHING ═══
 
+   *** RENAME IN PROGRESS as of 260806.3. This block describes the
+   *** PRE-rename state and is being worked through in staged passes.
+   *** It is rewritten wholesale once the last pass lands. Until then,
+   *** trust the code over this block where they disagree.
+
+   This codebase uses two words for two genuinely different things. They
+   are NOT synonyms. The code does not yet name them consistently, and
+   this block exists so nobody has to rediscover that the hard way.
+
+   LEVEL — a *type* of game. There are exactly three, fixed at design
+     time: Level 1 (onboarding), Level 2 (core), Level 3 (task trading).
+     This is the only one of the two words players and hosts ever see.
+     All player-facing copy has said "Level" since Session 11 (260714.3).
+
+   ROUND — a *single instance* of play: one team, one sitting, playing
+     one level from start to summary. A session can contain any number
+     of rounds, and two rounds can be the same level — "Repeat Level 2"
+     on the debrief screen starts a second round of the same level.
+     The word "round" appears nowhere in the UI.
+
+   ── Why some names look wrong ──────────────────────────────────────
+   The game originally had only the first concept and called it "round."
+   Session 11 changed the player-facing word to "Level" but deliberately
+   left every internal identifier untouched. So as of 260806.1 some
+   identifiers say "round" and mean LEVEL, while others say "round" and
+   correctly mean ROUND:
+
+   Say "round", actually mean LEVEL  (mis-named — rename planned):
+     roundType, currentRound, pendingRoundType, nextRoundType,
+     lastArmedRoundType, ROUND_LABELS, updateRoundBadge, the
+     "round1"/"round2"/"round3" values, the .round-badge CSS class,
+     and the r1- / r2- / r3- element id prefixes.
+
+   Say "round", actually mean ROUND  (correctly named — leave alone):
+     roundInstanceId, currentRoundInstanceId, myRoundInstanceId,
+     startRoundInFirebase, enterBetweenRoundLobby, roundStartInFlight,
+     kfNaturalTriggerHandledForRoundId.
+
+   ── Three hazards, if you do rename ────────────────────────────────
+   1. NEVER find-and-replace the text "round". This file contains 23
+      calls to the Canvas API method roundRect(), plus Math.round(),
+      background / foreground, and CSS stroke-linejoin:round. A
+      text-level replace silently breaks the mini-game rendering code.
+      Any change here must match whole identifiers, not substrings.
+
+   2. Missed renames fail SILENTLY, not loudly. Several places read the
+      level with a fallback default, e.g. `data.roundType || "round2"`.
+      Miss one read site and the game quietly behaves as Level 2 instead
+      of throwing an error. Consider making those defaults log a warning
+      for the duration of any rename work, then removing the logging.
+
+   3. The stored value is wire format. roundType is written to Firebase
+      in createGame() and startRoundInFirebase() (plus pendingRoundType
+      during the between-round lobby), and every client must agree on
+      what it means. If the stored value ever changes, all clients have
+      to be on the same deployed build — never deploy mid-session, and
+      hard-refresh every browser before a facilitated run.
+══════════════════════════════════════════════════════════════════════ */
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
    Replace this object with your own Firebase project config.
    Steps:
@@ -1944,7 +2011,7 @@ function genEventName() {
 }
 
 /* ─── CONSTANTS ─────────────────────────────────────────────── */
-// ROUND_DURATION removed Session 12 — no fixed round length anymore now
+// ROUND_DURATION removed Session 11 — no fixed round length anymore now
 // that the clock counts up with no time-based end condition.
 const TASKS_PER_PLAYER = 3;   // win condition: team must complete playerCount × this
 const INGREDIENT_NAMES = Object.keys(RESOURCES).filter(k => RESOURCES[k].type === "ingredient");
@@ -2164,10 +2231,11 @@ let currentRound   = "round2"; // "round1" | "round2" | "round3"
 // round has moved on underneath it.
 let currentRoundInstanceId = null;
 
-// ── Round label helper (Session 8: header + summary round badge) ──
-// Display text only — the keys (roundType values) stay "round1"/"round2"/
-// "round3" throughout the codebase; only what's shown to people changes.
-// See Session 12 notes on deferring the internal-identifier rename.
+// ── Level label helper (Session 8: header + summary badge) ──
+// Display text only. The keys are roundType values, which still read
+// "round1"/"round2"/"round3" but mean LEVEL 1/2/3 — see the VOCABULARY
+// block at the top of this script. Renaming these keys is planned work,
+// not a settled part of the design.
 const ROUND_LABELS = { round1: "Level 1", round2: "Level 2", round3: "Level 3" };
 function updateRoundBadge(el) {
   if (el) el.textContent = ROUND_LABELS[currentRound] || "";
@@ -3352,7 +3420,7 @@ function updateScoreDisplay(players) {
 // (no captured closure to go stale — every client just shows what's
 // actually true right now).
 //
-// Session 12: converted from counting down to a fixed endTime to counting
+// Session 11: converted from counting down to a fixed endTime to counting
 // up from startTime — there's no more time-based end condition at all, so
 // there's nothing here for a stale background timer to wrongly declare
 // over. The host-authoritative "declare the round over" responsibility
@@ -3534,7 +3602,7 @@ async function startRoundInFirebase(players, roundType) {
   const isR1 = roundType === "round1";
   const isR3 = roundType === "round3";
 
-  // Session 12: the clock counts up from startTime now, with no fixed
+  // Session 11: the clock counts up from startTime now, with no fixed
   // duration and no time-based end condition — the round ends only when
   // the host clicks "End game" (or the team hits its task target, below,
   // which is unrelated to the clock either direction). Round 1 still shows
@@ -3613,9 +3681,9 @@ function enterGame() {
     if (data.taskDefs) Object.assign(localTaskDefs, data.taskDefs);
 
     document.getElementById("event-name-display").textContent = eventName;
-    updateRoundBadge(document.getElementById("round-badge-header"));
+    updateRoundBadge(document.getElementById("level-badge-header"));
 
-    // Show/hide timer for Round 1 (Session 12: toggles the whole
+    // Show/hide timer for Round 1 (Session 11: toggles the whole
     // timer+"Elapsed" wrapper now, not just the digits span, since the
     // caption needs to hide along with them)
     const timerWrap = document.getElementById("timer-wrap");
@@ -3841,7 +3909,7 @@ function enterGame() {
       taskTarget   = gameState.taskTarget || 0;
       currentRound = gameState.roundType  || "round2";
       document.getElementById("event-name-display").textContent = eventName;
-      updateRoundBadge(document.getElementById("round-badge-header"));
+      updateRoundBadge(document.getElementById("level-badge-header"));
     }
     if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
 
@@ -3984,11 +4052,11 @@ function resetToLanding() {
   document.getElementById("btn-ready").textContent = "I'm ready ✓";
   document.getElementById("timer-wrap").style.display = "";
   document.querySelectorAll(".header-divider").forEach(d => d.style.display = "");
-  armLandingMember(LANDING_ARM_GROUP[0]); // Session 12: Level 1 (and Join, disarmed) should reset on a fresh visit
+  armLandingMember(LANDING_ARM_GROUP[0]); // Session 11: Level 1 (and Join, disarmed) should reset on a fresh visit
   showScreen("landing");
 }
 
-// Session 12: shared by showSummary() for Level 2/3's "Event completed in
+// Session 11: shared by showSummary() for Level 2/3's "Event completed in
 // X:YZ" / "Event ended at X:YZ" header — same M:SS shape the in-game timer
 // itself uses, just formatted once from a fixed start/end pair rather than
 // ticking.
@@ -4016,7 +4084,7 @@ async function showSummary() {
 
   if (isR1) {
     showScreen("summary-r1");
-    document.getElementById("round-badge-summary-r1").textContent = roundLabel;
+    document.getElementById("level-badge-summary-r1").textContent = roundLabel;
     document.getElementById("summary-r1-event-name").textContent = evtName;
     document.getElementById("summary-r1-transfers").textContent =
       transferArr.length === 0
@@ -4027,7 +4095,7 @@ async function showSummary() {
 
   } else if (isR3) {
     showScreen("summary-r3");
-    document.getElementById("round-badge-summary-r3").textContent = roundLabel;
+    document.getElementById("level-badge-summary-r3").textContent = roundLabel;
     document.getElementById("summary-r3-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
@@ -4071,7 +4139,7 @@ async function showSummary() {
   } else {
     // ── ROUND 2: summary ─────────────────────────────────────────
     showScreen("summary");
-    document.getElementById("round-badge-summary-r2").textContent = roundLabel;
+    document.getElementById("level-badge-summary-r2").textContent = roundLabel;
     document.getElementById("summary-event-name").textContent = evtName;
 
     const tgt   = data.taskTarget || 0;
@@ -4450,7 +4518,7 @@ function pauseGame() {
   update(ref(db, `games/${gameCode}`), { status: "paused", pausedAt: Date.now() });
 }
 
-// Session 12: rewritten for the count-up clock. Shifts startTime forward by
+// Session 11: rewritten for the count-up clock. Shifts startTime forward by
 // however long the round sat paused, so elapsed time excludes the pause —
 // same technique the countdown version used on endTime, just measured from
 // the other end. Reads gameState.pausedAt (written by pauseGame(), synced
@@ -4571,7 +4639,7 @@ async function init() {
 }
 
 /* ─── EVENT LISTENERS ───────────────────────────────────────── */
-/* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join game (Session 12) ──
+/* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join game (Session 11) ──
    Exactly one member of this group is "armed" (red/white) at a time —
    originally just the three level cards, extended this round to include
    the Join game button too, since the whole landing page is really one
@@ -4589,9 +4657,9 @@ async function init() {
    restyle it as a card. Approved in kitchen-level-landing-testbed_260714_3.html;
    see that file's comments for the fuller reasoning if this needs revisiting. */
 const LANDING_ARM_GROUP = [
-  { el: document.getElementById("level-card-round1"), kind: "card",   roundType: "round1", onEnact: () => createGame("round1") },
-  { el: document.getElementById("level-card-round2"), kind: "card",   roundType: "round2", onEnact: () => createGame("round2") },
-  { el: document.getElementById("level-card-round3"), kind: "card",   roundType: "round3", onEnact: () => createGame("round3") },
+  { el: document.getElementById("level-card-1"), kind: "card",   roundType: "round1", onEnact: () => createGame("round1") },
+  { el: document.getElementById("level-card-2"), kind: "card",   roundType: "round2", onEnact: () => createGame("round2") },
+  { el: document.getElementById("level-card-3"), kind: "card",   roundType: "round3", onEnact: () => createGame("round3") },
   { el: document.getElementById("btn-join"),          kind: "button",                      onEnact: () => joinGame() },
 ];
 let armedLandingMember = LANDING_ARM_GROUP[0]; // Level 1 starts armed
@@ -4631,7 +4699,7 @@ LANDING_ARM_GROUP.forEach(member => {
   });
 });
 
-// Session 12: game/session codes are always stored and typed in as
+// Session 11: game/session codes are always stored and typed in as
 // all-caps — this forces the actual value uppercase as you type, not just
 // the CSS text-transform that only changes how it looks. Simple append-as-
 // you-type replacement; doesn't try to preserve cursor position mid-string,
@@ -4743,7 +4811,7 @@ async function enterBetweenRoundLobby(nextRoundType) {
   enterLobby();
 }
 
-// ── DEBRIEF HOST CARDS (Session 12) ─────────────────────────────
+// ── DEBRIEF HOST CARDS (Session 11) ─────────────────────────────
 // Each debrief card arms/disarms independently — no shared "exclusive"
 // state like the landing page's level picker, since there's no default/
 // starting selection here to give up. Mouse: CSS handles the red hover
