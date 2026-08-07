@@ -1386,7 +1386,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1397,9 +1397,9 @@
     <p>Share the code with your team</p>
   </div>
 
-  <!-- Level 3 orientation — shown only when levelType === "round3". The
+  <!-- Level 3 orientation — shown only when levelType === "level3". The
        display text says "Level"; the internal levelType value still reads
-       "round3" but means LEVEL 3 — see the VOCABULARY block at the top of
+       "level3" but means LEVEL 3 — see the VOCABULARY block at the top of
        the <script> element. -->
   <div id="level3-orientation-block" class="level3-orientation" style="display:none;">
     <div class="level3-orientation-section">
@@ -1460,7 +1460,7 @@
     </div>
   </div>
 
-  <!-- Round 3: rail (shown only in round3). Position 0 IS "now prepping" —
+  <!-- Round 3: rail (shown only in level3). Position 0 IS "now prepping" —
        no separate active-task-slot (brief §3.2). -->
   <div id="level3-rail-section" class="rail-section" style="display:none;">
     <div class="rail-label">On the rail <span class="hint">tap a ticket to preview · drag along the rail to reorder · drag to a teammate to send</span></div>
@@ -2031,8 +2031,8 @@ const TOOL_NAMES       = Object.keys(RESOURCES).filter(k => RESOURCES[k].type ==
       never the tool needed by their own first task
 ─────────────────────────────────────────────────────────────── */
 function generateGameSetup(playerIds, levelType) {
-  const isLevel1 = levelType === "round1";
-  const isLevel3 = levelType === "round3";
+  const isLevel1 = levelType === "level1";
+  const isLevel3 = levelType === "level3";
   const n = playerIds.length;
   const tasksPerPlayer = isLevel1 ? 1 : TASKS_PER_PLAYER;
   const taskPool = isLevel1 ? STARTER_TASKS : ALL_TASKS;
@@ -2222,7 +2222,7 @@ let myTaskQueue    = [];    // R3: queued (not active) task IDs; R1/R2: full que
 let myActiveTaskId = null;  // R3: explicit active task ID; R1/R2: derived from queue[0]
 let taskTarget     = 0;     // team win condition: total tasks needed
 let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
-let currentLevel   = "round2"; // "round1" | "round2" | "round3"
+let currentLevel   = "level2"; // "level1" | "level2" | "level3"
 // Unique per round start. Bug found 260707: a completeTask() call whose
 // awaited Firebase writes were still in flight when a round ended (very
 // possible under R2/R3 timer pressure, near-impossible in untimed R1)
@@ -2235,10 +2235,10 @@ let currentRoundInstanceId = null;
 
 // ── Level label helper (Session 8: header + summary badge) ──
 // Display text only. The keys are levelType values, which still read
-// "round1"/"round2"/"round3" but mean LEVEL 1/2/3 — see the VOCABULARY
+// "level1"/"level2"/"level3" but mean LEVEL 1/2/3 — see the VOCABULARY
 // block at the top of this script. Renaming these keys is planned work,
 // not a settled part of the design.
-const LEVEL_LABELS = { round1: "Level 1", round2: "Level 2", round3: "Level 3" };
+const LEVEL_LABELS = { level1: "Level 1", level2: "Level 2", level3: "Level 3" };
 function updateLevelBadge(el) {
   if (el) el.textContent = LEVEL_LABELS[currentLevel] || "";
 }
@@ -2692,7 +2692,7 @@ async function completeTask() {
   if (!currentTask) return;
   if (isGamePaused()) { toast("Game is paused", "bad"); return; }
   const taskName = currentTask.name;
-  const isLevel3 = currentLevel === "round3";
+  const isLevel3 = currentLevel === "level3";
   const myRoundInstanceId = currentRoundInstanceId;
 
   // ── Identify required vs excess items ────────────────────────
@@ -2883,7 +2883,7 @@ function renderNoActiveTask() {
 
 /* ─── R3: RESCUE SPAWN SCAN (host-only, runs periodically) ──── */
 async function runRescueScan() {
-  if (gameState.status !== "playing" || currentLevel !== "round3") return;
+  if (gameState.status !== "playing" || currentLevel !== "level3") return;
   const players    = gameState.players || {};
   const playerIds  = Object.keys(players);
   const allIngr    = {};
@@ -2985,7 +2985,7 @@ function makeStub(taskId, idx) {
 }
 
 function renderQueueBar() {
-  if (currentLevel !== "round3") return;
+  if (currentLevel !== "level3") return;
   hidePreview();
   const rail  = getRail();
   const railEl = document.getElementById("rail-row");
@@ -3561,7 +3561,7 @@ function enterLobby() {
         roundStartInFlight = true;
         try {
           // Resolve pending round type (set by enterBetweenRoundLobby) vs initial config
-          const rt = gameState.pendingLevelType || gameState.levelType || "round2";
+          const rt = gameState.pendingLevelType || gameState.levelType || "level2";
           // Promote pending field to live before starting — clear pending to avoid re-trigger
           await update(ref(db, `games/${gameCode}`), {
             levelType:        rt,
@@ -3582,7 +3582,7 @@ function enterLobby() {
     const level3Block = document.getElementById("level3-orientation-block");
     if (level3Block) {
       const rt = gameState.pendingLevelType || gameState.levelType || "";
-      level3Block.style.display = rt === "round3" ? "block" : "none";
+      level3Block.style.display = rt === "level3" ? "block" : "none";
     }
 
     if (gameState.status === "playing" || gameState.status === "paused") {
@@ -3598,11 +3598,11 @@ function enterLobby() {
 }
 
 // Core round-start logic — used for initial start AND between-round replays.
-// levelType: "round1" | "round2" | "round3"
+// levelType: "level1" | "level2" | "level3"
 async function startRoundInFirebase(players, levelType) {
   const playerIds = Object.keys(players);
-  const isLevel1 = levelType === "round1";
-  const isLevel3 = levelType === "round3";
+  const isLevel1 = levelType === "level1";
+  const isLevel3 = levelType === "level3";
 
   // Session 11: the clock counts up from startTime now, with no fixed
   // duration and no time-based end condition — the round ends only when
@@ -3675,7 +3675,7 @@ function enterGame() {
     const data = snap.val() || {};
     eventName    = data.eventName    || "";
     taskTarget   = data.taskTarget   || 0;
-    currentLevel = data.levelType    || "round2";
+    currentLevel = data.levelType    || "level2";
     currentRoundInstanceId = data.roundInstanceId || null;
     hostPlayerId = data.hostPlayerId || null;
     amHost       = (myPlayerId === hostPlayerId);
@@ -3690,7 +3690,7 @@ function enterGame() {
     // caption needs to hide along with them)
     const timerWrap = document.getElementById("timer-wrap");
     const timerDivider = document.getElementById("timer-divider");
-    if (currentLevel === "round1") {
+    if (currentLevel === "level1") {
       timerWrap.style.display = "none";
       if (timerDivider) timerDivider.style.display = "none";
     } else {
@@ -3699,13 +3699,13 @@ function enterGame() {
     }
     // Show pause button to host only (R2/R3 have timers)
     const pauseBtn = document.getElementById("btn-pause");
-    if (pauseBtn) pauseBtn.style.display = (amHost && currentLevel !== "round1") ? "" : "none";
+    if (pauseBtn) pauseBtn.style.display = (amHost && currentLevel !== "level1") ? "" : "none";
     // Shared challenges (Session 9) are Round 2 and Round 3.
     const triggerBtn = document.getElementById("btn-trigger-challenge");
-    if (triggerBtn) triggerBtn.style.display = (amHost && (currentLevel === "round2" || currentLevel === "round3")) ? "" : "none";
+    if (triggerBtn) triggerBtn.style.display = (amHost && (currentLevel === "level2" || currentLevel === "level3")) ? "" : "none";
 
     // Show/hide R3-specific UI elements
-    const isLevel3 = currentLevel === "round3";
+    const isLevel3 = currentLevel === "level3";
     document.getElementById("level3-rail-section").style.display     = isLevel3 ? "block" : "none";
 
     // Load my task state
@@ -3727,7 +3727,7 @@ function enterGame() {
     // the same time as this async fetch resolves and can race it — this
     // was leaving the timer display frozen at its starting value until
     // some unrelated Firebase write nudged gameUnsub into firing again.
-    if (data.startTime && currentLevel !== "round1" && !timerInterval) {
+    if (data.startTime && currentLevel !== "level1" && !timerInterval) {
       startTimer(data.startTime);
     }
 
@@ -3826,7 +3826,7 @@ function enterGame() {
               myTaskQueue = [...myTaskQueue, item.taskId];
               // Write updated queue to Firebase
               update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
-              if (currentLevel === "round3") renderQueueBar();
+              if (currentLevel === "level3") renderQueueBar();
               toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
             }
           } else {
@@ -3876,7 +3876,7 @@ function enterGame() {
   if (true) { // always register — needed for cross-device sync
     const myPlayerUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}`), snap => {
       const pd = snap.val() || {};
-      if (currentLevel === "round3") {
+      if (currentLevel === "level3") {
         const newActiveId = pd.activeTaskId || null;
         const newQueue    = pd.taskQueue    || [];
         // Only re-render if values actually changed
@@ -3909,13 +3909,13 @@ function enterGame() {
     if (!eventName && gameState.eventName) {
       eventName    = gameState.eventName;
       taskTarget   = gameState.taskTarget || 0;
-      currentLevel = gameState.levelType  || "round2";
+      currentLevel = gameState.levelType  || "level2";
       document.getElementById("event-name-display").textContent = eventName;
       updateLevelBadge(document.getElementById("level-badge-header"));
     }
     if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
 
-    if (gameState.startTime && !timerInterval && currentLevel !== "round1") {
+    if (gameState.startTime && !timerInterval && currentLevel !== "level1") {
       startTimer(gameState.startTime);
     }
 
@@ -4039,7 +4039,7 @@ function resetToLanding() {
   localInventory = {}; inventoryOrder = []; pendingArrivals = []; taskZoneMap = {};
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
-  taskTarget = 0; eventName = ""; currentLevel = "round2";
+  taskTarget = 0; eventName = ""; currentLevel = "level2";
   hostPlayerId = null; amHost = false; currentTask = null;
   inspectedTaskId = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
@@ -4072,9 +4072,9 @@ function formatElapsedMMSS(ms) {
 async function showSummary() {
   const snap = await get(ref(db, `games/${gameCode}`));
   const data = snap.val() || {};
-  const levelType  = data.levelType || "round2";
-  const isLevel1       = levelType === "round1";
-  const isLevel3       = levelType === "round3";
+  const levelType  = data.levelType || "level2";
+  const isLevel1       = levelType === "level1";
+  const isLevel3       = levelType === "level3";
   const isHost     = (myPlayerId === (data.hostPlayerId || null));
   const players    = data.players   || {};
   const transfers  = data.transfers || {};
@@ -4659,13 +4659,13 @@ async function init() {
    restyle it as a card. Approved in kitchen-level-landing-testbed_260714_3.html;
    see that file's comments for the fuller reasoning if this needs revisiting. */
 const LANDING_ARM_GROUP = [
-  { el: document.getElementById("level-card-1"), kind: "card",   levelType: "round1", onEnact: () => createGame("round1") },
-  { el: document.getElementById("level-card-2"), kind: "card",   levelType: "round2", onEnact: () => createGame("round2") },
-  { el: document.getElementById("level-card-3"), kind: "card",   levelType: "round3", onEnact: () => createGame("round3") },
+  { el: document.getElementById("level-card-1"), kind: "card",   levelType: "level1", onEnact: () => createGame("level1") },
+  { el: document.getElementById("level-card-2"), kind: "card",   levelType: "level2", onEnact: () => createGame("level2") },
+  { el: document.getElementById("level-card-3"), kind: "card",   levelType: "level3", onEnact: () => createGame("level3") },
   { el: document.getElementById("btn-join"),          kind: "button",                      onEnact: () => joinGame() },
 ];
 let armedLandingMember = LANDING_ARM_GROUP[0]; // Level 1 starts armed
-let lastArmedLevelType = "round1"; // tracks the level specifically — see the Enter-key handler below
+let lastArmedLevelType = "level1"; // tracks the level specifically — see the Enter-key handler below
 const isTouchDevice = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 function setLandingMemberArmed(member, armed) {
@@ -4845,11 +4845,11 @@ document.addEventListener("click", (e) => {
   });
 });
 
-wireDebriefCard(document.getElementById("debrief-level1-repeat"),  () => enterBetweenRoundLobby("round1"));
-wireDebriefCard(document.getElementById("debrief-level1-advance"), () => enterBetweenRoundLobby("round2"));
-wireDebriefCard(document.getElementById("debrief-level2-repeat"),  () => enterBetweenRoundLobby("round2"));
-wireDebriefCard(document.getElementById("debrief-level2-advance"), () => enterBetweenRoundLobby("round3"));
-wireDebriefCard(document.getElementById("debrief-level3-repeat"),  () => enterBetweenRoundLobby("round3"));
+wireDebriefCard(document.getElementById("debrief-level1-repeat"),  () => enterBetweenRoundLobby("level1"));
+wireDebriefCard(document.getElementById("debrief-level1-advance"), () => enterBetweenRoundLobby("level2"));
+wireDebriefCard(document.getElementById("debrief-level2-repeat"),  () => enterBetweenRoundLobby("level2"));
+wireDebriefCard(document.getElementById("debrief-level2-advance"), () => enterBetweenRoundLobby("level3"));
+wireDebriefCard(document.getElementById("debrief-level3-repeat"),  () => enterBetweenRoundLobby("level3"));
 
 // Old new-game button removed — replaced by exit/replay buttons above.
 
@@ -5519,7 +5519,7 @@ let kfChallengeDocUnsubId = null;
 // runs on a real clock tick instead of only when something else happens
 // to write to games/{code} first.
 function kfCheckNaturalTrigger() {
-  if (amHost && (gameState.levelType === "round2" || gameState.levelType === "round3")
+  if (amHost && (gameState.levelType === "level2" || gameState.levelType === "level3")
       && gameState.status === "playing"
       && gameState.challengeTriggerAt && !gameState.naturalChallengeFired
       && !gameState.activeChallengeId
