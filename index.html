@@ -132,7 +132,13 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-2);
+    margin-bottom: 4px;
+  }
+  .landing-card-intro {
+    font-size: 13px;
+    color: var(--text-2);
     margin-bottom: 16px;
+    line-height: 1.4;
   }
   .input-group { display: flex; flex-direction: column; gap: 10px; }
   .input-group input {
@@ -1337,12 +1343,15 @@
   <div class="landing-cards">
     <div class="landing-card">
       <h2>Create a game</h2>
+      <p class="landing-card-intro">Create a new game for a team.</p>
       <div class="input-group">
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
         <!-- Session 12: visual-only for now, not read by createGame() or written
              anywhere — the field exists so the design is in place ahead of the
-             functionality described for a future session. -->
-        <input id="create-session-code" type="text" placeholder="Session code (optional)" maxlength="24" autocomplete="off">
+             functionality described for a future session. Forced-uppercase
+             input handling is wired below alongside join-code, so it's
+             already consistent whenever it does get used. -->
+        <input id="create-session-code" type="text" placeholder="SESSION CODE (OPTIONAL)" maxlength="24" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
         <div class="field-label">Choose a level</div>
         <div class="hcard-stack">
           <button type="button" class="hcard hc-active" id="level-card-round1">
@@ -1363,15 +1372,16 @@
     </div>
     <div class="landing-card">
       <h2>Join a game</h2>
+      <p class="landing-card-intro">Join a game someone has created.</p>
       <div class="input-group">
-        <input id="join-code" type="text" placeholder="Game code (e.g. MOUSE19)" maxlength="8" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
+        <input id="join-code" type="text" placeholder="GAME CODE (E.G., TIGER6)" maxlength="8" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
         <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <button class="btn btn-secondary" id="btn-join">Join game →</button>
+        <button type="button" class="btn btn-secondary" id="btn-join">Join game →</button>
         <div class="error-msg" id="join-error"></div>
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260714.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1549,7 +1559,7 @@
   <div class="kf-lobby-modal">
     <div id="kf-lobby-allhands">
       <div class="kf-lobby-alert">Alert</div>
-      <div class="kf-lobby-message" id="kf-lobby-allhands-message">All-hands crisis starting in…</div>
+      <div class="kf-lobby-message" id="kf-lobby-allhands-message">All-hands crisis starting in …</div>
       <div class="kf-lobby-countdown-num" id="kf-lobby-countdown-num">3</div>
     </div>
     <div id="kf-lobby-subset" style="display:none;">
@@ -1672,7 +1682,7 @@
   <div class="summary-header">
     <span class="round-badge summary" id="round-badge-summary-r2"></span>
     <p id="summary-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
-    <h2 style="margin-top:6px;">Event complete</h2>
+    <h2 style="margin-top:6px;" id="summary-title">Event complete</h2>
     <p id="summary-subtitle">Here's how your team did</p>
   </div>
   <div class="summary-grid">
@@ -1714,7 +1724,7 @@
   <div class="summary-header">
     <span class="round-badge summary" id="round-badge-summary-r3"></span>
     <p id="summary-r3-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
-    <h2 style="margin-top:6px;">Event complete</h2>
+    <h2 style="margin-top:6px;" id="summary-r3-title">Event complete</h2>
     <p id="summary-r3-subtitle">Here's how your team did</p>
   </div>
 
@@ -3843,7 +3853,7 @@ function enterGame() {
 
     const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     if (taskTarget > 0 && totalTasks >= taskTarget && gameState.status === "playing") {
-      if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended" });
+      if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now() });
     }
 
     // Shared challenges (Session 9) — natural clock trigger, re-checked
@@ -3942,7 +3952,7 @@ function renderTeammates() {
 function endGame() {
   clearInterval(timerInterval);
   timerInterval = null;
-  update(ref(db, `games/${gameCode}`), { status: "ended" });
+  update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now() });
   showSummary();
 }
 
@@ -3976,8 +3986,19 @@ function resetToLanding() {
   document.getElementById("btn-ready").textContent = "I'm ready ✓";
   document.getElementById("timer-wrap").style.display = "";
   document.querySelectorAll(".header-divider").forEach(d => d.style.display = "");
-  armLevelCard(LEVEL_CARDS[0]); // Session 12: Level 1 should be armed again on a fresh visit
+  armLandingMember(LANDING_ARM_GROUP[0]); // Session 12: Level 1 (and Join, disarmed) should reset on a fresh visit
   showScreen("landing");
+}
+
+// Session 12: shared by showSummary() for Level 2/3's "Event completed in
+// X:YZ" / "Event ended at X:YZ" header — same M:SS shape the in-game timer
+// itself uses, just formatted once from a fixed start/end pair rather than
+// ticking.
+function formatElapsedMMSS(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 async function showSummary() {
@@ -4014,6 +4035,11 @@ async function showSummary() {
     const tgt   = data.taskTarget || 0;
     const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     const won   = tgt > 0 && total >= tgt;
+    document.getElementById("summary-r3-title").textContent =
+      (data.startTime && data.endedAt)
+        ? (won ? `Event completed in ${formatElapsedMMSS(data.endedAt - data.startTime)}`
+                : `Event ended at ${formatElapsedMMSS(data.endedAt - data.startTime)}`)
+        : "Event complete";
     document.getElementById("summary-r3-subtitle").textContent =
       tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
 
@@ -4073,6 +4099,11 @@ async function showSummary() {
     }
     document.getElementById("summary-subtitle").textContent =
       tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
+    document.getElementById("summary-title").textContent =
+      (data.startTime && data.endedAt)
+        ? (won ? `Event completed in ${formatElapsedMMSS(data.endedAt - data.startTime)}`
+                : `Event ended at ${formatElapsedMMSS(data.endedAt - data.startTime)}`)
+        : "Event complete";
 
     drawNetwork(players, transferArr);
 
@@ -4542,52 +4573,83 @@ async function init() {
 }
 
 /* ─── EVENT LISTENERS ───────────────────────────────────────── */
-/* ─── LANDING PAGE: LEVEL PICKER (Session 12) ───────────────────────
-   Exactly one of the three level cards is "armed" (red/white) at a
-   time. Level 1 starts armed, but that's only a starting value — it's
-   part of the same exclusive-arming group as Level 2 and 3, and gives
-   up the armed state the same way they would if a different card is
-   rolled over (mouse) or tapped (touch). It only arms again the same
-   way, never automatically. JS-tracked rather than plain CSS :hover so
-   the armed look can persist between a touch device's first ("arm")
-   tap and its second ("confirm") tap — there's no hover on touch to
-   hold that state for free. Approved in
-   kitchen-level-landing-testbed_260714_3.html; see that file's
-   comments for the fuller reasoning if this needs revisiting. */
-const LEVEL_CARDS = [
-  { el: document.getElementById("level-card-round1"), roundType: "round1" },
-  { el: document.getElementById("level-card-round2"), roundType: "round2" },
-  { el: document.getElementById("level-card-round3"), roundType: "round3" },
+/* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join game (Session 12) ──
+   Exactly one member of this group is "armed" (red/white) at a time —
+   originally just the three level cards, extended this round to include
+   the Join game button too, since the whole landing page is really one
+   choice ("create at a level" vs "join") and the same affordance should
+   cover all four options consistently. Level 1 starts armed, but that's
+   only a starting value: arming any other member (mouse rollover, or a
+   first tap on touch) disarms whichever was armed before, no exceptions
+   for Level 1. It only arms again the same way, never automatically.
+   JS-tracked rather than plain CSS :hover so the armed look can persist
+   between a touch device's first ("arm") tap and its second ("confirm")
+   tap — there's no hover on touch to hold that state for free.
+   The three level cards use the .hcard/.hc-active treatment; Join game
+   is a plain .btn, so its "armed" look is just toggling it between
+   .btn-secondary and .btn-primary — same red/white result, no need to
+   restyle it as a card. Approved in kitchen-level-landing-testbed_260714_3.html;
+   see that file's comments for the fuller reasoning if this needs revisiting. */
+const LANDING_ARM_GROUP = [
+  { el: document.getElementById("level-card-round1"), kind: "card",   roundType: "round1", onEnact: () => createGame("round1") },
+  { el: document.getElementById("level-card-round2"), kind: "card",   roundType: "round2", onEnact: () => createGame("round2") },
+  { el: document.getElementById("level-card-round3"), kind: "card",   roundType: "round3", onEnact: () => createGame("round3") },
+  { el: document.getElementById("btn-join"),          kind: "button",                      onEnact: () => joinGame() },
 ];
-let armedLevelCard = LEVEL_CARDS[0]; // Level 1 starts armed
+let armedLandingMember = LANDING_ARM_GROUP[0]; // Level 1 starts armed
+let lastArmedRoundType = "round1"; // tracks the level specifically — see the Enter-key handler below
 const isTouchDevice = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-function armLevelCard(card) {
-  if (armedLevelCard === card) return;
-  armedLevelCard.el.classList.remove("hc-active");
-  armedLevelCard = card;
-  armedLevelCard.el.classList.add("hc-active");
+function setLandingMemberArmed(member, armed) {
+  if (member.kind === "card") {
+    member.el.classList.toggle("hc-active", armed);
+  } else {
+    member.el.classList.toggle("btn-primary", armed);
+    member.el.classList.toggle("btn-secondary", !armed);
+  }
 }
 
-LEVEL_CARDS.forEach(card => {
-  card.el.addEventListener("mouseenter", () => {
+function armLandingMember(member) {
+  if (armedLandingMember === member) return;
+  setLandingMemberArmed(armedLandingMember, false);
+  armedLandingMember = member;
+  setLandingMemberArmed(armedLandingMember, true);
+  if (member.roundType) lastArmedRoundType = member.roundType;
+}
+
+LANDING_ARM_GROUP.forEach(member => {
+  member.el.addEventListener("mouseenter", () => {
     if (isTouchDevice) return; // touch devices don't get a hover to begin with
-    armLevelCard(card);
+    armLandingMember(member);
   });
-  card.el.addEventListener("click", () => {
+  member.el.addEventListener("click", () => {
     if (!isTouchDevice) {
-      armLevelCard(card); // safety net if a click ever lands without a prior hover
-      createGame(card.roundType);
+      armLandingMember(member); // safety net if a click ever lands without a prior hover
+      member.onEnact();
       return;
     }
-    if (armedLevelCard === card) { createGame(card.roundType); return; } // second tap: confirm
-    armLevelCard(card); // first tap: arm (and disarm whatever was armed before)
+    if (armedLandingMember === member) { member.onEnact(); return; } // second tap: confirm
+    armLandingMember(member); // first tap: arm (and disarm whatever was armed before)
   });
 });
 
-document.getElementById("btn-join").addEventListener("click", joinGame);
-document.getElementById("create-name").addEventListener("keydown", e => { if(e.key==="Enter") createGame(armedLevelCard.roundType); });
+// Session 12: game/session codes are always stored and typed in as
+// all-caps — this forces the actual value uppercase as you type, not just
+// the CSS text-transform that only changes how it looks. Simple append-as-
+// you-type replacement; doesn't try to preserve cursor position mid-string,
+// which is an acceptable trade-off for codes this short and typed left to right.
+function forceUppercaseAsTyped(el) {
+  el.addEventListener("input", () => {
+    const upper = el.value.toUpperCase();
+    if (upper !== el.value) el.value = upper;
+  });
+}
+forceUppercaseAsTyped(document.getElementById("create-session-code"));
+forceUppercaseAsTyped(document.getElementById("join-code"));
+
+document.getElementById("create-name").addEventListener("keydown", e => { if(e.key==="Enter") createGame(lastArmedRoundType); });
 document.getElementById("join-name").addEventListener("keydown",   e => { if(e.key==="Enter") joinGame(); });
+document.getElementById("join-code").addEventListener("keydown",   e => { if(e.key==="Enter") joinGame(); });
 
 document.getElementById("btn-ready").addEventListener("click", () => {
   update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { ready: true });
