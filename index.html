@@ -12,11 +12,12 @@
   or redistribution without express written permission from Set Forth LLC.
 -->
 <!--
-  TERMINOLOGY NOTE: this file uses "level" and "round" to mean two
-  different things, and some internal names are currently inconsistent
-  about which is which. Read the VOCABULARY block at the top of the
-  <script> element before renaming, or adding, anything level/round
-  related. A plain find-and-replace on "round" WILL break this file.
+  TERMINOLOGY NOTE: "level" and "round" mean two different things in this
+  file and are NOT interchangeable. A level is one of the three game types
+  players choose. A round is one playthrough of a level. Read the
+  VOCABULARY block at the top of the <script> element before renaming, or
+  adding, anything level/round related. A plain find-and-replace on
+  "round" WILL break this file.
 -->
 <html lang="en">
 <head>
@@ -41,7 +42,7 @@
     --accent-2:    #8B4A2B;       /* station gradient top stop / secondary emphasis */
     --accept:      #2F6B4A;       /* universal "allowed move" / success green — rings & glows only, never dashed */
     --danger:      #E23A2A;       /* CONFIRMED Session 8 — Scarlet, hue-shifted from --accent's copper-brick */
-    --active-bg:   #F6E4D5;       /* pale copper-rose — current task zone (legacy R3 slot; retinted, likely retired in §3 rework) */
+    --active-bg:   #F6E4D5;       /* pale copper-rose — current task zone (legacy Level 3 slot; retinted, likely retired in §3 rework) */
     --active-bd:   #C1613C;
     --active-hd:   #B23A2E;
     --ready:       #2F6B4A;       /* alias to --accept — "ready" is a success signal, not brand color */
@@ -349,7 +350,7 @@
     overflow-y: auto;
   }
 
-  /* ── TICKET (main "now prepping" ticket — R1/R2/R3 share this) ──
+  /* ── TICKET (main "now prepping" ticket — Levels 1/2/3 share this) ──
      Skeuomorphic treatment per brief §3.6 / §4: clip + ticket share one
      rotating parent, pivot at the clip's top-center (not the ticket's own
      bounding-box center), irregular torn-paper bottom edge, continuous
@@ -1115,7 +1116,55 @@
   .btn-primary:disabled { background: var(--border); color: var(--text-3); cursor: default; }
   .btn-secondary { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
 
-  /* ── RAIL (Round 3) ──────────────────────────────────────────
+  /* ══ SESSION 13: CONNECTION DIAGNOSTICS PANEL ═══════════════
+     Hidden unless deliberately opened (three taps — see wireDiagTap).
+     Nothing here is visible during normal play. */
+  #diag-overlay {
+    display: none; position: fixed; inset: 0; z-index: 99999;
+    background: rgba(20,18,15,0.86); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  #diag-overlay.active { display: flex; }
+  .diag-modal {
+    background: var(--surface); border-radius: var(--radius-lg);
+    width: min(560px, 100%); max-height: 100%; overflow-y: auto;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .diag-modal h2 {
+    margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  }
+  .diag-help {
+    font-size: 12px; color: var(--text-2); line-height: 1.55;
+    background: var(--bg); border-left: 3px solid var(--surface-2);
+    padding: 9px 11px; border-radius: 0 6px 6px 0;
+  }
+  .diag-verdict {
+    font-size: 13px; font-weight: 600; line-height: 1.45;
+    padding: 10px 12px; border-radius: var(--radius);
+    background: var(--bg); color: var(--text-2);
+  }
+  .diag-verdict.good { background: #DCE6C6; color: var(--accept); }
+  .diag-verdict.bad  { background: #FBE4DF; color: var(--danger); }
+  .diag-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 12.5px; padding: 6px 0; border-bottom: 1px solid var(--surface-2);
+  }
+  .diag-row span { color: var(--text-2); }
+  .diag-row b { text-align: right; }
+  #diag-log {
+    background: #2B241C; color: #E8DDC8; border-radius: var(--radius);
+    padding: 9px 11px; max-height: 200px; overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; line-height: 1.5; -webkit-overflow-scrolling: touch;
+  }
+  #diag-log .t { color: #8A7F6A; }
+  #diag-log .k-conn  { color: #FF8A72; }
+  #diag-log .k-vis   { color: #E8C46A; }
+  #diag-log .k-trans { color: #A8CE7E; }
+  #diag-log .k-info  { color: #7FB6D9; }
+
+  /* ── RAIL (Level 3) ──────────────────────────────────────────
      Replaces the old queue-row + separate active-task-slot. Position 0
      on the rail IS "now prepping" — there is no second mechanism (brief §3.2).
      Leftmost = index 0, extending rightward (brief §3.1 — reversed from
@@ -1261,7 +1310,7 @@
   }
   .confirm-modal-actions { display: flex; gap: 10px; }
 
-  /* ── R3 LOBBY ORIENTATION ────────────────────────────────── */
+  /* ── Level 3 LOBBY ORIENTATION ────────────────────────────────── */
   .level3-orientation {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1287,7 +1336,7 @@
     line-height: 1.5;
   }
 
-  /* ── ROUND 3 SUMMARY ─────────────────────────────────────── */
+  /* ── LEVEL 3 SUMMARY ─────────────────────────────────────── */
   #screen-summary-level3 {
     flex-direction: column;
     align-items: center;
@@ -1386,7 +1435,7 @@
       </div>
     </div>
   </div>
-  <p style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260806.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260809.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1450,7 +1499,7 @@
     <div class="game-header-right">
       <span id="player-name-display" style="font-size:13px; color:var(--text-2);"></span>
       <span class="paused-badge" id="paused-badge">Paused</span>
-      <!-- Session 9: debug-only trigger, host + Round 2/3 only, same
+      <!-- Session 9: debug-only trigger, host + Levels 2 and 3 only, same
            visibility gate as Pause. Bypasses the random clock entirely
            and ignores the once-per-round limiter, so it can be clicked
            repeatedly for sizing/pacing testing. -->
@@ -1460,7 +1509,7 @@
     </div>
   </div>
 
-  <!-- Round 3: rail (shown only in level3). Position 0 IS "now prepping" —
+  <!-- Level 3: rail (shown only in level3). Position 0 IS "now prepping" —
        no separate active-task-slot (brief §3.2). -->
   <div id="level3-rail-section" class="rail-section" style="display:none;">
     <div class="rail-label">On the rail <span class="hint">tap a ticket to preview · drag along the rail to reorder · drag to a teammate to send</span></div>
@@ -1651,7 +1700,29 @@
   </div>
 </div>
 
-<!-- ══ SCREEN: ROUND 1 SUMMARY ══════════════════════════════════ -->
+<!-- ══ SESSION 13: CONNECTION DIAGNOSTICS (Issue 3) ═══════════════
+     Opened by three taps on the version line, the in-game wordmark, or a
+     summary Level pill. Read-only; records nothing outside this browser. -->
+<div id="diag-overlay">
+  <div class="diag-modal">
+    <h2>Connection diagnostics</h2>
+    <div class="diag-help">
+      This records how quickly this device received each shared screen change,
+      whether it lost connection, and whether the browser window was switched
+      away from. Nothing is sent anywhere. Tap <b>Copy report</b> and send the
+      text to whoever is running the session.
+    </div>
+    <div class="diag-verdict" id="diag-verdict"></div>
+    <div id="diag-summary"></div>
+    <div id="diag-log"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-primary"   id="diag-copy">Copy report</button>
+      <button class="btn btn-secondary" id="diag-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: LEVEL 1 SUMMARY ══════════════════════════════════ -->
 <div id="screen-summary-level1" class="screen" style="flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:28px;">
   <div style="text-align:center; max-width:480px;">
     <span class="level-badge summary" id="level-badge-summary-level1"></span>
@@ -1704,7 +1775,7 @@
     </div>
   </div>
 
-  <!-- R2 summary — host actions -->
+  <!-- Level 2 summary — host actions -->
   <div id="summary-level2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:480px; margin-bottom:40px;">
     <div class="hcard-stack" style="width:100%;">
       <button type="button" class="hcard hc-hoverable" id="debrief-level2-repeat">
@@ -1719,13 +1790,13 @@
     <button class="btn btn-secondary" id="btn-exit-level2" style="min-width:200px;">Exit this team</button>
   </div>
 
-  <!-- R2 summary — guest actions -->
+  <!-- Level 2 summary — guest actions -->
   <div id="summary-level2-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
     <button class="btn btn-secondary" id="btn-exit-level2-guest" style="min-width:200px;">Exit this team</button>
   </div>
 </div>
 
-<!-- ══ SCREEN: ROUND 3 SUMMARY ═══════════════════════════════════ -->
+<!-- ══ SCREEN: LEVEL 3 SUMMARY ═══════════════════════════════════ -->
 <div id="screen-summary-level3" class="screen">
   <div class="summary-header">
     <span class="level-badge summary" id="level-badge-summary-level3"></span>
@@ -1754,7 +1825,7 @@
     <div id="summary-level3-tasks"></div>
   </div>
 
-  <!-- R3 summary — host actions -->
+  <!-- Level 3 summary — host actions -->
   <div id="summary-level3-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:400px; margin-bottom:40px;">
     <div class="hcard-stack" style="width:100%;">
       <button type="button" class="hcard hc-hoverable" id="debrief-level3-repeat">
@@ -1765,7 +1836,7 @@
     <button class="btn btn-secondary" id="btn-exit-level3" style="min-width:200px;">Exit this team</button>
   </div>
 
-  <!-- R3 summary — guest actions -->
+  <!-- Level 3 summary — guest actions -->
   <div id="summary-level3-guest-actions" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-bottom:40px;">
     <button class="btn btn-secondary" id="btn-exit-level3-guest" style="min-width:200px;">Exit this team</button>
   </div>
@@ -1781,63 +1852,62 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
 
 /* ═══ VOCABULARY: "LEVEL" vs "ROUND" — READ BEFORE RENAMING ANYTHING ═══
 
-   *** RENAME IN PROGRESS as of 260806.3. This block describes the
-   *** PRE-rename state and is being worked through in staged passes.
-   *** It is rewritten wholesale once the last pass lands. Until then,
-   *** trust the code over this block where they disagree.
+   Two words, two different things. They are NOT synonyms, and the code
+   now names them consistently. Keep it that way.
 
-   This codebase uses two words for two genuinely different things. They
-   are NOT synonyms. The code does not yet name them consistently, and
-   this block exists so nobody has to rediscover that the hard way.
-
-   LEVEL — a *type* of game. There are exactly three, fixed at design
-     time: Level 1 (onboarding), Level 2 (core), Level 3 (task trading).
-     This is the only one of the two words players and hosts ever see.
-     All player-facing copy has said "Level" since Session 11 (260714.3).
+   LEVEL — a *type* of game. Three of them, fixed at design time:
+     Level 1 (onboarding), Level 2 (core), Level 3 (task trading).
+     This is what players and hosts see, and the only one of the two
+     words that appears in the UI.
+     Named: levelType, currentLevel, pendingLevelType, nextLevelType,
+     lastArmedLevelType, LEVEL_LABELS, updateLevelBadge, levelLabel,
+     isLevel1, isLevel3, level3Block, drawNetworkLevel3, the stored
+     values "level1"/"level2"/"level3", the .level-badge CSS class, and
+     the level1- / level2- / level3- element id segments.
 
    ROUND — a *single instance* of play: one team, one sitting, playing
-     one level from start to summary. A session can contain any number
-     of rounds, and two rounds can be the same level — "Repeat Level 2"
-     on the debrief screen starts a second round of the same level.
-     The word "round" appears nowhere in the UI.
-
-   ── Why some names look wrong ──────────────────────────────────────
-   The game originally had only the first concept and called it "round."
-   Session 11 changed the player-facing word to "Level" but deliberately
-   left every internal identifier untouched. So as of 260806.1 some
-   identifiers say "round" and mean LEVEL, while others say "round" and
-   correctly mean ROUND:
-
-   Say "round", actually mean LEVEL  (mis-named — rename planned):
-     roundType, currentRound, pendingRoundType, nextRoundType,
-     lastArmedRoundType, ROUND_LABELS, updateRoundBadge, the
-     "round1"/"round2"/"round3" values, the .round-badge CSS class,
-     and the r1- / r2- / r3- element id prefixes.
-
-   Say "round", actually mean ROUND  (correctly named — leave alone):
-     roundInstanceId, currentRoundInstanceId, myRoundInstanceId,
+     one level from start to summary. A session contains any number of
+     rounds, and two rounds can be the same level — "Repeat Level 2" on
+     the debrief starts a second round of the same level. Players never
+     see this word.
+     Named: roundInstanceId, currentRoundInstanceId, myRoundInstanceId,
      startRoundInFirebase, enterBetweenRoundLobby, roundStartInFlight,
-     kfNaturalTriggerHandledForRoundId.
+     kfNaturalTriggerHandledForRoundId, and the stored challenge outcome
+     value "round-ended".
 
-   ── Three hazards, if you do rename ────────────────────────────────
+   So startRoundInFirebase(levelType) is correct and not a leftover: it
+   starts a ROUND, of a given LEVEL. Same for enterBetweenRoundLobby().
+
+   ── History ───────────────────────────────────────────────
+   The game originally had only the first concept and called it "round."
+   Session 11 changed the player-facing word to "Level" but left the
+   internals alone. Session 12 (260806.3 through .8) renamed the
+   internals in staged passes: DOM ids, then JS identifiers, then
+   Firebase field names, then stored values, then these comments.
+
+   ── Three hazards, if you rename anything here ─────────────────
    1. NEVER find-and-replace the text "round". This file contains 23
-      calls to the Canvas API method roundRect(), plus Math.round(),
-      background / foreground, and CSS stroke-linejoin:round. A
-      text-level replace silently breaks the mini-game rendering code.
-      Any change here must match whole identifiers, not substrings.
+      calls to the Canvas API method roundRect(), 25 to Math.round(),
+      the CSS property background, and stroke-linejoin / lineCap set to
+      "round". A text-level replace silently breaks the mini-game
+      rendering. Match whole identifiers, not substrings — and guard
+      BOTH sides of hyphenated names, since "summary-level1" is a suffix
+      of "screen-summary-level1" and a plain word boundary will match
+      inside it.
 
-   2. Missed renames fail SILENTLY, not loudly. Several places read the
-      level with a fallback default, e.g. `data.roundType || "round2"`.
-      Miss one read site and the game quietly behaves as Level 2 instead
-      of throwing an error. Consider making those defaults log a warning
-      for the duration of any rename work, then removing the logging.
+   2. Missed renames can fail SILENTLY. Several places read the level
+      with a fallback, e.g. `data.levelType || "level2"`. Miss one read
+      site and the game quietly behaves as Level 2 rather than throwing
+      an error. When changing this, verify each level still behaves
+      distinctly — Level 1 has no timer, Level 3 has the rail — rather
+      than only checking that the game runs.
 
-   3. The stored value is wire format. roundType is written to Firebase
-      in createGame() and startRoundInFirebase() (plus pendingRoundType
-      during the between-round lobby), and every client must agree on
-      what it means. If the stored value ever changes, all clients have
-      to be on the same deployed build — never deploy mid-session, and
-      hard-refresh every browser before a facilitated run.
+   3. The stored value is wire format. levelType is written to Firebase
+      in createGame() and startRoundInFirebase(), plus pendingLevelType
+      during the between-round lobby, and every client must agree on
+      what it means. If it changes again, all clients must be on the
+      same deployed build: never deploy mid-session, and hard-refresh
+      every browser before a facilitated run.
 ══════════════════════════════════════════════════════════════════════ */
 
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
@@ -1902,7 +1972,7 @@ const RESOURCES = {
   "Mortar & Pestle":{ type:"tool", category:"shaper",    emoji:"🪨",  label:"Mortar & Pestle" },
 };
 
-/* ─── STARTER RECIPES (Round 1 only) ───────────────────────────
+/* ─── STARTER RECIPES (Level 1 only) ───────────────────────────
    One tool per recipe (one mini-game per task), 2–3 ingredients.
    Six recipes = one per player for teams of up to 6.
    Tool categories deliberately spread across all four categories
@@ -2037,7 +2107,7 @@ function generateGameSetup(playerIds, levelType) {
   const tasksPerPlayer = isLevel1 ? 1 : TASKS_PER_PLAYER;
   const taskPool = isLevel1 ? STARTER_TASKS : ALL_TASKS;
 
-  // ── R3: Tiered task distribution ─────────────────────────────
+  // ── Level 3: Tiered task distribution ─────────────────────────────
   // Average 3 tasks/player. Distribute unevenly: some players get more,
   // some get fewer. Creates visible asymmetry from the start.
   // Tiers for n players: descending from (avg + extra) to (avg - extra).
@@ -2109,7 +2179,7 @@ function generateGameSetup(playerIds, levelType) {
   });
 
   // ── 4. Total ingredient pool with buffer ─────────────────────
-  // R3 uses a slightly more generous buffer (25%) but primary distribution
+  // Level 3 uses a slightly more generous buffer (25%) but primary distribution
   // is heavily mismatched — especially for each player's first (active) task.
   const totalIngrPool = {};
   playerIds.forEach(pid => {
@@ -2126,7 +2196,7 @@ function generateGameSetup(playerIds, levelType) {
   }
 
   // ── 5. Distribute ingredients with deliberate mismatch ───────
-  // For R3: ingredients needed by a player's FIRST task (their initial active task)
+  // For Level 3: ingredients needed by a player's FIRST task (their initial active task)
   // go to OTHER players at 90% rate. Remaining ingredients use standard mismatch.
   const playerIngrInventory = {};
   playerIds.forEach(pid => { playerIngrInventory[pid] = {}; });
@@ -2147,7 +2217,7 @@ function generateGameSetup(playerIds, levelType) {
     for (let i = 0; i < totalQty; i++) {
       // Find players whose first task needs this ingredient
       const firstTaskHolders = playerIds.filter(pid => playerFirstTaskIngr[pid].has(name));
-      // For R3: strongly prefer giving to players whose first task does NOT need it
+      // For Level 3: strongly prefer giving to players whose first task does NOT need it
       const preferredReceivers = playerIds.filter(pid => !playerIngrNeeds[pid][name]);
       const midReceivers = playerIds.filter(pid => !playerFirstTaskIngr[pid].has(name));
 
@@ -2189,7 +2259,7 @@ function generateGameSetup(playerIds, levelType) {
     }
   });
 
-  // ── 7. Compute starting counts for R3 summary ────────────────
+  // ── 7. Compute starting counts for Level 3 summary ────────────────
   const startingTaskCounts = {};
   const startingIngrCounts = {};
   playerIds.forEach(pid => {
@@ -2209,7 +2279,7 @@ let gameCode       = null;
 let gameRef        = null;
 let playersRef     = null;
 let timerInterval  = null;
-let rescueInterval = null;   // R3: periodic rescue spawn, host-only
+let rescueInterval = null;   // Level 3: periodic rescue spawn, host-only
 let kfNaturalTriggerCheckInterval = null; // Session 9: host-only poll, see kfCheckNaturalTrigger()
 let gameState      = {};    // mirror of Firebase state
 let localInventory = {};    // { resourceName: count } — kept in sync with Firebase
@@ -2218,14 +2288,14 @@ let transferLog    = [];    // for summary
 let unsubscribers  = [];    // Firebase listeners to detach
 let roundStartInFlight = false; // guards against the ready-check double-firing (see enterLobby)
 let inGameEntered  = false; // guard: prevent enterGame() firing twice
-let myTaskQueue    = [];    // R3: queued (not active) task IDs; R1/R2: full queue
-let myActiveTaskId = null;  // R3: explicit active task ID; R1/R2: derived from queue[0]
+let myTaskQueue    = [];    // Level 3: queued (not active) task IDs; Levels 1/2: full queue
+let myActiveTaskId = null;  // Level 3: explicit active task ID; Levels 1/2: derived from queue[0]
 let taskTarget     = 0;     // team win condition: total tasks needed
 let eventName      = "";    // e.g. "Ambassador Huffington's Birthday"
 let currentLevel   = "level2"; // "level1" | "level2" | "level3"
 // Unique per round start. Bug found 260707: a completeTask() call whose
 // awaited Firebase writes were still in flight when a round ended (very
-// possible under R2/R3 timer pressure, near-impossible in untimed R1)
+// possible under Levels 2/3 timer pressure, near-impossible in untimed Level 1)
 // could land AFTER the next round had already reset tasksCompleted to 0,
 // resurrecting a stale nonzero value and immediately re-triggering the
 // "reached taskTarget" auto-end check for the brand new round. completeTask()
@@ -2258,7 +2328,7 @@ let inventoryOrder = [];    // ordered list of resource names for stable display
 // as the authority for *order*, while the inventory snapshot stays the
 // authority for *counts*.
 let pendingArrivals = [];
-let inspectedTaskId = null; // R3: task ID currently shown in inspector
+let inspectedTaskId = null; // Level 3: task ID currently shown in inspector
 // Stable snapshot of last-seen Firebase inventory counts.
 const lastKnownInventoryRef = { ingredients: {}, tools: {} };
 
@@ -2559,8 +2629,19 @@ function onTouchEnd(e) {
 function endPointer(cx, cy) {
   if (!draggedTile) return;
   document.body.classList.remove("is-dragging");
-  // Task tiles use their own drag handler — skip if dragging a task tile
+  // Task tiles use their own drag handler — skip if dragging a task tile.
+  // Session 13: this branch is currently UNREACHABLE — nothing in the file
+  // has carried .task-tile since the Session 7 rail rework replaced the old
+  // queue-row, and .task-tile appears nowhere else. It was returning without
+  // removing `ghost`, so if anything ever did match it, the ghost element
+  // would be stranded on document.body permanently (it is parented outside
+  // every .screen, so showScreen() never hides it, and it is pointer-events:
+  // none, so it can't be dismissed). Fixed rather than deleted: deleting it
+  // would mean a future reintroduction of that element type silently falls
+  // through into the resource-drop logic below instead of being skipped.
   if (draggedTile.classList.contains("task-tile")) {
+    if (ghost) { ghost.remove(); ghost = null; }
+    draggedTile.classList.remove("dragging");
     draggedTile = null; draggedName = null; draggedSource = null; dragCommitted = false;
     return;
   }
@@ -2673,7 +2754,7 @@ function dropIntoTask(name) {
 // Note: there is no manual "return a committed item to the station" gesture
 // in the checklist model — non-matching drops are rejected outright (see
 // dropIntoTask below), and the only way committed items return automatically
-// is the R3 resource-return rule (setRailFromArray) when a ticket leaves
+// is the Level 3 resource-return rule (setRailFromArray) when a ticket leaves
 // position 0. Flagged at the 260706.2 checkpoint as an intentional
 // simplification versus the old ghost-tile drag-back-out gesture.
 
@@ -2721,7 +2802,7 @@ async function completeTask() {
     nextActiveId = myTaskQueue[0] || null;
     newQueue     = myTaskQueue.slice(1);
   } else {
-    // R1/R2: queue-based, advance queue
+    // Levels 1/2: queue-based, advance queue
     newQueue     = myTaskQueue.slice(1);
     nextActiveId = newQueue[0] || null;
   }
@@ -2758,7 +2839,7 @@ async function completeTask() {
   // stale count and immediately ending the brand new round.
   const liveIdSnap = await get(ref(db, `games/${gameCode}/roundInstanceId`));
   if (liveIdSnap.val() !== myRoundInstanceId) {
-    toast("That round already ended — this completion wasn't counted", "bad");
+    toast("Too late — that one didn't count", "bad");
     return;
   }
 
@@ -2767,9 +2848,9 @@ async function completeTask() {
   if (isLevel3) myActiveTaskId = nextActiveId;
   else       myTaskQueue   = isLevel3 ? [nextActiveId, ...newQueue].filter(Boolean) : newQueue;
 
-  // ── Spawn ingredients (R3: team-wide scan; R1/R2: next-task targeting) ──
+  // ── Spawn ingredients (Level 3: team-wide scan; Levels 1/2: next-task targeting) ──
   const otherPlayers = Object.keys(gameState.players || {}).filter(pid => pid !== myPlayerId);
-  const spawnCount   = Math.max(1, requiredIngrCount - (isLevel3 ? 1 : 0)); // mild deficit for R3
+  const spawnCount   = Math.max(1, requiredIngrCount - (isLevel3 ? 1 : 0)); // mild deficit for Level 3
 
   // Bug found 260707: target selection below used to be a fresh
   // Math.random() pick on every iteration with no memory of who'd already
@@ -2804,7 +2885,7 @@ async function completeTask() {
                         : otherPlayers;
       targetPid = candidates[Math.floor(Math.random() * candidates.length)] || myPlayerId;
     } else {
-      // R1/R2: bias toward next task's ingredients
+      // Levels 1/2: bias toward next task's ingredients
       const nextTaskObj = nextActiveId ? (localTaskDefs[nextActiveId] || null) : null;
       const nextNeeded  = nextTaskObj
         ? nextTaskObj.requirements.filter(r => RESOURCES[r.resource]?.type === "ingredient").map(r => r.resource)
@@ -2873,15 +2954,23 @@ function getTeamActiveNeededIngredients() {
 function renderNoActiveTask() {
   currentTask = null;
   taskZoneMap = {};
-  document.getElementById("task-name").textContent = myTaskQueue.length > 0 ? "Pull a task" : "All done!";
+  // Session 13: the queued-but-nothing-active copy described a "Current Task
+  // slot" that has not existed since Session 7 — the Level 3 rail replaced it,
+  // and rail position 0 IS the active task, reached by dragging a ticket to
+  // the front. The old text instructed players to do something impossible.
+  // (This branch is also about to become unreachable once the Level 3
+  // auto-promotion fix lands, but "unreachable" states in this file have a
+  // track record of becoming reachable, so it is corrected rather than cut.)
+  const hasQueued = myTaskQueue.length > 0;
+  document.getElementById("task-name").textContent = hasQueued ? "Nothing prepping" : "All done!";
   document.getElementById("task-checklist").innerHTML =
-    `<span class="checklist-empty-hint">${myTaskQueue.length > 0
-      ? "Drag a task from the queue into the Current Task slot, or receive one from a teammate."
+    `<span class="checklist-empty-hint">${hasQueued
+      ? "Drag a ticket to the front of the rail to start prepping it."
       : "You’ve completed all your tasks. Help your teammates!"}</span>`;
   document.getElementById("btn-complete").disabled = true;
 }
 
-/* ─── R3: RESCUE SPAWN SCAN (host-only, runs periodically) ──── */
+/* ─── Level 3: RESCUE SPAWN SCAN (host-only, runs periodically) ──── */
 async function runRescueScan() {
   if (gameState.status !== "playing" || currentLevel !== "level3") return;
   const players    = gameState.players || {};
@@ -2929,7 +3018,7 @@ async function runRescueScan() {
   }
 }
 
-/* ─── R3: RAIL RENDERING ─────────────────────────────────────
+/* ─── Level 3: RAIL RENDERING ─────────────────────────────────────
    Replaces the old queue-row + separate active-task-slot. Position 0 on
    the rail IS "now prepping" — there is no second mechanism (brief §3.2).
    Leftmost = index 0, extending rightward (brief §3.1 — reversed from the
@@ -2998,7 +3087,7 @@ function renderQueueBar() {
   updateRailArrows();
 }
 
-/* ─── R3: PREVIEW POPOVER (replaces the old task inspector) ───
+/* ─── Level 3: PREVIEW POPOVER (replaces the old task inspector) ───
    Anchored to the tapped stub, tail centered on the stub itself, dish
    name + mini icon list only, no description (brief §3.4). Opens on tap;
    closes on second tap of the same ticket, tap on the popover, or tap
@@ -3055,7 +3144,7 @@ document.addEventListener("mousedown", (e) => {
   hidePreview();
 });
 
-/* ─── R3: RAIL OVERFLOW (brief §3.11) ─────────────────────────
+/* ─── Level 3: RAIL OVERFLOW (brief §3.11) ─────────────────────────
    Scrollable rail with arrow buttons that fade in only when there's more
    content in that direction. */
 function updateRailArrows() {
@@ -3066,7 +3155,7 @@ function updateRailArrows() {
   r.classList.toggle("show", scroll.scrollLeft < scroll.scrollWidth - scroll.clientWidth - 4);
 }
 
-/* ─── R3: RAIL TICKET DRAG ──────────────────────────────────────
+/* ─── Level 3: RAIL TICKET DRAG ──────────────────────────────────────
    Tickets use the same pointer-event framework as resource tiles, but
    drop-target handling covers the whole rail (reorder anywhere, including
    to position 0 — that IS promotion, brief §3.2) plus teammate cards (trade). */
@@ -3472,6 +3561,7 @@ async function createGame(levelType) {
   };
 
   await set(ref(db, `games/${gameCode}`), gameData);
+  diagAttachGame();
   enterLobby();
 }
 
@@ -3510,6 +3600,7 @@ async function joinGame() {
   await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
     name: myPlayerName, ready: false, tasksCompleted: 0, currentTaskId: "t1"
   });
+  diagAttachGame();
   enterLobby();
 }
 
@@ -3557,10 +3648,10 @@ function enterLobby() {
         // before this async function finishes — and status is still "lobby" at
         // that point, so the guard above would otherwise pass a second time and
         // start the round twice concurrently with two different random setups
-        // racing to write over each other. Found 260707 during the R2→R3 bug.
+        // racing to write over each other. Found 260707 during the Level 2→Level 3 bug.
         roundStartInFlight = true;
         try {
-          // Resolve pending round type (set by enterBetweenRoundLobby) vs initial config
+          // Resolve the pending level (set by enterBetweenRoundLobby) vs the initial choice
           const rt = gameState.pendingLevelType || gameState.levelType || "level2";
           // Promote pending field to live before starting — clear pending to avoid re-trigger
           await update(ref(db, `games/${gameCode}`), {
@@ -3578,7 +3669,7 @@ function enterLobby() {
       document.getElementById("lobby-event-name").textContent = gameState.eventName;
     }
 
-    // Show R3 orientation message
+    // Show Level 3 orientation message
     const level3Block = document.getElementById("level3-orientation-block");
     if (level3Block) {
       const rt = gameState.pendingLevelType || gameState.levelType || "";
@@ -3607,7 +3698,7 @@ async function startRoundInFirebase(players, levelType) {
   // Session 11: the clock counts up from startTime now, with no fixed
   // duration and no time-based end condition — the round ends only when
   // the host clicks "End game" (or the team hits its task target, below,
-  // which is unrelated to the clock either direction). Round 1 still shows
+  // which is unrelated to the clock either direction). Level 1 still shows
   // no clock at all, same as when this was endTime-based.
   const startTime = isLevel1 ? null : Date.now();
   const evtName = gameState.eventName || genEventName();
@@ -3618,6 +3709,7 @@ async function startRoundInFirebase(players, levelType) {
 
   const updates = {};
   updates[`games/${gameCode}/status`]      = "playing";
+  updates[`games/${gameCode}/transitionAt`] = diagServerNow(); // Session 13 diagnostics only
   updates[`games/${gameCode}/roundInstanceId`] = roundInstanceId;
   updates[`games/${gameCode}/startTime`]   = startTime;
   updates[`games/${gameCode}/levelType`]   = levelType;
@@ -3628,7 +3720,7 @@ async function startRoundInFirebase(players, levelType) {
   updates[`games/${gameCode}/transfers`]   = null;
   updates[`games/${gameCode}/taskTrades`]  = null;
 
-  // Shared challenges (Session 9) — Round 2 and Round 3 only (Round 1 has
+  // Shared challenges (Session 9) — Level 2 and Level 3 only (Level 1 has
   // no timer/tasks for it to interrupt). Once per round for now. Stamped
   // here (same moment as roundInstanceId/startTime) so every client agrees
   // on the trigger time without any client needing to keep polling a
@@ -3643,8 +3735,8 @@ async function startRoundInFirebase(players, levelType) {
 
   playerIds.forEach(pid => {
     const allTasks = setup.playerTasks[pid] || [];
-    // For R3: first task becomes activeTaskId, rest go into taskQueue
-    // For R1/R2: activeTaskId mirrors taskQueue[0] for compatibility
+    // For Level 3: first task becomes activeTaskId, rest go into taskQueue
+    // For Levels 1/2: activeTaskId mirrors taskQueue[0] for compatibility
     const activeId = allTasks[0] || null;
     const queuedTasks = isLevel3 ? allTasks.slice(1) : allTasks;
 
@@ -3685,7 +3777,7 @@ function enterGame() {
     document.getElementById("event-name-display").textContent = eventName;
     updateLevelBadge(document.getElementById("level-badge-header"));
 
-    // Show/hide timer for Round 1 (Session 11: toggles the whole
+    // Show/hide timer for Level 1 (Session 11: toggles the whole
     // timer+"Elapsed" wrapper now, not just the digits span, since the
     // caption needs to hide along with them)
     const timerWrap = document.getElementById("timer-wrap");
@@ -3697,14 +3789,14 @@ function enterGame() {
       timerWrap.style.display = "";
       if (timerDivider) timerDivider.style.display = "";
     }
-    // Show pause button to host only (R2/R3 have timers)
+    // Show pause button to host only (Levels 2/3 have timers)
     const pauseBtn = document.getElementById("btn-pause");
     if (pauseBtn) pauseBtn.style.display = (amHost && currentLevel !== "level1") ? "" : "none";
-    // Shared challenges (Session 9) are Round 2 and Round 3.
+    // Shared challenges (Session 9) are Level 2 and Level 3.
     const triggerBtn = document.getElementById("btn-trigger-challenge");
     if (triggerBtn) triggerBtn.style.display = (amHost && (currentLevel === "level2" || currentLevel === "level3")) ? "" : "none";
 
-    // Show/hide R3-specific UI elements
+    // Show/hide Level 3-specific UI elements
     const isLevel3 = currentLevel === "level3";
     document.getElementById("level3-rail-section").style.display     = isLevel3 ? "block" : "none";
 
@@ -3731,7 +3823,7 @@ function enterGame() {
       startTimer(data.startTime);
     }
 
-    // R3: start host-only rescue scan every 30s
+    // Level 3: start host-only rescue scan every 30s
     if (isLevel3 && amHost) {
       rescueInterval = setInterval(() => runRescueScan(), 30000);
     }
@@ -3872,7 +3964,7 @@ function enterGame() {
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}/notifications/${myPlayerId}`), "value", notifUnsub));
 
-  // ── 4. Watch R3: my own activeTaskId and taskQueue changes ──
+  // ── 4. Watch Level 3: my own activeTaskId and taskQueue changes ──
   if (true) { // always register — needed for cross-device sync
     const myPlayerUnsub = onValue(ref(db, `games/${gameCode}/players/${myPlayerId}`), snap => {
       const pd = snap.val() || {};
@@ -4139,7 +4231,7 @@ async function showSummary() {
     document.getElementById("summary-level3-guest-actions").style.display = isHost ? "none" : "flex";
 
   } else {
-    // ── ROUND 2: summary ─────────────────────────────────────────
+    // ── LEVEL 2: summary ─────────────────────────────────────────
     showScreen("summary-level2");
     document.getElementById("level-badge-summary-level2").textContent = levelLabel;
     document.getElementById("summary-event-name").textContent = evtName;
@@ -4362,7 +4454,7 @@ function drawNetwork(players, transfers) {
   });
 }
 
-// R3 network diagram with per-node stat annotations
+// Level 3 network diagram with per-node stat annotations
 function drawNetworkLevel3(players, transfers, svgId, mode) {
   const svg = document.getElementById(svgId);
   if (!svg) return;
@@ -4623,6 +4715,7 @@ async function init() {
   try {
     app = initializeApp(firebaseConfig);
     db  = getDatabase(app);
+    diagInit();
     hideLoading();
     showScreen("landing");
   } catch (e) {
@@ -4643,7 +4736,7 @@ async function init() {
 /* ─── EVENT LISTENERS ───────────────────────────────────────── */
 /* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join game (Session 11) ──
    Exactly one member of this group is "armed" (red/white) at a time —
-   originally just the three level cards, extended this round to include
+   originally just the three level cards, later extended to include
    the Join game button too, since the whole landing page is really one
    choice ("create at a level" vs "join") and the same affordance should
    cover all four options consistently. Level 1 starts armed, but that's
@@ -4736,7 +4829,7 @@ document.getElementById("btn-complete").addEventListener("click", () => {
 });
 document.getElementById("btn-end-game").addEventListener("click", endGame);
 
-// Round 3 rail overflow (brief §3.11) — static elements, wired once.
+// Level 3 rail overflow (brief §3.11) — static elements, wired once.
 document.getElementById("rail-scroll").addEventListener("scroll", updateRailArrows);
 window.addEventListener("resize", updateRailArrows);
 document.getElementById("rail-arrow-left").addEventListener("click", () =>
@@ -4774,17 +4867,21 @@ async function enterBetweenRoundLobby(nextLevelType) {
   // Detach every listener registered by the round we're leaving (game-level
   // state, inventory, notifications, my-player doc) BEFORE touching anything
   // else. Bug found 260707: these were never torn down between rounds, so
-  // by Round 3 there were two full sets of stale Round 1 + Round 2 listeners
-  // still reacting to every Firebase write — one of them would grab Round 2's
-  // still-lingering eventName/taskTarget/levelType during the Round 3 waiting
+  // by Level 3 there were two full sets of stale Level 1 + Level 2 listeners
+  // still reacting to every Firebase write — one of them would grab Level 2's
+  // still-lingering eventName/taskTarget/levelType during the Level 3 waiting
   // room (nothing clears those fields until the round actually starts) and
-  // lock currentLevel to the wrong round before Round 3 even began.
+  // lock currentLevel to the wrong level before Level 3 even began.
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
 
-  // Write pending round config and reset everyone's ready state
+  // Write the pending level and reset everyone's ready state
   const playerIds = Object.keys(gameState.players || {});
-  const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null };
+  // Session 13: transitionAt is diagnostics-only (Issue 3) — additive, never
+  // read by game logic, safely ignored by any older client. See the
+  // CONNECTION DIAGNOSTICS block for why it's needed.
+  const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null,
+                      [`games/${gameCode}/transitionAt`]: diagServerNow() };
   updates[`games/${gameCode}/pendingLevelType`] = nextLevelType;
   playerIds.forEach(pid => {
     updates[`games/${gameCode}/players/${pid}/ready`] = false;
@@ -4862,7 +4959,23 @@ wireDebriefCard(document.getElementById("debrief-level3-repeat"),  () => enterBe
 
 /* ─── SHARED HELPERS (adapted from testbed) ─────────────────── */
 // Get pointer coords relative to a canvas element
-function _ep(e,cvs){const r=cvs.getBoundingClientRect(),s=e.touches?e.touches[0]:e.changedTouches?e.changedTouches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};}
+// Session 13 (Issue 4): test touches.LENGTH, not merely the presence of
+// `touches`. On a touchend, e.touches is an EMPTY TouchList — still an
+// object, so still truthy — which sent this down the first branch, read
+// e.touches[0] as undefined, and threw on s.clientX. Only the "slice"
+// activity calls _ep() from a touchend handler (every other drag activity
+// has a zero-argument onEnd), which is exactly why slice was the one
+// mini-game broken by touch while the other eight were fine.
+// Confirmed on-device (iPad, WebKit) via kitchen-minigame-touch-testbed_260809_1.html:
+// original = 9 thrown TypeErrors and 0 cuts registered; fixed = 0 errors,
+// game completes. All eight other activities verified unaffected either way.
+function _ep(e,cvs){
+  const r=cvs.getBoundingClientRect();
+  const s=(e.touches && e.touches.length)             ? e.touches[0]
+        : (e.changedTouches && e.changedTouches.length) ? e.changedTouches[0]
+        : e;
+  return{x:s.clientX-r.left,y:s.clientY-r.top};
+}
 
 // whenReady / ResizeObserver pattern for reliable canvas init
 const _actPending=[];
@@ -6521,6 +6634,273 @@ window.addEventListener('resize', () => {
 // Debug button now goes through the real, shared trigger path — same
 // function the natural clock calls, so there's one code path, not two.
 document.getElementById('btn-trigger-challenge').addEventListener('click', () => kfStartChallenge('manual'));
+
+/* ══════════════════════════════════════════════════════════════════
+   SESSION 13 — CONNECTION DIAGNOSTICS  (Issue 3)
+
+   WHY THIS EXISTS
+   During a live session one player on a four-person team lagged 10+
+   seconds behind everyone else reaching the "Waiting for players"
+   screen, on the same network, while two other clients moved
+   immediately. No code-level cause was found: the guest path is a
+   single onValue on one leaf node. That points at the client
+   environment rather than game logic, and the plausible causes —
+   a backgrounded/throttled browser tab, a dropped websocket in
+   reconnect backoff, or a transport fallback to long-polling — are
+   indistinguishable after the fact without measurement.
+
+   WHAT IT IS
+   Passive instrumentation. It records; it never changes behaviour.
+   Everything is local to the browser and in memory only — no writes
+   to Firebase, nothing persisted, gone on refresh.
+
+   THE ONE SCHEMA ADDITION
+   games/{code}/transitionAt — a server-referenced timestamp written
+   by the host at each "everyone should move now" moment. Purely
+   additive and never read by game logic, so an older client simply
+   ignores it; it cannot break a mixed-version session the way the
+   Session 12 field renames could. It exists so each client can
+   measure how long after the write it actually reacted, which is the
+   headline number and is otherwise unmeasurable.
+
+   HOW TO OPEN IT
+   Three taps on the version line (landing screen), the "The Kitchen"
+   wordmark (in game), or the Level pill (any summary screen).
+   ══════════════════════════════════════════════════════════════════ */
+
+let diagClockOffset      = 0;      // ms to add to Date.now() for server time
+let diagEvents           = [];     // { t, kind, text }
+let diagConnected        = null;
+let diagDropCount        = 0;
+let diagOfflineSince     = null;
+let diagOfflineTotalMs   = 0;
+let diagHiddenSince      = null;
+let diagHiddenTotalMs    = 0;
+let diagHideCount        = 0;
+let diagLastVisibleAt    = Date.now();
+let diagTransitions      = [];     // { latencyMs, hidden, sinceVisibleMs }
+let diagStartedAt        = Date.now();
+let diagGameAttached     = null;   // gameCode the transition listener is on
+
+// Server-referenced clock. Both the host writing transitionAt and the
+// client measuring against it use this, so per-machine clock skew
+// cancels out and the latency figure is real rather than an artifact.
+function diagServerNow() { return Date.now() + diagClockOffset; }
+
+function diagLog(kind, text) {
+  diagEvents.push({ t: Date.now(), kind, text });
+  if (diagEvents.length > 500) diagEvents.shift();
+  if (document.getElementById("diag-overlay")?.classList.contains("active")) diagRender();
+}
+
+function diagClock(ms) {
+  const d = new Date(ms);
+  return d.toTimeString().slice(0, 8);
+}
+function diagDur(ms) {
+  if (ms < 1000) return Math.round(ms) + "ms";
+  if (ms < 60000) return (ms / 1000).toFixed(1) + "s";
+  return Math.floor(ms / 60000) + "m " + Math.round((ms % 60000) / 1000) + "s";
+}
+
+/* ── Startup: clock offset, connection state, tab visibility ────── */
+function diagInit() {
+  try {
+    onValue(ref(db, ".info/serverTimeOffset"), snap => {
+      const v = snap.val();
+      if (typeof v === "number") diagClockOffset = v;
+    });
+
+    // Firebase reports its own connection state. A drop here plus a slow
+    // transition means reconnect backoff, which is a real and different
+    // problem from a throttled tab.
+    onValue(ref(db, ".info/connected"), snap => {
+      const up = snap.val() === true;
+      if (diagConnected === null) {
+        diagConnected = up;
+        diagLog("conn", up ? "Connected" : "Not connected yet");
+        return;
+      }
+      if (up === diagConnected) return;
+      diagConnected = up;
+      if (up) {
+        const downFor = diagOfflineSince ? Date.now() - diagOfflineSince : 0;
+        diagOfflineTotalMs += downFor;
+        diagOfflineSince = null;
+        diagLog("conn", "Reconnected after " + diagDur(downFor));
+      } else {
+        diagDropCount++;
+        diagOfflineSince = Date.now();
+        diagLog("conn", "CONNECTION LOST");
+      }
+    });
+
+    // A hidden tab is throttled hard by both Safari and Chrome and can be
+    // frozen outright after a few minutes. This is the leading suspect for
+    // the reported stall, and it is the cheapest thing to rule in or out.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        diagHiddenSince = Date.now();
+        diagHideCount++;
+        diagLog("vis", "Window hidden / switched away");
+      } else {
+        const hiddenFor = diagHiddenSince ? Date.now() - diagHiddenSince : 0;
+        diagHiddenTotalMs += hiddenFor;
+        diagHiddenSince = null;
+        diagLastVisibleAt = Date.now();
+        diagLog("vis", "Window visible again after " + diagDur(hiddenFor));
+      }
+    });
+
+    diagLog("info", "Diagnostics started");
+  } catch (e) {
+    // Diagnostics must never be able to break the game.
+    console.warn("diagInit failed:", e);
+  }
+}
+
+/* ── Per-game: measure how late this client sees each transition ──
+   Deliberately its own listener on a single leaf, separate from the
+   screen-changing logic, so it measures pure delivery latency for this
+   client and cannot itself affect when the screen changes. */
+function diagAttachGame() {
+  try {
+    if (!gameCode || diagGameAttached === gameCode) return;
+    diagGameAttached = gameCode;
+    onValue(ref(db, `games/${gameCode}/transitionAt`), snap => {
+      const written = snap.val();
+      if (!written) return;
+      const latency = diagServerNow() - written;
+      const sinceVisible = Date.now() - diagLastVisibleAt;
+      diagTransitions.push({ latencyMs: latency, hidden: document.hidden, sinceVisibleMs: sinceVisible });
+      let note = "Transition received " + diagDur(latency) + " after it was sent";
+      if (latency > 2000) {
+        note += "  ← SLOW";
+        // If the tab only just woke up, the delay was the freeze, not the network.
+        if (sinceVisible < latency + 500) note += " (tab had just become visible — throttling, not network)";
+        else if (diagDropCount > 0)       note += " (connection had dropped — reconnect backoff)";
+        else                              note += " (tab was visible and connected — network or device)";
+      }
+      diagLog("trans", note);
+    });
+  } catch (e) {
+    console.warn("diagAttachGame failed:", e);
+  }
+}
+
+/* ── Panel ──────────────────────────────────────────────────────── */
+function diagSummaryLines() {
+  const L = [];
+  const liveHidden  = diagHiddenTotalMs  + (diagHiddenSince  ? Date.now() - diagHiddenSince  : 0);
+  const liveOffline = diagOfflineTotalMs + (diagOfflineSince ? Date.now() - diagOfflineSince : 0);
+
+  L.push(["Session length", diagDur(Date.now() - diagStartedAt)]);
+  L.push(["Connection", diagDropCount === 0
+    ? "Never dropped"
+    : diagDropCount + " drop(s), " + diagDur(liveOffline) + " offline in total"]);
+  L.push(["Window hidden", diagHideCount === 0
+    ? "Never"
+    : diagHideCount + " time(s), " + diagDur(liveHidden) + " in total"]);
+
+  if (diagTransitions.length === 0) {
+    L.push(["Transitions", "None seen yet"]);
+  } else {
+    const last  = diagTransitions[diagTransitions.length - 1];
+    const worst = diagTransitions.reduce((a, b) => b.latencyMs > a.latencyMs ? b : a);
+    L.push(["Last transition", diagDur(last.latencyMs)]);
+    L.push(["Slowest transition", diagDur(worst.latencyMs) + " of " + diagTransitions.length]);
+  }
+  L.push(["Clock vs server", (diagClockOffset >= 0 ? "+" : "") + Math.round(diagClockOffset) + "ms"]);
+  L.push(["Currently", (document.hidden ? "HIDDEN" : "visible") + " · " + (diagConnected ? "connected" : "NOT CONNECTED")]);
+  return L;
+}
+
+function diagRender() {
+  const sum = document.getElementById("diag-summary");
+  if (!sum) return;
+  sum.innerHTML = diagSummaryLines()
+    .map(([k, v]) => `<div class="diag-row"><span>${k}</span><b>${v}</b></div>`).join("");
+
+  const verdict = document.getElementById("diag-verdict");
+  const slow = diagTransitions.filter(t => t.latencyMs > 2000);
+  if (slow.length === 0 && diagDropCount === 0 && diagHideCount === 0) {
+    verdict.className = "diag-verdict good";
+    verdict.textContent = "Nothing unusual recorded on this device.";
+  } else if (slow.length === 0) {
+    verdict.className = "diag-verdict";
+    verdict.textContent = "No slow transitions recorded, but this device did lose focus or connection at some point — see the log.";
+  } else {
+    verdict.className = "diag-verdict bad";
+    verdict.textContent = slow.length + " slow transition(s) recorded. The log line for each says what the likely cause was.";
+  }
+
+  const log = document.getElementById("diag-log");
+  log.innerHTML = diagEvents.slice().reverse()
+    .map(e => `<div><span class="t">${diagClock(e.t)}</span> <span class="k-${e.kind}">${e.text}</span></div>`)
+    .join("") || "<div>(nothing recorded yet)</div>";
+}
+
+function diagReport() {
+  const L = [];
+  L.push("THE KITCHEN — connection diagnostics");
+  L.push("Build 260809.1 · " + new Date().toString());
+  L.push("Player: " + (myPlayerName || "(not set)") + "   Game: " + (gameCode || "(none)"));
+  L.push("");
+  diagSummaryLines().forEach(([k, v]) => L.push("  " + k.padEnd(22) + v));
+  L.push("");
+  L.push("DEVICE");
+  L.push("  Viewport   " + window.innerWidth + "x" + window.innerHeight);
+  L.push("  Touch      " + navigator.maxTouchPoints);
+  L.push("  UA         " + navigator.userAgent);
+  L.push("");
+  L.push("LOG (oldest first)");
+  diagEvents.forEach(e => L.push("  [" + diagClock(e.t) + "] " + e.text));
+  return L.join("\n");
+}
+
+function diagOpen() {
+  document.getElementById("diag-overlay").classList.add("active");
+  diagRender();
+}
+function diagClose() {
+  document.getElementById("diag-overlay").classList.remove("active");
+}
+
+// Three taps within 1.5s. Deliberately a gesture rather than a visible
+// control: a player who doesn't know it exists will never find it, so
+// nothing new appears during a facilitated session.
+function wireDiagTap(el) {
+  if (!el) return;
+  let count = 0, timer = null;
+  el.addEventListener("click", () => {
+    count++;
+    clearTimeout(timer);
+    if (count >= 3) { count = 0; diagOpen(); return; }
+    timer = setTimeout(() => { count = 0; }, 1500);
+  });
+}
+
+/* ── Diagnostics: open triggers and buttons (Session 13) ────────── */
+wireDiagTap(document.getElementById("version-line"));
+wireDiagTap(document.querySelector("#screen-game .game-title"));
+["level-badge-summary-level1","level-badge-summary-level2","level-badge-summary-level3"]
+  .forEach(id => wireDiagTap(document.getElementById(id)));
+document.getElementById("diag-close").addEventListener("click", diagClose);
+document.getElementById("diag-copy").addEventListener("click", async () => {
+  const text = diagReport();
+  try {
+    await navigator.clipboard.writeText(text);
+    document.getElementById("diag-copy").textContent = "Copied \u2713";
+    setTimeout(() => { document.getElementById("diag-copy").textContent = "Copy report"; }, 1800);
+  } catch {
+    // Clipboard needs a secure context; fall back to a selectable box.
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;inset:5%;width:90%;height:90%;z-index:999999;font-size:12px;";
+    document.body.appendChild(ta); ta.select();
+    ta.addEventListener("dblclick", () => ta.remove());
+  }
+});
 
 init();
 </script>
