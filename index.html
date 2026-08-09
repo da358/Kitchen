@@ -1162,7 +1162,8 @@
   #diag-log .k-conn  { color: #FF8A72; }
   #diag-log .k-vis   { color: #E8C46A; }
   #diag-log .k-trans { color: #A8CE7E; }
-  #diag-log .k-info  { color: #7FB6D9; }
+  #diag-log .k-info   { color: #7FB6D9; }
+  #diag-log .k-screen { color: #B6A8D9; }
 
   /* ── RAIL (Level 3) ──────────────────────────────────────────
      Replaces the old queue-row + separate active-task-slot. Position 0
@@ -1435,14 +1436,14 @@
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260809.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260809.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
 <div id="screen-lobby" class="screen">
   <div class="lobby-header">
     <p id="lobby-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
-    <h2 style="margin-top:6px;">Waiting for players</h2>
+    <h2 id="lobby-heading" style="margin-top:6px;">Waiting for players</h2>
     <p>Share the code with your team</p>
   </div>
 
@@ -2357,6 +2358,10 @@ function toast(msg, type="") {
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-"+id).classList.add("active");
+  // Session 13 diagnostics (Issue 3): records WHEN this client's screen
+  // actually changed, which is a different number from when it received
+  // the instruction to change. See diagNoteScreen().
+  diagNoteScreen(id);
 }
 
 function hideLoading() {
@@ -6678,7 +6683,8 @@ let diagHiddenSince      = null;
 let diagHiddenTotalMs    = 0;
 let diagHideCount        = 0;
 let diagLastVisibleAt    = Date.now();
-let diagTransitions      = [];     // { latencyMs, hidden, sinceVisibleMs }
+let diagTransitions      = [];     // { latencyMs, screenGapMs, totalMs, hidden, sinceVisibleMs }
+let diagPendingTransition = null;  // set on receipt, resolved by the next screen change
 let diagStartedAt        = Date.now();
 let diagGameAttached     = null;   // gameCode the transition listener is on
 
@@ -6772,7 +6778,12 @@ function diagAttachGame() {
       if (!written) return;
       const latency = diagServerNow() - written;
       const sinceVisible = Date.now() - diagLastVisibleAt;
-      diagTransitions.push({ latencyMs: latency, hidden: document.hidden, sinceVisibleMs: sinceVisible });
+      const entry = { latencyMs: latency, screenGapMs: null, totalMs: null,
+                      hidden: document.hidden, sinceVisibleMs: sinceVisible };
+      diagTransitions.push(entry);
+      // Held until this client's screen actually changes, so the two halves
+      // of the delay can be told apart — see diagNoteScreen().
+      diagPendingTransition = { written, receivedAt: Date.now(), latency, entry };
       let note = "Transition received " + diagDur(latency) + " after it was sent";
       if (latency > 2000) {
         note += "  ← SLOW";
@@ -6785,6 +6796,48 @@ function diagAttachGame() {
     });
   } catch (e) {
     console.warn("diagAttachGame failed:", e);
+  }
+}
+
+/* ── Screen changes, and splitting the delay in two ──────────────
+   A stalled player produces one of two very different pictures, and
+   until now this couldn't tell them apart:
+
+     write → receive  is slow   the change didn't reach this client
+                                promptly (frozen tab, reconnect backoff,
+                                slow transport)
+     receive → screen is slow   it arrived on time but this client
+                                couldn't act on it (blocked main thread,
+                                a listener that wasn't attached yet)
+
+   The reported symptom — everyone else moved the instant the host did,
+   one player sat on the summary screen for 10+ seconds — fits either.
+   Recording both numbers is what makes the next occurrence diagnosable
+   rather than another round of guessing. */
+function diagNoteScreen(id) {
+  try {
+    diagLog("screen", "Screen \u2192 " + id);
+    const p = diagPendingTransition;
+    if (!p) return;
+    // Only correlate a screen change that plausibly belongs to this
+    // transition; anything later is an unrelated navigation.
+    if (Date.now() - p.receivedAt > 60000) { diagPendingTransition = null; return; }
+    const gap   = Date.now() - p.receivedAt;
+    const total = diagServerNow() - p.written;
+    p.entry.screenGapMs = gap;
+    p.entry.totalMs     = total;
+    diagPendingTransition = null;
+    let note = "Screen \"" + id + "\" shown " + diagDur(total) + " after the host sent the change"
+             + "  (waiting to receive it: " + diagDur(p.latency)
+             + " \u00b7 drawing it: " + diagDur(gap) + ")";
+    if (total > 2000) {
+      note += p.latency > gap
+        ? "  \u2190 SLOW, and the delay was in RECEIVING it"
+        : "  \u2190 SLOW, and the delay was in ACTING on it";
+    }
+    diagLog("trans", note);
+  } catch (e) {
+    console.warn("diagNoteScreen failed:", e);
   }
 }
 
@@ -6805,10 +6858,13 @@ function diagSummaryLines() {
   if (diagTransitions.length === 0) {
     L.push(["Transitions", "None seen yet"]);
   } else {
-    const last  = diagTransitions[diagTransitions.length - 1];
-    const worst = diagTransitions.reduce((a, b) => b.latencyMs > a.latencyMs ? b : a);
-    L.push(["Last transition", diagDur(last.latencyMs)]);
-    L.push(["Slowest transition", diagDur(worst.latencyMs) + " of " + diagTransitions.length]);
+    const scored = diagTransitions.map(t => ({ t, ms: t.totalMs != null ? t.totalMs : t.latencyMs }));
+    const last  = scored[scored.length - 1];
+    const worst = scored.reduce((a, b) => b.ms > a.ms ? b : a);
+    L.push(["Last transition", diagDur(last.ms) + (last.t.screenGapMs != null
+      ? "  (receive " + diagDur(last.t.latencyMs) + " + draw " + diagDur(last.t.screenGapMs) + ")" : "")]);
+    L.push(["Slowest transition", diagDur(worst.ms) + " of " + diagTransitions.length + (worst.t.screenGapMs != null
+      ? "  (receive " + diagDur(worst.t.latencyMs) + " + draw " + diagDur(worst.t.screenGapMs) + ")" : "")]);
   }
   L.push(["Clock vs server", (diagClockOffset >= 0 ? "+" : "") + Math.round(diagClockOffset) + "ms"]);
   L.push(["Currently", (document.hidden ? "HIDDEN" : "visible") + " · " + (diagConnected ? "connected" : "NOT CONNECTED")]);
@@ -6822,7 +6878,7 @@ function diagRender() {
     .map(([k, v]) => `<div class="diag-row"><span>${k}</span><b>${v}</b></div>`).join("");
 
   const verdict = document.getElementById("diag-verdict");
-  const slow = diagTransitions.filter(t => t.latencyMs > 2000);
+  const slow = diagTransitions.filter(t => (t.totalMs != null ? t.totalMs : t.latencyMs) > 2000);
   if (slow.length === 0 && diagDropCount === 0 && diagHideCount === 0) {
     verdict.className = "diag-verdict good";
     verdict.textContent = "Nothing unusual recorded on this device.";
@@ -6883,6 +6939,7 @@ function wireDiagTap(el) {
 /* ── Diagnostics: open triggers and buttons (Session 13) ────────── */
 wireDiagTap(document.getElementById("version-line"));
 wireDiagTap(document.querySelector("#screen-game .game-title"));
+wireDiagTap(document.getElementById("lobby-heading"));
 ["level-badge-summary-level1","level-badge-summary-level2","level-badge-summary-level3"]
   .forEach(id => wireDiagTap(document.getElementById(id)));
 document.getElementById("diag-close").addEventListener("click", diagClose);
