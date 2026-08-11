@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  The Kitchen — Drag ghost testbed  (v1, built Session 13)
+  The Kitchen — Drag ghost testbed  (v2, built Session 13)
   Copyright © Set Forth LLC. All rights reserved.
 
   PURPOSE
@@ -10,10 +10,12 @@
   is why it can't be grabbed, and which sits outside every .screen container,
   which is why it survives to the end of a level.
 
-  Four leak paths were identified by code reading; which one actually fires
-  in practice is unknown. This testbed makes each reproducible on demand and
-  counts stranded ghosts continuously, so a leak is detectable after the fact
-  rather than only if you happen to catch it.
+  v1 of this testbed measured the cause: of four candidate interrupts, ONLY a
+  re-entrant drag start leaked (23 leaks from 33 firings; the other three
+  interrupts fired 51 times between them and leaked nothing). v2 runs the
+  same harness against the fixed build, so the fix can be verified by
+  counting rather than by eye. Expected result now: Stranded stays at 0 for
+  every interrupt, and the second-drag interrupt reports REFUSED.
 -->
 <html lang="en">
 <head>
@@ -252,7 +254,7 @@
   <div class="tb-head">
     <h1>The Kitchen — Drag ghost testbed</h1>
     <div class="sub">
-      The real drag code from 260809.2, running with no Firebase. Drag tiles and
+      The real drag code from 260809.3 (ghost fix applied), running with no Firebase. Drag tiles and
       tickets around; an interrupt fires automatically mid-drag. Ghosts that leak
       are cumulative and never clean themselves up — so watch the counter, not the
       moment it happens.
@@ -594,11 +596,60 @@ function setupTileDrag(tile) {
   tile.addEventListener("touchstart", onTileTouchStart, { passive: false });
 }
 
+/* ══ SESSION 13 (Issue 2): GHOST OWNERSHIP ═══════════════════════
+   Players reported semi-transparent tiles and tickets left stranded on
+   screen, un-grabbable, surviving to the end of a level. The artifact is
+   a leaked drag ghost: both drag systems clone the source element and
+   append the clone to document.body with pointer-events:none — so it
+   can't be dismissed — and outside every .screen container, so
+   showScreen() never hides it.
+
+   MEASURED CAUSE. kitchen-drag-ghost-testbed_260809_1.html injected four
+   candidate interrupts mid-drag and counted stranded ghosts:
+
+       re-entrant drag start   33 fired   23 leaked
+       resource arrives        17 fired    0 leaked
+       touchcancel             11 fired    0 leaked
+       rail re-render          23 fired    0 leaked
+
+   Every single leak came from a second drag starting while one was
+   already in flight: initPointer() and initTaskPointer() both used to
+   assign `ghost = null` / `taskDragGhost = null` unconditionally,
+   abandoning the previous ghost in the DOM with nothing left holding a
+   reference to remove it. (It leaked 23 of 33 rather than 33 of 33
+   because when the interrupted drag was a TICKET drag, initPointer
+   cleared the resource system's `ghost`, which was already null —
+   nothing to abandon. Cross-system, same bug.)
+
+   Notably, renderInventory() and renderQueueBar() rebuilding the DOM
+   mid-drag leaked nothing, so the deferred-re-render change that follows
+   is a UX improvement, not a leak fix.
+
+   THE RULE NOW: exactly one drag at a time, and no ghost outlives its
+   drag. clearDragGhosts() is idempotent and safe to call at any time. */
+
+// Removes every drag ghost on the page, whether or not either drag system
+// still holds a reference to it. The .drag-ghost marker is what makes the
+// "referenced by nobody" case recoverable rather than permanent.
+function clearDragGhosts() {
+  if (ghost)         { ghost.remove();         ghost = null; }
+  if (taskDragGhost) { taskDragGhost.remove(); taskDragGhost = null; }
+  document.querySelectorAll("body > .drag-ghost").forEach(el => el.remove());
+}
+
+// True while either system has a committed drag under way. Both init
+// functions refuse to start a new drag in that case, which both fixes the
+// leak and matches the intent that an interruption — a second finger, a
+// stray click — shouldn't destroy a move already in progress.
+function aDragIsInFlight() {
+  return (dragCommitted && !!draggedTile) || (taskDragCommitted && !!draggedTaskId);
+}
+
 // Safety cleanup: if the browser cancels a touch (iOS Safari interruption,
 // incoming call, system gesture, etc.), abort the drag and remove the ghost.
 function abortDrag() {
   document.body.classList.remove("is-dragging");
-  if (ghost) { ghost.remove(); ghost = null; }
+  clearDragGhosts();
   if (draggedTile) { draggedTile.classList.remove("dragging"); }
   document.querySelectorAll(".task-drop-zone, .teammate-drop").forEach(z => z.classList.remove("drag-over"));
   draggedTile   = null;
@@ -609,19 +660,17 @@ function abortDrag() {
   document.removeEventListener("mouseup",    onMouseUp);
   document.removeEventListener("touchmove",  onTouchMove);
   document.removeEventListener("touchend",   onTouchEnd);
-  document.removeEventListener("touchcancel",abortDrag);
+  // Session 13: the touchcancel registration is deliberately NOT removed
+  // here. It is registered once at module level (see abortAllDrags, in the
+  // rail drag section) and must survive, or cancellation cleanup would stop
+  // working after the first abort of the session.
 }
-document.addEventListener("touchcancel", abortDrag);
-// Also clean up on visibility change (user switches app on iPad)
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden && draggedTile) abortDrag();
-});
 
 function onTileMouseDown(e) {
   if (e.button !== 0) return;
   if (isGamePaused()) return; // Session 11: no drag while paused
   e.preventDefault(); // stop browser text-selection on mousedown
-  initPointer(e.currentTarget, e.clientX, e.clientY);
+  if (!initPointer(e.currentTarget, e.clientX, e.clientY)) return;
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup",   onMouseUp);
 }
@@ -630,13 +679,24 @@ function onTileTouchStart(e) {
   if (isGamePaused()) return; // Session 11: no drag while paused
   const touch = e.touches[0];
   e.preventDefault();
-  initPointer(e.currentTarget, touch.clientX, touch.clientY);
+  if (!initPointer(e.currentTarget, touch.clientX, touch.clientY)) return;
   document.addEventListener("touchmove",   onTouchMove,  { passive: false });
   document.addEventListener("touchend",    onTouchEnd);
-  document.addEventListener("touchcancel", abortDrag,    { once: true });
+  // Session 13: a per-drag touchcancel registration used to live here with
+  // { once: true }. It never actually took effect — addEventListener treats
+  // a listener as a duplicate when type, callback and capture all match, and
+  // `once` is not part of that comparison, so the module-level registration
+  // already present meant this one was discarded. Worse, abortDrag() then
+  // removed that single shared registration, so touch cancellation stopped
+  // being handled at all after the first abort. Cancellation is now handled
+  // solely by the module-level abortAllDrags registration.
 }
 
+// Returns false if the drag was refused, so callers skip attaching their
+// move/end listeners. See the GHOST OWNERSHIP block above.
 function initPointer(tile, cx, cy) {
+  if (aDragIsInFlight()) return false;
+  clearDragGhosts();   // also sweeps any ghost stranded by an earlier build
   draggedTile   = tile;
   draggedName   = tile.dataset.resource;
   draggedSource = tile.dataset.context;
@@ -648,6 +708,7 @@ function initPointer(tile, cx, cy) {
   const rect = tile.getBoundingClientRect();
   offsetX = cx - rect.left;
   offsetY = cy - rect.top;
+  return true;
 }
 
 function onMouseMove(e)  { movePointer(e.clientX, e.clientY); }
@@ -664,6 +725,7 @@ function movePointer(cx, cy) {
     document.body.classList.add("is-dragging");
     const rect = draggedTile.getBoundingClientRect();
     ghost = draggedTile.cloneNode(true);
+    ghost.classList.add("drag-ghost"); // Session 13: lets clearDragGhosts() find it
     ghost.style.cssText = `
       position:fixed; pointer-events:none; z-index:9000;
       width:${rect.width}px; height:${rect.height}px;
@@ -761,7 +823,6 @@ function endPointer(cx, cy) {
   draggedSource = null;
   dragCommitted = false;
 }
-
 
 function getRail() {
   return [myActiveTaskId, ...myTaskQueue].filter(Boolean);
@@ -915,7 +976,7 @@ function onTaskTileMouseDown(e) {
   if (e.button !== 0) return;
   if (isGamePaused()) return; // Session 11: no drag while paused
   e.preventDefault();
-  initTaskPointer(e.currentTarget, e.clientX, e.clientY);
+  if (!initTaskPointer(e.currentTarget, e.clientX, e.clientY)) return;
   document.addEventListener("mousemove", onTaskMouseMove);
   document.addEventListener("mouseup",   onTaskMouseUp);
 }
@@ -923,11 +984,14 @@ function onTaskTileTouchStart(e) {
   if (isGamePaused()) return; // Session 11: no drag while paused
   const touch = e.touches[0];
   e.preventDefault();
-  initTaskPointer(e.currentTarget, touch.clientX, touch.clientY);
+  if (!initTaskPointer(e.currentTarget, touch.clientX, touch.clientY)) return;
   document.addEventListener("touchmove", onTaskTouchMove, { passive: false });
   document.addEventListener("touchend",  onTaskTouchEnd);
 }
+// Returns false if refused — same contract as initPointer().
 function initTaskPointer(tile, cx, cy) {
+  if (aDragIsInFlight()) return false;
+  clearDragGhosts();
   draggedTaskId     = tile.dataset.taskId;
   draggedRailIdx    = parseInt(tile.dataset.railIdx ?? "-1");
   taskDragStartX    = cx; taskDragStartY = cy;
@@ -935,6 +999,7 @@ function initTaskPointer(tile, cx, cy) {
   taskDragCommitted = false; taskDragGhost = null;
   const rect = tile.getBoundingClientRect();
   taskOffX = cx - rect.left; taskOffY = cy - rect.top;
+  return true;
 }
 function onTaskMouseMove(e)  { moveTaskPointer(e.clientX, e.clientY); }
 function onTaskTouchMove(e)  { moveTaskPointer(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
@@ -952,6 +1017,8 @@ function moveTaskPointer(cx, cy) {
       const rect = srcTile.getBoundingClientRect();
       taskDragGhost = srcTile.cloneNode(true);
       taskDragGhost.className = srcTile.className;
+      taskDragGhost.classList.add("drag-ghost"); // Session 13: must follow the
+      // className assignment above, which would otherwise wipe the marker.
       taskDragGhost.style.cssText = `position:fixed;pointer-events:none;z-index:9001;
         width:${rect.width}px;height:${rect.height}px;opacity:0.85;
         left:${taskDragStartX-taskOffX}px;top:${taskDragStartY-taskOffY}px;
@@ -1024,6 +1091,37 @@ function endTaskPointer(cx, cy) {
   draggedTaskId = null; draggedRailIdx = -1; taskDragCommitted = false;
 }
 
+/* ══ SESSION 13 (Issue 2): CANCELLATION SAFETY ═══════════════════
+   The rail drag system had no touchcancel and no visibilitychange
+   handling of any kind, so an interrupted ticket drag on iPad — a system
+   gesture, a notification, switching apps — left taskDragGhost stranded
+   unconditionally. That matches the reported artifact appearing for
+   tickets as well as tiles.
+
+   Registered once, at module level, and never removed. Both systems are
+   torn down together: only one drag can be in flight at a time, and a
+   cancellation means neither should survive. */
+function abortTaskDrag() {
+  document.body.classList.remove("is-dragging");
+  clearDragGhosts();
+  document.querySelectorAll(".stub-wrap, .teammate-drop").forEach(z => z.classList.remove("match", "drag-over"));
+  document.querySelectorAll(".ticket-stub.stub-dragging").forEach(s => s.classList.remove("stub-dragging"));
+  draggedTaskId     = null;
+  draggedRailIdx    = -1;
+  taskDragCommitted = false;
+  document.removeEventListener("mousemove", onTaskMouseMove);
+  document.removeEventListener("mouseup",   onTaskMouseUp);
+  document.removeEventListener("touchmove", onTaskTouchMove);
+  document.removeEventListener("touchend",  onTaskTouchEnd);
+}
+
+function abortAllDrags() { abortDrag(); abortTaskDrag(); }
+
+document.addEventListener("touchcancel", abortAllDrags);
+// Also clean up when the app goes to the background (switching apps on iPad).
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && (draggedTile || draggedTaskId)) abortAllDrags();
+});
 
 /* ══════════════════════════════════════════════════════════════════
    TESTBED HARNESS — everything above is verbatim game code.
@@ -1195,8 +1293,11 @@ function fireInterrupt(kind) {
         .find(t => t !== draggedTile);
       if (!other) { log("no second tile available", "w"); break; }
       const r = other.getBoundingClientRect();
-      log(`⚡ INTERRUPT: a second finger grabs "${other.dataset.resource}" → initPointer()`, "w");
-      initPointer(other, r.left + r.width / 2, r.top + r.height / 2);
+      const accepted = initPointer(other, r.left + r.width / 2, r.top + r.height / 2);
+      log(accepted
+        ? `⚡ INTERRUPT: second drag on "${other.dataset.resource}" was ACCEPTED — the first drag's ghost is now unowned`
+        : `⚡ INTERRUPT: second drag on "${other.dataset.resource}" was REFUSED — first drag protected, no ghost orphaned`,
+        accepted ? "w" : "g");
       break;
     }
     case "rail":
@@ -1241,7 +1342,7 @@ document.getElementById("btn-reset").addEventListener("click", () => {
 document.getElementById("btn-copy").addEventListener("click", async () => {
   const text = [
     "THE KITCHEN — drag ghost test report",
-    "Drag testbed v1 against game build 260809.2",
+    "Drag testbed v2 against game build 260809.3",
     new Date().toString(), "",
     `Stranded ghosts right now: ${document.getElementById("cnt-leak").textContent}`,
     `Most stranded at once:      ${peakLeak}`, "",
