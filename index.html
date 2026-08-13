@@ -1452,7 +1452,7 @@
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260813.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260813.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3248,11 +3248,17 @@ function promoteIfNothingPrepping() {
   // yet. loadTask() would set currentTask to null, renderTask() early-returns
   // on that and leaves the previous "All done!" heading in place, and
   // checkTaskComplete() early-returns too, so Cook stays disabled — the same
-  // unusable state this fix exists to remove, in a new disguise. The one path
-  // that reaches this is a narrow race: a trade notification claimed before
-  // enterGame()'s initial read has merged taskDefs. Leaving the queue write to
-  // the caller and retrying is correct here, because gameUnsub calls this
-  // again immediately after every taskDefs merge.
+  // unusable state this fix exists to remove, in a new disguise. Better to
+  // leave the queue write to the caller and let a later firing of this
+  // listener promote the ticket once the recipe is in hand.
+  // 260813.2: .1 also called this helper from gameUnsub, immediately after the
+  // taskDefs merge, so that the retry was guaranteed. That call destroyed a
+  // ticket at the start of every Level 3 round — see the note at the removal
+  // site. The retry now depends on any subsequent write to this player's own
+  // record, which in practice means an incoming resource, an incoming ticket,
+  // or a rail drag. If a player ever reports a ticket on the rail with a blank
+  // ticket area and a dead Cook button, this is the state to suspect, and the
+  // fix is to make the recipe available earlier — not to reinstate that call.
   const nextId = myTaskQueue[0];
   if (!localTaskDefs[nextId] && !ALL_TASKS.find(t => t.id === nextId)) return false;
 
@@ -4314,10 +4320,20 @@ function enterGame() {
       updateLevelBadge(document.getElementById("level-badge-header"));
     }
     if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
-    // 260813 (Issue 1): taskDefs have just been merged, and a missing taskDef
-    // is the one thing that makes promoteIfNothingPrepping() decline to act.
-    // This is the retry for that narrow race; a no-op in every other case.
-    promoteIfNothingPrepping();
+    /* 260813.2: a promoteIfNothingPrepping() call lived here in .1, as a retry
+       for the case where a ticket cannot be promoted because its recipe has not
+       arrived yet. It was removed because it destroyed a ticket at the start of
+       every Level 3 round. MEASURED, not theoretical: enterGame() reads the
+       game record with get().then(), so the listeners below it register while
+       that read is still in flight. myPlayerUnsub's first firing lands before
+       currentLevel has been set, takes the non-Level-3 branch, and so fills
+       myTaskQueue while leaving myActiveTaskId null. gameUnsub then fired, set
+       currentLevel, and called the helper — which correctly saw "nothing
+       prepping, tickets on the rail" and promoted queue[0], overwriting
+       activeTaskId and losing the player's real first ticket. The pre-read
+       state at round start is indistinguishable from the illegal state the
+       helper repairs, so no version of this call belongs here. Do not
+       reinstate it. */
 
     if (gameState.startTime && !timerInterval && currentLevel !== "level1") {
       startTimer(gameState.startTime);
