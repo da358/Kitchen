@@ -526,6 +526,22 @@
   .ticket-main.flash {
     box-shadow: 0 0 0 3px var(--accent), 0 10px 18px rgba(43,36,28,0.12);
   }
+  /* 260813: momentary bulge on the main ticket, used when a ticket is
+     auto-promoted into the prep slot (see bulgeMainTicket() / the rail
+     invariant helper). Deliberately transform-only: box-shadow on this
+     element is silently clipped away by the clip-path above (the whole
+     reason .ticket-shadow-wrap exists), so a ring or glow here would be
+     invisible, while a scale is not affected by clip-path at all. It also
+     lives on .ticket-main rather than .ticket-col because .ticket-col
+     carries the idle sway — two transform animations on one element
+     overwrite each other. */
+  @keyframes ticketBulge {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.045); }
+    75%  { transform: scale(0.99); }
+    100% { transform: scale(1); }
+  }
+  .ticket-bulge { animation: ticketBulge 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .drop-hint {
     color: var(--text-3);
     font-size: 13px;
@@ -1436,7 +1452,7 @@
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260809.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260813.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3099,15 +3115,21 @@ function renderNoActiveTask() {
   // slot" that has not existed since Session 7 — the Level 3 rail replaced it,
   // and rail position 0 IS the active task, reached by dragging a ticket to
   // the front. The old text instructed players to do something impossible.
-  // (This branch is also about to become unreachable once the Level 3
-  // auto-promotion fix lands, but "unreachable" states in this file have a
-  // track record of becoming reachable, so it is corrected rather than cut.)
+  // 260813: that hasQueued branch is now unreachable in Level 3 —
+  // promoteIfNothingPrepping() enforces the invariant that position 0 is
+  // filled whenever the rail is not empty. KEPT ANYWAY, deliberately:
+  // "unreachable" states in this file have a track record of becoming
+  // reachable, and it is still the correct thing to draw if one ever is.
+  // 260813: "tasks" → "tickets" in the all-done message, so it agrees with
+  // the "No tickets" label a teammate sees on this player’s card. The rest of
+  // the file’s player-facing "task" wording is untouched — see the changelog;
+  // a full sweep is a separate pass with its own test run.
   const hasQueued = myTaskQueue.length > 0;
   document.getElementById("task-name").textContent = hasQueued ? "Nothing prepping" : "All done!";
   document.getElementById("task-checklist").innerHTML =
     `<span class="checklist-empty-hint">${hasQueued
       ? "Drag a ticket to the front of the rail to start prepping it."
-      : "You’ve completed all your tasks. Help your teammates!"}</span>`;
+      : "You’ve completed all your tickets. Help your teammates!"}</span>`;
   document.getElementById("btn-complete").disabled = true;
 }
 
@@ -3187,6 +3209,84 @@ function setRailFromArray(rail) {
     renderInventory();
   }
   return changed;
+}
+
+/* ─── Level 3: RAIL INVARIANT (260813, Session 14 / Issue 1) ────────
+   "Nothing prepping while the rail has tickets" is never a legal Level 3
+   state: setRailFromArray() always makes rail[0] the active task, and
+   getRail() collapses a null activeTaskId out of existence, so an incoming
+   ticket renders at rail position 0 wearing the "Now prepping" tag while
+   myActiveTaskId is still null. The rail and the ticket area then disagree
+   permanently — myPlayerUnsub only reloads the ticket when activeTaskId
+   CHANGES, and null !== null is false, so nothing re-runs.
+
+   That was reachable through the task-trade notification, which appended to
+   taskQueue and never touched activeTaskId at any level. Rather than patch
+   that one path, this enforces the invariant wherever ticket state changes:
+   it catches any other path (found or not), and it self-heals a client that
+   is already stuck. Self-healing matters more than it looks — a stuck player
+   has no recovery of their own, because reloading the page issues a fresh
+   playerId and abandons their player record entirely.
+
+   Deliberately NOT guarded on isGamePaused(). Trades cannot be initiated
+   while paused (handleTaskTrade), so the only state that could reach here
+   during a pause is a legitimate in-flight one, and refusing to repair would
+   leave the invariant violated for the length of the pause. Compare the
+   removed 260809.4 ensureDragSourceAlive() note above: a guard whose only
+   reachable case is the legitimate one is a new failure mode, not a safety
+   net.
+
+   Returns true if it promoted — in which case it has already written
+   activeTaskId + taskQueue + playerStatus, so callers must skip their own
+   queue write rather than race it on the same node. */
+function promoteIfNothingPrepping() {
+  if (currentLevel !== "level3") return false;
+  if (myActiveTaskId)            return false;
+  if (myTaskQueue.length === 0)  return false;
+
+  // Refuse to promote a ticket whose definition this client has not received
+  // yet. loadTask() would set currentTask to null, renderTask() early-returns
+  // on that and leaves the previous "All done!" heading in place, and
+  // checkTaskComplete() early-returns too, so Cook stays disabled — the same
+  // unusable state this fix exists to remove, in a new disguise. The one path
+  // that reaches this is a narrow race: a trade notification claimed before
+  // enterGame()'s initial read has merged taskDefs. Leaving the queue write to
+  // the caller and retrying is correct here, because gameUnsub calls this
+  // again immediately after every taskDefs merge.
+  const nextId = myTaskQueue[0];
+  if (!localTaskDefs[nextId] && !ALL_TASKS.find(t => t.id === nextId)) return false;
+
+  // Reuse the tested promotion path rather than reassigning the two fields by
+  // hand. The resource-return branch inside setRailFromArray() requires a
+  // truthy previous active id, so it is inert here — and taskZoneMap is {}
+  // whenever nothing is prepping in any case.
+  setRailFromArray(getRail());
+
+  update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+    activeTaskId: myActiveTaskId,
+    taskQueue:    myTaskQueue,
+    playerStatus: myActiveTaskId ? "working" : "no-tasks"
+  });
+
+  loadTask(myActiveTaskId);
+  renderQueueBar();
+  bulgeMainTicket();
+  return true;
+}
+
+// Momentary scale bulge on the main ticket. Used only when a ticket is
+// auto-promoted into the prep slot, so the ticket area visibly reacts instead
+// of silently swapping "All done!" for a dish name. See the .ticket-bulge
+// comment in the CSS for why this is a transform on .ticket-main specifically.
+// The class is removed and a reflow forced first so a second promotion in
+// quick succession replays the animation rather than doing nothing.
+function bulgeMainTicket() {
+  const tm = document.getElementById("ticket-main");
+  if (!tm) return;
+  tm.classList.remove("ticket-bulge");
+  void tm.offsetWidth;
+  tm.classList.add("ticket-bulge");
+  setTimeout(() => tm.classList.remove("ticket-bulge"), 450);
 }
 
 function makeStub(taskId, idx) {
@@ -4104,8 +4204,20 @@ function enterGame() {
             const taskDef = localTaskDefs[item.taskId];
             if (item.taskId && !myTaskQueue.includes(item.taskId) && myActiveTaskId !== item.taskId) {
               myTaskQueue = [...myTaskQueue, item.taskId];
-              // Write updated queue to Firebase
-              update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
+              // 260813 (Issue 1): if nothing is prepping, the arriving ticket
+              // becomes the active one instead of sitting behind a permanent
+              // "All done!" — see promoteIfNothingPrepping(). It writes
+              // activeTaskId, taskQueue and playerStatus itself when it acts,
+              // so the queue-only write below is skipped in that case; two
+              // writes to the same node from the same tick would otherwise
+              // race, and the loser could restore the stale queue.
+              // Called synchronously, before this handler yields, so the
+              // listener echo of our own write always finds the invariant
+              // already satisfied and does nothing.
+              if (!promoteIfNothingPrepping()) {
+                // Write updated queue to Firebase
+                update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
+              }
               if (currentLevel === "level3") renderQueueBar();
               toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
             }
@@ -4167,6 +4279,14 @@ function enterGame() {
         }
         // Sync queue (may have been updated by task trade notification handler above)
         myTaskQueue = newQueue;
+        // 260813 (Issue 1): belt and braces. Enforcing the invariant here as
+        // well as at the trade site means any path that changes ticket state —
+        // including ones not yet found — cannot leave "All done!" showing with
+        // tickets on the rail. This is also the call that self-heals: this
+        // listener fires once immediately on attach, so a client that loads
+        // into an already-inconsistent record repairs it on entry without
+        // anyone touching the rail.
+        promoteIfNothingPrepping();
         renderQueueBar();
       } else {
         myTaskQueue = pd.taskQueue || [];
@@ -4194,6 +4314,10 @@ function enterGame() {
       updateLevelBadge(document.getElementById("level-badge-header"));
     }
     if (gameState.taskDefs) Object.assign(localTaskDefs, gameState.taskDefs);
+    // 260813 (Issue 1): taskDefs have just been merged, and a missing taskDef
+    // is the one thing that makes promoteIfNothingPrepping() decline to act.
+    // This is the retry for that narrow race; a no-op in every other case.
+    promoteIfNothingPrepping();
 
     if (gameState.startTime && !timerInterval && currentLevel !== "level1") {
       startTimer(gameState.startTime);
@@ -7082,7 +7206,13 @@ function diagRender() {
 function diagReport() {
   const L = [];
   L.push("THE KITCHEN — connection diagnostics");
-  L.push("Build 260809.1 · " + new Date().toString());
+  // 260813: read the build from #version-line rather than keeping a second
+  // copy here. This string said "260809.1" for four consecutive versions
+  // because nobody remembered it existed, which means every report it produced
+  // misidentified its own build — the first fact you need from a bug report.
+  const buildLine = document.getElementById("version-line")?.textContent || "";
+  const buildNum  = (buildLine.match(/Version\s+(\S+)/) || [])[1] || "unknown";
+  L.push("Build " + buildNum + " · " + new Date().toString());
   L.push("Player: " + (myPlayerName || "(not set)") + "   Game: " + (gameCode || "(none)"));
   L.push("");
   diagSummaryLines().forEach(([k, v]) => L.push("  " + k.padEnd(22) + v));
