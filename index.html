@@ -221,6 +221,11 @@
     padding: 20px 40px;
     text-align: center;
     box-shadow: var(--shadow);
+    /* 260814.1: match .players-list width — the code stays relevant on every
+       between-round lobby, since joinGame() only requires status "lobby" and
+       enterBetweenRoundLobby() restores exactly that, so players can join
+       mid-session between rounds. */
+    min-width: 320px;
   }
   .game-code-display .label {
     font-size: 11px;
@@ -519,12 +524,28 @@
      purely as the existing drag-detection hook; it now carries no visual
      styling of its own — see .ticket-main.drag-over / .complete below. */
   .task-drop-zone { /* intentionally no base visual styling — see note above */ }
-  .ticket-main.drag-over,
-  .ticket-main.complete {
-    box-shadow: 0 0 0 3px var(--accept), 0 10px 18px rgba(43,36,28,0.12);
+  /* 260814.1: the old box-shadow rings on .ticket-main here were confirmed
+     invisible in the ticket-ring testbed — box-shadow paints outside the
+     border box, and the torn-edge clip-path on .ticket-main cuts exactly
+     there, so the rings were drawn and then discarded (the Session 10
+     drop-shadow failure, unverified until now). The visible replacement is
+     a soft drop-shadow glow on .ticket-shadow-wrap (no clip-path of its
+     own), selected via :has() so the JS class toggles on #ticket-main stay
+     untouched. filter reads the already-clipped pixels, so the glow traces
+     the torn edge. Colors per the glow-lifecycle testbed decision:
+     drag-over = green (allowed move), complete + flash = copper (act /
+     attention, matching the live Cook button). The wrapper's existing
+     0.15s filter transition provides the fade the old rings intended. */
+  .ticket-shadow-wrap:has(> .ticket-main.drag-over) {
+    filter: drop-shadow(0 0 2px var(--accept)) drop-shadow(0 0 4px var(--accept))
+            drop-shadow(0 0 6px rgba(47,107,74,0.55))
+            drop-shadow(0 8px 8px rgba(43,36,28,0.12)) drop-shadow(0 2px 0 rgba(43,36,28,0.06));
   }
-  .ticket-main.flash {
-    box-shadow: 0 0 0 3px var(--accent), 0 10px 18px rgba(43,36,28,0.12);
+  .ticket-shadow-wrap:has(> .ticket-main.complete),
+  .ticket-shadow-wrap:has(> .ticket-main.flash) {
+    filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 4px var(--accent))
+            drop-shadow(0 0 6px rgba(178,58,46,0.55))
+            drop-shadow(0 8px 8px rgba(43,36,28,0.12)) drop-shadow(0 2px 0 rgba(43,36,28,0.06));
   }
   /* 260813: momentary bulge on the main ticket, used when a ticket is
      auto-promoted into the prep slot (see bulgeMainTicket() / the rail
@@ -1427,7 +1448,7 @@
         <div class="hcard-stack" style="margin-top:2px;">
           <button type="button" class="hcard hc-active" id="level-card-1">
             <span class="hc-title">Level 1</span>
-            <span class="hc-desc">Start here. Onboarding — one task each, learn the basics.</span>
+            <span class="hc-desc">Start here. Onboarding — one ticket each, learn the basics.</span>
           </button>
           <button type="button" class="hcard" id="level-card-2">
             <span class="hc-title">Level 2</span>
@@ -1435,7 +1456,7 @@
           </button>
           <button type="button" class="hcard" id="level-card-3">
             <span class="hc-title">Level 3</span>
-            <span class="hc-desc">Task trading — deeper coordination, uneven workloads.</span>
+            <span class="hc-desc">Ticket trading — deeper coordination, uneven workloads.</span>
           </button>
         </div>
         <div class="error-msg" id="create-error"></div>
@@ -1445,19 +1466,28 @@
       <h2>Join a game</h2>
       <p class="landing-card-intro">Join a game someone has created.</p>
       <div class="input-group">
-        <input id="join-code" type="text" placeholder="GAME CODE (E.G., TIGER6)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
+        <!-- 260814.1: field order flipped to mirror the Create panel (name
+             first), placeholder revised to parallel "SESSION CODE (OPTIONAL)". -->
         <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
+        <input id="join-code" type="text" placeholder="GAME CODE (REQUIRED)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
         <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join game →</button>
         <div class="error-msg" id="join-error"></div>
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260813.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260814.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
 <div id="screen-lobby" class="screen">
   <div class="lobby-header">
+    <!-- 260814.1: pending-level pill — reuses .level-badge, populated by the
+         lobby listener from pendingLevelType || levelType (same resolution
+         the Level 3 orientation block below already uses). Hidden until a
+         level is known so an empty pill never renders. -->
+    <div style="text-align:center; margin-bottom:8px;">
+      <span class="level-badge" id="lobby-level-badge" style="display:none;"></span>
+    </div>
     <p id="lobby-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2; text-align:center;"></p>
     <h2 id="lobby-heading" style="margin-top:6px;">Waiting for players</h2>
     <p>Share the code with your team</p>
@@ -1470,7 +1500,7 @@
   <div id="level3-orientation-block" class="level3-orientation" style="display:none;">
     <div class="level3-orientation-section">
       <h4>What's new</h4>
-      <p>In Level 3, unlike Level 2, you can transfer <strong>tasks</strong> to teammates. Talk to your teammates about who has capacity and who is backlogged.</p>
+      <p>In Level 3, unlike Level 2, you can transfer <strong>tickets</strong> to teammates. Talk to your teammates about who has capacity and who is backlogged.</p>
     </div>
     <div class="level3-orientation-section">
       <h4>What's the same</h4>
@@ -1509,7 +1539,7 @@
       </div>
       <div class="header-divider"></div>
       <div style="display:flex; flex-direction:column; gap:1px; align-items:center;">
-        <span class="score-display" id="team-score">0 / 0 tasks</span>
+        <span class="score-display" id="team-score">0 / 0 tickets</span>
         <span style="font-size:10px; color:var(--text-3); letter-spacing:0.05em; text-transform:uppercase;">Team goal</span>
       </div>
     </div>
@@ -1712,7 +1742,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="activity-btn-cancel">Cancel</button>
-      <button class="btn btn-primary"   id="activity-btn-done" disabled>Complete task</button>
+      <button class="btn btn-primary"   id="activity-btn-done" disabled>Complete ticket</button>
     </div>
   </div>
 </div>
@@ -1781,7 +1811,7 @@
   </div>
   <div class="summary-grid">
     <div class="summary-card">
-      <h3>Tasks completed</h3>
+      <h3>Tickets completed</h3>
       <div id="summary-tasks"></div>
     </div>
     <div class="summary-card" style="min-width:320px;">
@@ -1801,7 +1831,7 @@
       </button>
       <button type="button" class="hcard hc-hoverable" id="debrief-level2-advance">
         <span class="hc-title">Move to Level 3 →</span>
-        <span class="hc-desc">Ready to add task trading? Move the team up to Level 3.</span>
+        <span class="hc-desc">Ready to add ticket trading? Move the team up to Level 3.</span>
       </button>
     </div>
     <button class="btn btn-secondary" id="btn-exit-level2" style="min-width:200px;">Exit this team</button>
@@ -1830,7 +1860,7 @@
       </div>
     </div>
     <div class="summary-card" style="min-width:320px;">
-      <h3>Task trades</h3>
+      <h3>Ticket trades</h3>
       <div id="level3-network-task-container">
         <svg id="level3-network-task-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
@@ -1838,7 +1868,7 @@
   </div>
 
   <div class="summary-card" style="max-width:900px; width:100%;">
-    <h3>Tasks completed</h3>
+    <h3>Tickets completed</h3>
     <div id="summary-level3-tasks"></div>
   </div>
 
@@ -2553,6 +2583,17 @@ function renderInventoryNow(newlyAdded = []) {
   ingGrid.innerHTML  = "";
   toolGrid.innerHTML = "";
 
+  // 260814.1: spring-in was keyed by NAME (newlyAdded.includes(name)), so
+  // receiving one oregano animated every oregano tile you already had. Since
+  // genuinely-new units are always appended after existing ones (both the
+  // pendingArrivals priority path and the fallback append above), the new
+  // unit(s) of a name are exactly its LAST k instances, where k is how many
+  // times the name appears in newlyAdded. Animate only those.
+  const springAddCounts = {};
+  newlyAdded.forEach(n => { springAddCounts[n] = (springAddCounts[n] || 0) + 1; });
+  const springTotals = {};
+  inventoryOrder.forEach(n => { springTotals[n] = (springTotals[n] || 0) + 1; });
+
   const nameCounts = {};
   inventoryOrder.forEach(name => {
     const res = RESOURCES[name];
@@ -2563,8 +2604,9 @@ function renderInventoryNow(newlyAdded = []) {
     const tile = makeTile(name, instanceId, "inventory");
     setupTileDrag(tile);
 
-    // Spring-in animation for newly received tiles
-    if (newlyAdded.includes(name)) {
+    // Spring-in animation for newly received tiles (last k instances only)
+    const kNew = springAddCounts[name] || 0;
+    if (kNew > 0 && i >= (springTotals[name] || 0) - kNew) {
       tile.classList.add("tile-spring-in");
       setTimeout(() => tile.classList.remove("tile-spring-in"), 600);
     }
@@ -2864,7 +2906,7 @@ function renderTaskZone() {
   zone.innerHTML = "";
 
   if (!currentTask) {
-    zone.innerHTML = '<span class="checklist-empty-hint">No active task</span>';
+    zone.innerHTML = '<span class="checklist-empty-hint">No active ticket</span>';
     return;
   }
 
@@ -3075,9 +3117,15 @@ async function completeTask() {
   toast(`✓ "${taskName}" complete!`, "good");
 
   // ── Advance UI ────────────────────────────────────────────────
+  // 260814.1: bulgeMainTicket() on the next ticket's arrival, so all three
+  // arrival paths announce themselves the same way (auto-promotion already
+  // bulged; the manual rail-reorder path gains it in handleRailReorder).
+  // It overlaps the tail of the completePulse background celebration —
+  // reviewed and approved in the glow-lifecycle testbed.
   if (isLevel3) {
     if (nextActiveId) {
       loadTask(nextActiveId);
+      bulgeMainTicket();
     } else {
       renderNoActiveTask();
     }
@@ -3085,6 +3133,7 @@ async function completeTask() {
   } else {
     if (nextActiveId) {
       loadTask(nextActiveId);
+      bulgeMainTicket();
     } else {
       renderNoActiveTask();
     }
@@ -3606,7 +3655,10 @@ function handleRailReorder(taskId, fromIdx, cx) {
   });
 
   if (changed) {
-    if (myActiveTaskId) loadTask(myActiveTaskId); else renderNoActiveTask();
+    // 260814.1: `changed` is true exactly when a different ticket landed in
+    // position 0 (setRailFromArray compares prev vs new activeTaskId), so
+    // this is the manual-promotion arrival — bulge it like the other paths.
+    if (myActiveTaskId) { loadTask(myActiveTaskId); bulgeMainTicket(); } else renderNoActiveTask();
     renderInventory();
   }
   renderQueueBar();
@@ -3631,8 +3683,8 @@ async function handleTaskTrade(taskId, fromIdx, targetPlayerId) {
       .map(([name, count]) => `${RESOURCES[name]?.emoji || ""} ${name}${count > 1 ? " ×"+count : ""}`)
       .join(", ");
     showConfirmModal(
-      `Send task to ${targetName}?`,
-      `You have ${itemList} loaded. These will return to your inventory — they won't transfer with the task. You can transfer resources separately.`,
+      `Send ticket to ${targetName}?`,
+      `You have ${itemList} loaded. These will return to your inventory — they won't transfer with the ticket. You can transfer resources separately.`,
       () => executeTaskTrade(taskId, targetPlayerId, targetName, taskDef)
     );
   } else {
@@ -3687,7 +3739,7 @@ async function executeTaskTrade(taskId, targetPlayerId, targetName, taskDef) {
 
   renderQueueBar();
   renderInventory();
-  toast(`📋 Task "${taskDef?.name || taskId}" sent to ${targetName}`, "good");
+  toast(`📋 Ticket "${taskDef?.name || taskId}" sent to ${targetName}`, "good");
 }
 
 /* ─── CONFIRM MODAL ─────────────────────────────────────────── */
@@ -3787,11 +3839,11 @@ function updateScoreDisplay(players) {
   const target = taskTarget || 0;
   const el     = document.getElementById("team-score");
   if (target > 0) {
-    el.textContent = `${total} / ${target} tasks`;
+    el.textContent = `${total} / ${target} tickets`;
     // Turn green when complete
     el.style.color = total >= target ? "var(--accent)" : "";
   } else {
-    el.textContent = `Team: ${total} task${total!==1?"s":""}`;
+    el.textContent = `Team: ${total} ticket${total!==1?"s":""}`;
   }
 }
 
@@ -3968,6 +4020,13 @@ function enterLobby() {
     if (level3Block) {
       const rt = gameState.pendingLevelType || gameState.levelType || "";
       level3Block.style.display = rt === "level3" ? "block" : "none";
+      // 260814.1: pending-level pill in the lobby header, same rt resolution.
+      const lobbyBadge = document.getElementById("lobby-level-badge");
+      if (lobbyBadge) {
+        const lbl = LEVEL_LABELS[rt] || "";
+        lobbyBadge.textContent   = lbl;
+        lobbyBadge.style.display = lbl ? "inline-block" : "none";
+      }
     }
 
     if (gameState.status === "playing" || gameState.status === "paused") {
@@ -4225,7 +4284,7 @@ function enterGame() {
                 update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { taskQueue: myTaskQueue });
               }
               if (currentLevel === "level3") renderQueueBar();
-              toast(`📋 Task received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
+              toast(`📋 Ticket received from ${item.fromName}: "${taskDef?.name || item.taskId}"`, "good");
             }
           } else {
             // Resource notification
@@ -4529,7 +4588,7 @@ async function showSummary() {
                 : `Event ended at ${formatElapsedMMSS(data.endedAt - data.startTime)}`)
         : "Event complete";
     document.getElementById("summary-level3-subtitle").textContent =
-      tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
+      tgt > 0 ? `Goal: complete ${tgt} tickets` : "Here's how your team did";
 
     // Tasks completed table
     const taskEl = document.getElementById("summary-level3-tasks");
@@ -4546,7 +4605,7 @@ async function showSummary() {
       const resultEl = document.createElement("div");
       resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
         background:${won?"#DCE6C6":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
-      resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
+      resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} ticket${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
 
@@ -4582,11 +4641,11 @@ async function showSummary() {
       const resultEl = document.createElement("div");
       resultEl.style.cssText = `margin-top:12px;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;
         background:${won?"#DCE6C6":"#FBE4DF"};color:${won?"var(--accept)":"var(--danger)"};`;
-      resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} task${tgt-total!==1?"s":""} short`;
+      resultEl.textContent = won ? "🎉 Team completed the goal!" : `Almost — ${tgt-total} ticket${tgt-total!==1?"s":""} short`;
       taskEl.appendChild(resultEl);
     }
     document.getElementById("summary-subtitle").textContent =
-      tgt > 0 ? `Goal: complete ${tgt} tasks` : "Here's how your team did";
+      tgt > 0 ? `Goal: complete ${tgt} tickets` : "Here's how your team did";
     document.getElementById("summary-title").textContent =
       (data.startTime && data.endedAt)
         ? (won ? `Event completed in ${formatElapsedMMSS(data.endedAt - data.startTime)}`
@@ -4886,7 +4945,7 @@ function drawNetworkLevel3(players, transfers, svgId, mode) {
       line1 = `Start: ${pos.startingIngrCount} res.`;
       line2  = `Used: ${pos.resourcesUsed}`;
     } else {
-      line1 = `Start: ${pos.startingTaskCount} tasks`;
+      line1 = `Start: ${pos.startingTaskCount} tickets`;
       line2  = `Done: ${pos.tasksCompleted}`;
     }
 
@@ -5211,6 +5270,14 @@ async function enterBetweenRoundLobby(nextLevelType) {
   const updates   = { [`games/${gameCode}/status`]: "lobby", [`games/${gameCode}/pausedAt`]: null,
                       [`games/${gameCode}/transitionAt`]: diagServerNow() };
   updates[`games/${gameCode}/pendingLevelType`] = nextLevelType;
+  // 260814.1: fresh event name for every round/level. Round 1's name comes
+  // from createGame(); each subsequent round gets its own here, written in
+  // this same atomic update so the between-round lobby previews the NEW
+  // round's name (mirroring round 1: named at creation, shown in lobby,
+  // used in the round). startRoundInFirebase()'s existing
+  // `gameState.eventName || genEventName()` picks it up unchanged. Host-only
+  // write — this function is only ever called by the host.
+  updates[`games/${gameCode}/eventName`] = genEventName();
   playerIds.forEach(pid => {
     updates[`games/${gameCode}/players/${pid}/ready`] = false;
   });
@@ -7170,6 +7237,12 @@ function diagSummaryLines() {
   const liveHidden  = diagHiddenTotalMs  + (diagHiddenSince  ? Date.now() - diagHiddenSince  : 0);
   const liveOffline = diagOfflineTotalMs + (diagOfflineSince ? Date.now() - diagOfflineSince : 0);
 
+  // 260814.1: build number on the panel itself, so a facilitator can read it
+  // off a player's device without "Copy report". Read from #version-line —
+  // the same single source diagReport() switched to in 260813, for the same
+  // reason (a second hardcoded copy went stale for four straight versions).
+  const diagBuildLine = document.getElementById("version-line")?.textContent || "";
+  L.push(["Build", (diagBuildLine.match(/Version\s+(\S+)/) || [])[1] || "unknown"]);
   L.push(["Session length", diagDur(Date.now() - diagStartedAt)]);
   L.push(["Connection", diagDropCount === 0
     ? "Never dropped"
