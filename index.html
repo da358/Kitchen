@@ -552,8 +552,25 @@
      flash). The base two-pass paper shadow on .ticket-shadow-wrap is
      untouched. */
   .ticket-glow-anchor { position: relative; width: 100%; }
+  /* 260815.2 (test-round Issue 1): filter and clip-path are split across
+     TWO elements. On a single element the effects pipeline applies filter
+     FIRST, then clip-path clips the FILTERED output — so a layer carrying
+     both (as 260815.1 shipped) clipped away its own glow, leaving only a
+     solid silhouette hidden exactly beneath the opaque ticket: no glow
+     anywhere, in every engine. This is the same pipeline fact that is the
+     whole reason .ticket-shadow-wrap exists for the base paper shadow —
+     clip on the child, filter on the parent, so the filter reads
+     already-clipped pixels. The OUTER .ticket-glow-layer carries the
+     drop-shadow stack and the opacity toggle; the INNER .ticket-glow-fill
+     carries the torn-edge clip and the color. */
   .ticket-glow-layer {
     position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+  }
+  .ticket-glow-fill {
+    width: 100%; height: 100%;
     /* This polygon MUST stay byte-identical to .ticket-main's clip-path
        above — the glow traces the same torn edge. If the torn edge is ever
        regenerated, regenerate both together. */
@@ -562,20 +579,17 @@
                         60.98% 95.63%, 54.09% 99.18%, 50.83% 95.67%, 44.85% 99.61%, 39.99% 94.66%,
                         33.85% 99.32%, 30.65% 95.13%, 25.59% 99.85%, 21.02% 95.05%, 14.19% 98.90%,
                         9.22% 95.32%, 5.66% 99.64%, 0.00% 94.04%);
-    opacity: 0;
-    transition: opacity 0.15s;
-    pointer-events: none;
   }
   .ticket-glow-layer--green {
-    background: var(--accept);
     filter: drop-shadow(0 0 2px var(--accept)) drop-shadow(0 0 4px var(--accept))
             drop-shadow(0 0 6px rgba(47,107,74,0.55));
   }
+  .ticket-glow-layer--green .ticket-glow-fill { background: var(--accept); }
   .ticket-glow-layer--copper {
-    background: var(--accent);
     filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 4px var(--accent))
             drop-shadow(0 0 6px rgba(178,58,46,0.55));
   }
+  .ticket-glow-layer--copper .ticket-glow-fill { background: var(--accent); }
   .ticket-glow-anchor:has(.ticket-main.drag-over) .ticket-glow-layer--green { opacity: 1; }
   .ticket-glow-anchor:has(.ticket-main.complete)  .ticket-glow-layer--copper,
   .ticket-glow-anchor:has(.ticket-main.flash)     .ticket-glow-layer--copper { opacity: 1; }
@@ -1548,7 +1562,7 @@
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260815.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260815.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1624,7 +1638,28 @@
            switch (more effects and possibly music anticipated).
            Facilitator-level sound control is explicitly deferred until
            the session-code work exists. -->
-      <button class="btn btn-secondary" id="btn-sound-toggle" title="Sound on/off" style="font-size:16px; padding:7px 12px;">🔊</button>
+      <!-- 260815.2 (test-round Issue 5): owner-supplied artwork
+           (sound_on.svg / sound_off.svg), inlined per the single-file
+           architecture — geometry untouched, black recolored to
+           currentColor so the icons take the button's ink. The click
+           handler toggles which one shows. -->
+      <button class="btn btn-secondary" id="btn-sound-toggle" title="Sound on/off" style="padding:7px 10px;">
+        <svg class="sound-icon-on" width="20" height="20" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<path d="M53 50.1821V6.01201C53 4.22999 50.8453 3.33775 49.5855 4.59811L26.098 28.096C25.7229 28.4712 25.2141 28.6821 24.6835 28.6821H6C4.89543 28.6821 4 29.5775 4 30.6821V50.1821" stroke="currentColor" stroke-width="8"/>
+<path d="M53 50.1821V94.3521C53 96.1341 50.8453 97.0264 49.5855 95.766L26.098 72.2682C25.7229 71.8929 25.2141 71.6821 24.6835 71.6821H6C4.89543 71.6821 4 70.7866 4 69.6821V50.1821" stroke="currentColor" stroke-width="8"/>
+<path d="M67.8963 62.0784C69.0558 63.2378 70.956 63.2486 71.936 61.9339C72.9473 60.5772 73.7891 59.0975 74.4395 57.5271C75.4698 55.0399 76 52.3742 76 49.6821C76 46.99 75.4698 44.3242 74.4395 41.8371C73.7891 40.2667 72.9473 38.7869 71.936 37.4302C70.956 36.1155 69.0558 36.1263 67.8963 37.2857V37.2857C66.7369 38.4452 66.7679 40.3131 67.6685 41.6833C68.1711 42.4479 68.6018 43.26 68.9536 44.1094C69.6854 45.8762 70.0621 47.7697 70.0621 49.6821C70.0621 51.5944 69.6854 53.488 68.9536 55.2547C68.6018 56.1042 68.1711 56.9163 67.6685 57.6809C66.7679 59.0511 66.7369 60.9189 67.8963 62.0784V62.0784Z" fill="currentColor"/>
+<path d="M76.6211 68.8032C77.8909 70.073 79.965 70.0827 81.0948 68.6869C82.9658 66.3757 84.498 63.8029 85.6403 61.0453C87.1982 57.2842 88 53.253 88 49.1821C88 45.1111 87.1982 41.08 85.6403 37.3189C84.498 34.5613 82.9658 31.9884 81.0948 29.6772C79.965 28.2815 77.8909 28.2911 76.6211 29.561V29.561C75.3513 30.8308 75.3714 32.8783 76.462 34.305C77.7502 35.9902 78.8169 37.8393 79.6322 39.8075C80.8633 42.7796 81.4969 45.9651 81.4969 49.1821C81.4969 52.399 80.8633 55.5845 79.6322 58.5566C78.8169 60.5248 77.7502 62.3739 76.462 64.0591C75.3714 65.4858 75.3513 67.5334 76.6211 68.8032V68.8032Z" fill="currentColor"/>
+<path d="M85.2464 75.4284C86.6815 76.8636 89.0225 76.8733 90.3251 75.3168C93.0261 72.0896 95.2251 68.4646 96.841 64.5634C98.9266 59.5284 100 54.1319 100 48.6821C100 43.2322 98.9266 37.8357 96.841 32.8007C95.2251 28.8995 93.0261 25.2746 90.3251 22.0473C89.0225 20.4909 86.6815 20.5005 85.2464 21.9357V21.9357C83.8112 23.3708 83.829 25.6865 85.1017 27.2675C87.1363 29.7949 88.8042 32.6043 90.0507 35.6134C91.7669 39.7567 92.6502 44.1974 92.6502 48.6821C92.6502 53.1667 91.7669 57.6075 90.0507 61.7508C88.8042 64.7599 87.1363 67.5693 85.1017 70.0966C83.829 71.6776 83.8112 73.9933 85.2464 75.4284V75.4284Z" fill="currentColor"/>
+<path d="M4 28.1821H26.5L53.5 3.18207V97.6821L26.5 71.6821H5L4 48.6821V28.1821Z" fill="currentColor"/>
+</svg>
+        <svg class="sound-icon-off" width="20" height="20" viewBox="0 0 106 101" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:none">
+<path d="M53 50.1821V6.01201C53 4.22999 50.8453 3.33775 49.5855 4.59811L26.098 28.096C25.7229 28.4712 25.2141 28.6821 24.6835 28.6821H6C4.89543 28.6821 4 29.5775 4 30.6821V50.1821" stroke="currentColor" stroke-width="8"/>
+<path d="M53 50.1821V94.3521C53 96.1341 50.8453 97.0264 49.5855 95.766L26.098 72.2682C25.7229 71.8929 25.2141 71.6821 24.6835 71.6821H6C4.89543 71.6821 4 70.7866 4 69.6821V50.1821" stroke="currentColor" stroke-width="8"/>
+<rect width="8.08235" height="50" rx="4.04117" transform="matrix(-0.707107 0.707107 0.707107 0.707107 69.7151 29.1821)" fill="currentColor"/>
+<rect x="99.3553" y="29.1821" width="8.08235" height="50" rx="4.04117" transform="rotate(45 99.3553 29.1821)" fill="currentColor"/>
+<path d="M3.5 28.1821H26L53 3.18207V97.6821L26 71.6821H4.5L3.5 48.6821V28.1821Z" fill="currentColor"/>
+</svg>
+      </button>
       <!-- Session 9: debug-only trigger, host + Levels 2 and 3 only, same
            visibility gate as Pause. Bypasses the random clock entirely
            and ignores the once-per-round limiter, so it can be clicked
@@ -1671,8 +1706,8 @@
             <!-- 260815.1: glow anchor + permanent glow layers (Session 16,
                  Issue 2) — see the .ticket-glow-anchor comment in the CSS. -->
             <div class="ticket-glow-anchor">
-            <div class="ticket-glow-layer ticket-glow-layer--green"></div>
-            <div class="ticket-glow-layer ticket-glow-layer--copper"></div>
+            <div class="ticket-glow-layer ticket-glow-layer--green"><div class="ticket-glow-fill"></div></div>
+            <div class="ticket-glow-layer ticket-glow-layer--copper"><div class="ticket-glow-fill"></div></div>
             <div class="ticket-shadow-wrap">
             <div class="ticket-main task-drop-zone curl" id="ticket-main">
               <div class="now-tag">Now prepping</div>
@@ -3127,10 +3162,26 @@ async function completeTask() {
     return;
   }
 
-  await update(ref(db), playerUpdate);
-  myTaskQueue    = newQueue;
+  // 260815.2 (test-round Issue 2): local state is set BEFORE the write.
+  // Firebase raises the local echo of update() immediately — before the
+  // await resolves — so with the assignments after the await (as 260815.1
+  // shipped), myPlayerUnsub's echo saw newActiveId !== myActiveTaskId and
+  // loadTask()'d the NEXT ticket on the spot, before the celebration
+  // started: badge and exit decorated the wrong dish. With the locals set
+  // first, the echo finds nothing changed and no-ops — the same
+  // synchronous-before-yield pattern documented at
+  // promoteIfNothingPrepping()'s call site. (260815.1's post-await
+  // else-branch reassigned the identical newQueue; collapsed.)
+  myTaskQueue = newQueue;
   if (isLevel3) myActiveTaskId = nextActiveId;
-  else       myTaskQueue   = isLevel3 ? [nextActiveId, ...newQueue].filter(Boolean) : newQueue;
+  // 260815.2 (test-round Issue 3): raise the celebration hold BEFORE the
+  // write — this write's own echo is what can end the game on the final
+  // dish, and it must find the hold already up. Backstop guarantees the
+  // hold cannot strand a player off the debrief on any failure path.
+  cookCelebrationHold = true;
+  if (cookHoldBackstopTimer) clearTimeout(cookHoldBackstopTimer);
+  cookHoldBackstopTimer = setTimeout(clearCookCelebrationHold, 4000);
+  await update(ref(db), playerUpdate);
 
   // ── Spawn ingredients (Level 3: team-wide scan; Levels 1/2: next-task targeting) ──
   const otherPlayers = Object.keys(gameState.players || {}).filter(pid => pid !== myPlayerId);
@@ -3236,6 +3287,10 @@ async function completeTask() {
         renderNoActiveTask();
       }
     }
+    // 260815.2 (test-round Issue 3): release the summary hold once the
+    // arrival has settled (badge gone, bulge finished). Runs the deferred
+    // showSummary() if the game ended during the celebration.
+    setTimeout(clearCookCelebrationHold, 500);
   }, COOK_ARRIVE_AT_MS);
   renderInventory();
 }
@@ -3498,6 +3553,27 @@ const COOK_EXIT_AT_MS      = 480;   // 40% of total
 const COOK_EXIT_DUR_MS     = 600;   // 50% of total — must match .cook-exit-wrap's animation duration
 const COOK_ARRIVE_AT_MS    = 1080;  // exit start + 50% of total
 const COOK_RETURN_PAUSE_MS = 600;   // beat between the mini-game modal closing and all of the above
+
+/* 260815.2 (test-round Issue 3): the final cook's tasksCompleted write ends
+   the game — its echo reaches gameUnsub within a few hundred ms, and
+   260815.1 switched to the debrief mid-celebration (ding audible, sequence
+   invisible). While a LOCAL cook celebration is in flight, the "ended"
+   branch defers only its showSummary() call (teardown still runs
+   immediately, and other players transition instantly). The hold is raised
+   in completeTask() just before its write, cleared by the arrival beat
+   +500ms settle, and backstopped at 4s so no failure path (e.g. a throw in
+   the spawn loop before the arrival timer registers) can strand a player
+   off the debrief. A timed round ending mid-celebration gets the same
+   ~1–2s courtesy via the identical path. */
+let cookCelebrationHold   = false;
+let summaryDeferredByCook = false;
+let cookHoldBackstopTimer = null;
+function clearCookCelebrationHold() {
+  if (!cookCelebrationHold) return;
+  cookCelebrationHold = false;
+  if (cookHoldBackstopTimer) { clearTimeout(cookHoldBackstopTimer); cookHoldBackstopTimer = null; }
+  if (summaryDeferredByCook) { summaryDeferredByCook = false; showSummary(); }
+}
 
 function runCookCelebration() {
   const tCol  = document.getElementById("ticket-col");
@@ -4533,16 +4609,34 @@ function enterGame() {
             // scratch.
             const idx = inventoryOrder.lastIndexOf(item.resource);
             if (idx !== -1) {
-              inventoryOrder.splice(idx, 1);
-              inventoryOrder.push(item.resource);
+              // 260815.2 (test-round Issue 4): 260815.1 called
+              // renderInventory() here unconditionally — a full grid
+              // rebuild (innerHTML = "") landing 50–300ms into the count
+              // render's spring-in, destroying the animating tile and
+              // recreating it plain. The green incoming-flash used to fire
+              // at this exact moment and masked the kill: a defect that
+              // predates 260815.1, unmasked by removing the flash (3b).
+              // In the common case the unit is already at the tail (the
+              // sender writes the count before the notification, and the
+              // count render appends new units last): nothing to reorder,
+              // so skip the rebuild and let the spring finish. When it
+              // genuinely needs relocating (the ambiguity this move-to-tail
+              // exists for), re-render WITH the spring key so the tile
+              // announces itself at its final position, aligned with the
+              // toast above.
+              if (idx !== inventoryOrder.length - 1) {
+                inventoryOrder.splice(idx, 1);
+                inventoryOrder.push(item.resource);
+                renderInventory([item.resource]);
+              }
             } else {
               // Rare reverse race: notification claimed before the
               // ingredients/tools listener has processed the increment.
               // Queue it — renderInventory()'s append phase gives
               // pendingArrivals priority once the count catches up.
               pendingArrivals.push({ name: item.resource, ts: Date.now() });
+              renderInventory();
             }
-            renderInventory();
           }
         })
         .catch(err => {
@@ -4683,7 +4777,12 @@ function enterGame() {
           { status: "abandoned", outcome: "round-ended", endedAt: Date.now() }).catch(()=>{});
         update(ref(db, `games/${gameCode}`), { activeChallengeId: null }).catch(()=>{});
       }
-      showSummary();
+      // 260815.2 (test-round Issue 3): if this client's own final cook is
+      // mid-celebration, defer only the screen switch — everything above
+      // already ran. clearCookCelebrationHold() runs the deferred
+      // showSummary(). All other clients fall through to it immediately.
+      if (cookCelebrationHold) summaryDeferredByCook = true;
+      else showSummary();
     }
   });
   unsubscribers.push(() => off(ref(db, `games/${gameCode}`), "value", gameUnsub));
@@ -5443,7 +5542,10 @@ document.getElementById("btn-end-game").addEventListener("click", endGame);
 // pattern exists in this file).
 document.getElementById("btn-sound-toggle").addEventListener("click", () => {
   soundEnabled = !soundEnabled;
-  document.getElementById("btn-sound-toggle").textContent = soundEnabled ? "🔊" : "🔇";
+  // 260815.2 (test-round Issue 5): swap the owner-supplied inline SVGs.
+  const btn = document.getElementById("btn-sound-toggle");
+  btn.querySelector(".sound-icon-on").style.display  = soundEnabled ? "" : "none";
+  btn.querySelector(".sound-icon-off").style.display = soundEnabled ? "none" : "";
 });
 
 // Level 3 rail overflow (brief §3.11) — static elements, wired once.
