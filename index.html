@@ -296,7 +296,15 @@
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-  .game-header-left { display: flex; align-items: center; gap: 16px; }
+  /* 260816.1 (Session 17) header refinement: the title/event block takes
+     the spare width (pushing clock + ticket count right), the event name
+     ellipsizes instead of breaking to two lines, and the small caps
+     labels can never wrap beside their numbers. */
+  .game-header-left { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+  .game-header-left > div { white-space: nowrap; }
+  .game-header-left > div:first-child { flex: 1 1 auto; min-width: 0; }
+  .game-header-left > *:not(:first-child) { flex-shrink: 0; }
+  #event-name-display { display: block; overflow: hidden; text-overflow: ellipsis; }
   .game-title {
     font-family: var(--font-display);
     font-size: 20px;
@@ -319,7 +327,9 @@
   }
   .level-badge:empty { display: none; }
   .timer-display {
-    font-size: 22px;
+    /* 260816.1: was 22px — now matches .score-display (owner header
+       refinement: one size for clock and ticket count). */
+    font-size: 18px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--accent);
@@ -337,11 +347,15 @@
     background: var(--border);
     margin: 0 4px;
   }
-  .game-header-right { display: flex; gap: 10px; align-items: center; }
+  .game-header-right { display: flex; gap: 10px; align-items: center; flex-shrink: 0; } /* 260816.1 */
 
   .game-body {
     display: grid;
-    grid-template-columns: 1fr 280px;
+    /* 260816.1 (Session 17): single column — the teammates panel moved
+       from a fixed right column into .ticket-row inside .board-main
+       (persistent "beside the ticket, above My Station" layout; see the
+       LAYOUT FIT suite below). */
+    grid-template-columns: 1fr;
     grid-template-rows: 1fr;
     gap: 0;
     flex: 1;
@@ -697,7 +711,8 @@
     padding: 4px 20px 20px;
     overflow-y: auto;
   }
-  .station-header-block { margin: 6px 0 10px; margin-left: 38px; }
+  /* 260816.1: area labels hidden (owner decision; tooltips later). */
+  .station-header-block { margin: 6px 0 10px; margin-left: 38px; display: none; }
   .station-header { font-family: var(--font-display); font-size: 14px; color: var(--text-2); }
   .station-hint { font-size: 11px; font-style: italic; color: var(--text-2); opacity: 0.85; margin-left: 8px; }
   .station-panel {
@@ -778,12 +793,17 @@
     transform: scale(1.05);
   }
 
-  /* Teammates panel — "On the line" */
+  /* Teammates panel — "On the line".
+     260816.1 (Session 17): no longer a fixed right column. It sits in
+     .ticket-row beside the active ticket, above My Station, at every
+     window size (the old ≤900px bottom-strip fallback is gone). The
+     margin-left clamp is the owner-approved fluid gap: ≈40px at
+     tablet-portrait width, growing with the window, capped at 72px. */
   .teammates-panel {
-    grid-column: 2;
-    border-left: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 16px;
+    flex: 0 0 auto;
+    width: 234px;
+    padding: 20px 0 12px 0;
+    margin-left: clamp(40px, 8vw - 26px, 72px);
   }
   .teammates-panel h3 {
     font-family: var(--font-display);
@@ -791,17 +811,37 @@
     font-weight: normal;
     color: var(--text-2);
     margin-bottom: 14px;
+    /* 260816.1: area labels hidden (owner decision — onboarding
+       tooltips will do the explaining in a future session). The markup
+       stays for that session to repurpose. */
+    display: none;
   }
+  #teammates-list { display: flex; flex-direction: column; gap: 10px; }
   .teammate-card {
     border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 12px;
+    /* 260816.1 (Session 17): fixed consistent card size, single column.
+       Height + vertical padding are set per-render by
+       syncTeammateCardHeights() so the stack of cards matches the
+       active ticket's height (owner: "auto-match"); 56px here is only
+       the pre-sync fallback. */
+    width: 210px;
+    height: 56px;
+    padding: 8px 12px;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background: var(--surface);
     text-align: left;
-    min-height: 56px;
     box-shadow: 0 0 0 0 rgba(47,107,74,0);
     transition: box-shadow 0.15s, transform 0.15s, background 0.2s;
   }
+  /* Tight typography, applied by syncTeammateCardHeights() when the
+     matched height lands at ≤52px, so two lines still breathe. */
+  .cards-tight .teammate-name { font-size: 13px; }
+  .cards-tight .teammate-score { font-size: 11px; }
+  .cards-tight .teammate-status { margin-top: 2px; font-size: 10px; }
+  .cards-tight .status-dot { width: 6px; height: 6px; }
   .teammate-card-header {
     display: flex;
     align-items: center;
@@ -1315,6 +1355,8 @@
     font-size: 13px;
     color: var(--text-2);
     margin-bottom: 8px;
+    /* 260816.1: area labels hidden (owner decision; tooltips later). */
+    display: none;
   }
   .rail-label .hint { font-size: 11px; font-style: italic; opacity: 0.85; }
   .rail-track { display: flex; align-items: center; gap: 6px; }
@@ -1489,25 +1531,102 @@
     width: 100%;
   }
 
-  /* ── RESPONSIVE: iPad ──────────────────────────────────────── */
+  /* ══ 260816.1 (Session 17): LAYOUT FIT SUITE ═══════════════════
+     The persistent layout: ticket + teammates share .ticket-row above
+     My Station in all levels at all sizes. Below it, the fit cascade —
+     applyLayoutFit() maps (window size, level) to a step and toggles
+     body classes; it never rebuilds DOM nodes, so in-flight touch
+     drags survive (Session 13 WebKit rule):
+       step 0  nothing        (wrap rows, shipped spacing)
+       step 1  .layout-hscroll (station rows scroll sideways)
+       step 2  + .layout-compact (everything nudged up)
+       step 3  + the "Make some room" modal (lobby / round start only)
+     Thresholds live in layoutFitStep(). ─────────────────────────── */
+  .ticket-row {
+    display: flex;
+    flex-wrap: wrap;          /* too narrow to sit beside the ticket →
+                                 the column lands between ticket and
+                                 station, never below it */
+    align-items: flex-start;
+  }
+  .ticket-row .task-panel { flex: 0 1 498px; }
+
+  /* Step 1 — Ingredients and Tools each stay one row; excess scrolls
+     sideways, rail-style. (Touch drag-vs-scroll on these rows is a
+     flagged playbook item, same standing question as the rail.) */
+  body.layout-hscroll .tiles-grid {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  body.layout-hscroll .tiles-grid::-webkit-scrollbar { height: 5px; }
+  body.layout-hscroll .tiles-grid::-webkit-scrollbar-thumb {
+    background: rgba(251,243,231,0.45);
+    border-radius: 3px;
+  }
+  body.layout-hscroll .tile { flex-shrink: 0; }
+
+  /* Step 2 — compact vertical spacing. The ticket's 22px bottom
+     clearance is the floor for its drop-shadow/glow spread (Session
+     10/16); do not trim further without re-verifying by rendering.
+     Top padding: Levels 1–2 keep 12px so the clip isn't up against
+     the top bar (owner note); Level 3's rail already separates, so
+     it tightens to 4px (.level3-round is set by enterGame). */
+  body.layout-compact .game-header { padding: 6px 20px; }
+  body.layout-compact .rail-section { margin-top: 6px; }
+  body.layout-compact .rail-row { padding: 6px 6px 10px; }
+  body.layout-compact .task-panel { padding: 12px 20px 22px; }
+  body.layout-compact.level3-round .task-panel { padding-top: 4px; }
+  body.layout-compact .teammates-panel { padding-top: 12px; }
+  body.layout-compact.level3-round .teammates-panel { padding-top: 4px; }
+  body.layout-compact #teammates-list { gap: 8px; }
+  body.layout-compact .checklist { margin-bottom: 10px; }
+  body.layout-compact .row { padding: 5px 2px; }
+  body.layout-compact .inventory-panel { padding: 0 20px 14px; }
+  body.layout-compact .station-panel { padding: 10px 14px; }
+  body.layout-compact .station-zone { margin-bottom: 10px; }
+  body.layout-compact .tile { width: 64px; min-height: 64px; }
+  body.layout-compact .tile .tile-emoji { font-size: 20px; }
+
+  /* Step 3 — "Make some room" (copy owner-approved). Shown in the
+     lobby and at round start while the window is below the floor;
+     hides itself the moment a resize gives enough room. z-index sits
+     between the confirm modal (9600) and the pause modal (9700). */
+  #room-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(20,18,15,0.65);
+    backdrop-filter: blur(2px);
+    z-index: 9650;
+    align-items: center; justify-content: center;
+  }
+  #room-modal {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 26px 30px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+    font-family: var(--font);
+  }
+  #room-modal h3 { font: normal 18px var(--font-display); margin: 0 0 8px; color: var(--text); }
+  #room-modal p { font-size: 13px; color: var(--text-2); margin: 0 0 16px; line-height: 1.5; }
+  #room-modal button {
+    font: 600 13px var(--font);
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* ── RESPONSIVE: narrow windows ────────────────────────────────
+     260816.1: the old teammates bottom-strip rules are gone — the
+     panel's position is now persistent (see .ticket-row above). What
+     remains is sizing only. */
   @media (max-width: 900px) {
-    .game-body {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr auto;
-    }
-    .board-main { grid-column: 1; grid-row: 1; }
-    .teammates-panel {
-      grid-column: 1;
-      grid-row: 2;
-      border-left: none;
-      border-top: 1px solid var(--border);
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 12px;
-    }
-    .teammates-panel h3 { display: none; }
-    .teammate-card { min-width: 160px; margin-bottom: 0; flex-shrink: 0; }
     .tile { width: 64px; height: 64px; }
     .tile .tile-emoji { font-size: 20px; }
     .ticket-wrap, .station-header-block, .station-panel { margin-left: 20px; }
@@ -1638,7 +1757,7 @@
       <div class="header-divider"></div>
       <div style="display:flex; flex-direction:column; gap:1px; align-items:center;">
         <span class="score-display" id="team-score">0 / 0 tickets</span>
-        <span style="font-size:10px; color:var(--text-3); letter-spacing:0.05em; text-transform:uppercase;">Team goal</span>
+        <span style="font-size:10px; color:var(--text-3); letter-spacing:0.05em; text-transform:uppercase;">Team tickets</span> <!-- 260816.1: was "Team goal" -->
       </div>
     </div>
     <div class="game-header-right">
@@ -1703,6 +1822,11 @@
 
   <div class="game-body">
     <div class="board-main">
+      <!-- 260816.1 (Session 17): .ticket-row holds the active ticket and
+           the teammates panel side by side, above My Station, at every
+           window size. The teammates panel markup moved here from its
+           old right-column position at the end of .game-body. -->
+      <div class="ticket-row">
       <!-- Ticket ("now prepping") -->
       <div class="task-panel" id="task-panel">
         <div class="ticket-wrap">
@@ -1733,6 +1857,13 @@
         </div>
       </div>
 
+      <!-- Teammates panel ("On the line") — moved here 260816.1 -->
+      <div class="teammates-panel" id="teammates-panel">
+        <h3>On the line</h3>
+        <div id="teammates-list"></div>
+      </div>
+      </div><!-- /ticket-row (260816.1) -->
+
       <!-- My station -->
       <div class="inventory-panel" id="inventory-panel">
         <div class="station-header-block">
@@ -1752,11 +1883,22 @@
       </div>
     </div>
 
-    <!-- Teammates panel -->
-    <div class="teammates-panel" id="teammates-panel">
-      <h3>On the line</h3>
-      <div id="teammates-list"></div>
-    </div>
+    <!-- 260816.1: the teammates panel that closed .game-body here moved
+         into .ticket-row inside .board-main (see above). -->
+  </div>
+</div>
+
+<!-- ══ "MAKE SOME ROOM" MODAL (260816.1, Session 17) ══════════════
+     Shown by applyLayoutFit() at cascade step 3 — lobby and round
+     start only; self-dismisses when a resize gives enough room. -->
+<div id="room-modal-overlay">
+  <div id="room-modal">
+    <h3>Make some room</h3>
+    <p>This kitchen needs more room than your window gives it.
+       If you&rsquo;re using a laptop or desktop, try enlarging the window
+       or reducing the browser zoom. If you&rsquo;re using a tablet, try
+       turning it upright.</p>
+    <button type="button" id="room-modal-btn">Continue anyway</button>
   </div>
 </div>
 
@@ -3066,6 +3208,7 @@ function renderTaskZone() {
 
   if (!currentTask) {
     zone.innerHTML = '<span class="checklist-empty-hint">No active ticket</span>';
+    requestAnimationFrame(syncTeammateCardHeights); // 260816.1: empty state shrinks the ticket too
     return;
   }
 
@@ -3082,6 +3225,9 @@ function renderTaskZone() {
     `;
     zone.appendChild(row);
   });
+  // 260816.1: the checklist's row count sets the ticket's height, which
+  // the teammate-card stack auto-matches — re-sync after layout.
+  requestAnimationFrame(syncTeammateCardHeights);
 }
 
 function dropIntoTask(name) {
@@ -4205,13 +4351,91 @@ function updateScoreDisplay(players) {
   const target = taskTarget || 0;
   const el     = document.getElementById("team-score");
   if (target > 0) {
-    el.textContent = `${total} / ${target} tickets`;
+    // 260816.1: "3 / 12 tickets" → "3/12" — the header label beneath now
+    // reads "Team tickets" and carries the word (owner header refinement).
+    el.textContent = `${total}/${target}`;
     // Turn green when complete
     el.style.color = total >= target ? "var(--accent)" : "";
   } else {
-    el.textContent = `Team: ${total} ticket${total!==1?"s":""}`;
+    el.textContent = `${total}`;
   }
 }
+
+/* ══ 260816.1 (Session 17): LAYOUT FIT ══════════════════════════════
+   Two pieces, both class/style-only — no DOM rebuilds, so in-flight
+   touch drags are never killed (Session 13 WebKit rule):
+
+   1. syncTeammateCardHeights() — "auto-match": sizes the teammate cards
+      so the stack's height equals the active ticket column's, clamped
+      40–64px, tightening typography at ≤52px. Runs after teammate and
+      checklist renders (rAF so measurement follows layout) and on
+      resize. Skipped mid-drag; the render that flushes when the drag
+      ends re-runs it.
+
+   2. layoutFitStep()/applyLayoutFit() — the fit cascade: a STATELESS
+      mapping from (window size, level) to a step, recomputed on every
+      resize, so the same window always yields the same step (no
+      flip-flopping, no live overflow measurement). Fit is judged
+      assuming two wrapped rows per station zone. Thresholds below are
+      the Session 17 first-pass values — tune here.
+      The step-3 modal shows in the lobby and at round start only, and
+      self-dismisses the moment a resize clears step 3. ─────────────── */
+function syncTeammateCardHeights() {
+  if (dragRenderLock) return;
+  const col  = document.querySelector(".ticket-col");
+  const list = document.getElementById("teammates-list");
+  if (!col || !list || col.offsetHeight === 0) return;
+  const cards = list.querySelectorAll(".teammate-card");
+  if (!cards.length) return;
+  const gap = parseFloat(getComputedStyle(list).rowGap) || 10;
+  let h = (col.offsetHeight - (cards.length - 1) * gap) / cards.length;
+  h = Math.max(40, Math.min(64, Math.round(h)));
+  list.classList.toggle("cards-tight", h <= 52);
+  const pad = h >= 60 ? 8 : h >= 52 ? 6 : 4;
+  cards.forEach(c => {
+    c.style.height  = h + "px";
+    c.style.paddingTop    = pad + "px";
+    c.style.paddingBottom = pad + "px";
+  });
+}
+
+let roomNudgeDismissed = false; // reset at lobby entry and round start
+
+function layoutFitStep(levelType) {
+  const W = window.innerWidth, H = window.innerHeight;
+  // Height thresholds [step0, step1, step2]; below step2 (or below the
+  // width floor) → step 3.
+  const t = levelType === "level3" ? [1040, 900, 810] : [900, 770, 690];
+  if (H >= t[0] && W >= 820) return 0;
+  if (H >= t[1] && W >= 820) return 1;
+  if (H >= t[2] && W >= 780) return 2;
+  return 3;
+}
+
+function applyLayoutFit(context) {
+  // context: "lobby" | "round-start" | "resize"
+  const levelType = (gameState && gameState.levelType) || currentLevel;
+  const step = layoutFitStep(levelType);
+  document.body.classList.toggle("layout-hscroll", step >= 1);
+  document.body.classList.toggle("layout-compact", step >= 2);
+  const overlay = document.getElementById("room-modal-overlay");
+  if (step < 3) {
+    overlay.style.display = "none";   // self-dismiss on resize-to-fit
+  } else if (!roomNudgeDismissed) {
+    const onLobby = document.getElementById("screen-lobby").classList.contains("active");
+    if (context === "round-start" || onLobby) overlay.style.display = "flex";
+  }
+}
+
+document.getElementById("room-modal-btn").addEventListener("click", () => {
+  roomNudgeDismissed = true;
+  document.getElementById("room-modal-overlay").style.display = "none";
+});
+
+window.addEventListener("resize", () => {
+  applyLayoutFit("resize");
+  syncTeammateCardHeights();
+});
 
 /* ─── TIMER ─────────────────────────────────────────────────── */
 // A client's own setInterval timer can fire long after the round has
@@ -4329,12 +4553,16 @@ function enterLobby() {
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
   roundStartInFlight = false;
+  roomNudgeDismissed = false; // 260816.1: a fresh lobby re-prompts once
   document.getElementById("lobby-code").textContent = gameCode;
   showScreen("lobby");
 
   // Listen to lobby state
   const lobbyUnsub = onValue(ref(db, `games/${gameCode}`), async snap => {
     gameState = snap.val() || {};
+    // 260816.1: fit check in the lobby — the players are idle and the
+    // fix (resize / rotate) is easiest before the round starts.
+    applyLayoutFit("lobby");
     if (!gameState.players) return;
 
     const players = gameState.players;
@@ -4523,6 +4751,15 @@ function enterGame() {
     // Show/hide Level 3-specific UI elements
     const isLevel3 = currentLevel === "level3";
     document.getElementById("level3-rail-section").style.display     = isLevel3 ? "block" : "none";
+
+    // 260816.1 (Session 17): layout fit at round start — the level class
+    // drives compact spacing's top padding (rail vs no rail), the nudge
+    // dismissal resets so a too-small window re-prompts once per round,
+    // and the first card-height sync runs after this frame's layout.
+    document.body.classList.toggle("level3-round", isLevel3);
+    roomNudgeDismissed = false;
+    applyLayoutFit("round-start");
+    requestAnimationFrame(syncTeammateCardHeights);
 
     // Load my task state
     const myData = data.players?.[myPlayerId] || {};
@@ -4891,6 +5128,9 @@ function renderTeammates() {
       ${statusHtml}`;
     listEl.appendChild(div);
   });
+  // 260816.1: re-run auto-match after the cards are rebuilt (rAF so the
+  // measurement sees the settled layout).
+  requestAnimationFrame(syncTeammateCardHeights);
 }
 
 function endGame() {
@@ -4930,6 +5170,10 @@ function resetToLanding() {
   document.getElementById("btn-ready").textContent = "I'm ready ✓";
   document.getElementById("timer-wrap").style.display = "";
   document.querySelectorAll(".header-divider").forEach(d => d.style.display = "");
+  // 260816.1: clear the layout-fit state so nothing leaks into a future round
+  document.body.classList.remove("level3-round", "layout-compact", "layout-hscroll");
+  document.getElementById("room-modal-overlay").style.display = "none";
+  roomNudgeDismissed = false;
   armLandingMember(LANDING_ARM_GROUP[0]); // Session 11: Level 1 (and Join, disarmed) should reset on a fresh visit
   showScreen("landing");
 }
