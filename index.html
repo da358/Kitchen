@@ -66,7 +66,7 @@
                                       Left defined, unused, per this project's dead-code convention. */
     --clip-b:      #221d16;
     --radius:      8px;
-    --btn-pause:   #2B241C;       /* near-black pause button, retinted to new ink */
+    --btn-pause:   #2B241C;       /* RETIRED 260816.2 — pause is now a bare icon (see #btn-pause); token kept for history, unused */
     --radius-lg:   14px;
     --shadow:      0 1px 4px rgba(43,36,28,0.08);
     --shadow-lg:   0 4px 20px rgba(43,36,28,0.12);
@@ -182,7 +182,11 @@
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
   .btn-danger  { background: var(--danger);    color: #fff; }
-  .btn-pause   { background: var(--btn-pause); color: #fff; font-size: 16px; padding: 7px 12px; }
+  /* 260816.2: .btn-pause retired — the pause control is now a bare icon
+     (owner-supplied artwork), no box, matching the sound toggle. The
+     rule below is what JS's style.display = "" falls back to when the
+     host gate shows the button. */
+  #btn-pause { display: inline-flex; align-items: center; background: none; border: none; padding: 4px 6px; cursor: pointer; }
   .paused-badge {
     font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--danger);
@@ -300,11 +304,25 @@
      the spare width (pushing clock + ticket count right), the event name
      ellipsizes instead of breaking to two lines, and the small caps
      labels can never wrap beside their numbers. */
-  .game-header-left { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+  .game-header-left { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0;
+    /* 260816.2: breathing room between TEAM TICKETS and the player name —
+       ≈ the timer↔counter spacing when the window allows, shrinking on
+       narrow screens. */
+    padding-right: clamp(10px, 3vw, 32px);
+  }
   .game-header-left > div { white-space: nowrap; }
-  .game-header-left > div:first-child { flex: 1 1 auto; min-width: 0; }
+  /* 260816.2: overflow guard — on very narrow hosts (extra header buttons)
+     the title/pill row clips inside its box instead of painting over the
+     timer. */
+  .game-header-left > div:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; }
   .game-header-left > *:not(:first-child) { flex-shrink: 0; }
   #event-name-display { display: block; overflow: hidden; text-overflow: ellipsis; }
+  /* 260816.2: #timer-wrap's column layout lives HERE, not only in its
+     inline style — enterGame()/resetToLanding() restore the timer with
+     style.display = "", which strips an inline "flex" and dropped the
+     element to block layout, putting ELAPSED beside the time. This rule
+     is what that reset falls back to. */
+  #timer-wrap { display: flex; flex-direction: column; gap: 1px; align-items: center; }
   .game-title {
     font-family: var(--font-display);
     font-size: 20px;
@@ -1692,7 +1710,12 @@
       </div>
     </div>
   </div>
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260815.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <!-- WORKFLOW RULE (learned the hard way, 260816.2): this line is the
+       game's SINGLE SOURCE OF VERSION TRUTH. Every edit to this file =
+       new filename AND this line updated to match, in the same change.
+       The triple-tap diagnostics read the build stamp from this element
+       (#version-line), so a stale value here mislabels bug reports too. -->
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260816.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1796,7 +1819,15 @@
            and ignores the once-per-round limiter, so it can be clicked
            repeatedly for sizing/pacing testing. -->
       <button class="btn btn-secondary" id="btn-trigger-challenge" style="display:none; font-size:12px; padding:7px 12px;">🔥 Trigger shared challenge</button>
-      <button class="btn btn-pause" id="btn-pause" style="display:none;">⏸</button>
+      <!-- 260816.2: owner-supplied pause artwork (pause.svg), inlined per
+           the single-file architecture, geometry untouched, artwork's own
+           black (same treatment as the sound toggle, 260815.3). No button
+           chrome — bare icon. Host-only visibility gate unchanged. -->
+      <button id="btn-pause" title="Pause (host)" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 125 125" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<path d="M62.5 0C97.0178 0 125 27.9822 125 62.5C125 97.0178 97.0178 125 62.5 125C27.9822 125 0 97.0178 0 62.5C0 27.9822 27.9822 0 62.5 0ZM50.0117 28.5C46.4154 28.5 43.5 31.4154 43.5 35.0117V89.5469C43.5002 93.143 46.4156 96.0586 50.0117 96.0586C53.6078 96.0585 56.5232 93.1429 56.5234 89.5469V35.0117C56.5234 31.4155 53.6079 28.5 50.0117 28.5ZM75.0117 28.5C71.4154 28.5 68.5 31.4154 68.5 35.0117V89.5469C68.5002 93.143 71.4156 96.0586 75.0117 96.0586C78.6078 96.0585 81.5232 93.1429 81.5234 89.5469V35.0117C81.5234 31.4155 78.608 28.5 75.0117 28.5Z" fill="black"/>
+</svg>
+      </button>
       <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
     </div>
   </div>
