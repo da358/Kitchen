@@ -1649,6 +1649,61 @@
     .tile .tile-emoji { font-size: 20px; }
     .ticket-wrap, .station-header-block, .station-panel { margin-left: 20px; }
   }
+
+  /* ══ ONBOARDING TIPS (260817.1, Session 18) ═════════════════
+     Designed in testbed v1–v3; owner-chosen values baked in: title 20 /
+     body 16 / card 408 / tail 72×44 / 240ms. Card edge is a white glow
+     via filter: drop-shadow — it follows the card+tail SILHOUETTE. Safe
+     because the card carries no clip-path (the tail is an SVG polygon,
+     not a clip-path) — but per the standing rule, verified by rendering,
+     iPad included. The 240ms transitions must match TIP_ANIM_MS in the
+     script. z-index 9500: below confirm 9600 / room modal 9650 / pause
+     9700. The layer and the highlight are pointer-events:none — only
+     the card is interactive, so a visible tip never eats drops outside
+     its own card (hit-testing is elementFromPoint, Session 13). */
+  #tip-layer { position: fixed; inset: 0; z-index: 9500; pointer-events: none; }
+  .tip-card {
+    position: fixed; display: none; pointer-events: auto;
+    background: var(--accent); color: #FFFFFF; border-radius: 20px;
+    width: min(408px, calc(100vw - 24px));
+    padding: 22px 26px 20px;
+    filter: drop-shadow(0 0 7px rgba(255,255,255,0.65))
+            drop-shadow(0 10px 18px rgba(43,36,28,0.30));
+    font-family: var(--font);
+    opacity: 0; transform: scale(0.92);
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+  .tip-card.tip-show { opacity: 1; transform: scale(1); }
+  .tip-count { position: absolute; top: 14px; right: 20px;
+    font-size: 12px; opacity: 0.75; letter-spacing: 0.04em; }
+  .tip-title { font-weight: 700; font-size: 20px; line-height: 1.25;
+    margin: 0 46px 10px 0; }
+  .tip-body { font-size: 16px; line-height: 1.5; margin: 0 0 18px; }
+  .tip-actions { display: flex; gap: 14px; justify-content: center; }
+  .tip-btn { border: none; border-radius: 10px; padding: 13px 20px;
+    font-family: var(--font); font-size: 15px; font-weight: 600;
+    cursor: pointer; min-width: 130px; }
+  .tip-btn-next { background: #FAFAFA; color: var(--accent); }
+  .tip-btn-skip { background: #E8C4C0; color: #7A2820; }
+  .tip-tail { position: absolute; }
+  /* Spotlight highlight: dims everything except the tip's target (the
+     transparent cutout is this element's own box; the 9999px shadow is
+     the dim). Visibility is class-toggled OPACITY ONLY — never
+     style.display = "" (the Session 17 ELAPSED trap; it also bit this
+     feature's testbed v1). .hfull = no cutout, whole dashboard dims
+     (the Level 1 welcome tip). */
+  .tip-highlight { position: fixed; pointer-events: none;
+    border-radius: 14px; opacity: 0; transition: opacity 240ms ease;
+    box-shadow: 0 0 0 9999px rgba(20,18,15,0.35); }
+  .tip-highlight.tip-show { opacity: 1; }
+  .tip-highlight.hfull { box-shadow: none; background: rgba(20,18,15,0.35); }
+  @media (prefers-reduced-motion: reduce) {
+    .tip-card, .tip-highlight { transition: none; }
+  }
+  /* Help "?" — bare icon, the sound/pause treatment (260815.3) */
+  #btn-help { background: none; border: none; padding: 4px 6px;
+    cursor: pointer; display: inline-flex; align-items: center; }
+  #btn-help svg { height: 20px; width: auto; display: block; }
 </style>
 </head>
 <body>
@@ -1715,7 +1770,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260816.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260817.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -1797,6 +1852,17 @@
            .btn-secondary surface cluttered the bar. Bare icon, artwork's
            own black (not recolored). The click handler toggles which one
            shows. -->
+      <!-- 260817.1 (Session 18): help "?" — re-summons the onboarding
+           tips (Level 2 runs the Level 1 sequence — owner decision).
+           Owner-supplied artwork (help.svg), inlined per the single-file
+           architecture, geometry untouched, artwork's own black, bare
+           icon — the sound-toggle treatment (260815.3). Visible to
+           every player (help is not host-gated). -->
+      <button id="btn-help" title="Show tips" type="button">
+        <svg aria-hidden="true" width="72" height="118" viewBox="0 0 72 118" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M25.92 82.72V76.64C25.92 74.08 26.08 71.7867 26.4 69.76C26.8267 67.7333 27.4133 65.8133 28.16 64C29.0133 62.1867 30.08 60.4267 31.36 58.72C32.7467 57.0133 34.4533 55.2 36.48 53.28L43.68 46.4C45.7067 44.5867 47.4133 42.56 48.8 40.32C50.2933 38.08 51.04 35.36 51.04 32.16C51.04 28 49.7067 24.5333 47.04 21.76C44.48 18.88 40.8 17.44 36 17.44C33.5467 17.44 31.3067 17.92 29.28 18.88C27.36 19.7333 25.6533 20.96 24.16 22.56C22.7733 24.0533 21.7067 25.8133 20.96 27.84C20.2133 29.8667 19.7867 31.9467 19.68 34.08L0 32.32C0.64 27.2 1.97333 22.6667 4 18.72C6.13333 14.6667 8.85333 11.2533 12.16 8.48C15.4667 5.70666 19.2533 3.62666 23.52 2.24C27.7867 0.746668 32.3733 0 37.28 0C41.8667 0 46.1867 0.693333 50.24 2.07999C54.4 3.36 58.0267 5.33333 61.12 7.99999C64.32 10.56 66.8267 13.76 68.64 17.6C70.4533 21.44 71.36 25.8667 71.36 30.88C71.36 34.2933 70.9867 37.28 70.24 39.84C69.4933 42.4 68.4267 44.7467 67.04 46.88C65.6533 49.0133 63.9467 51.0933 61.92 53.12C60 55.04 57.8133 57.0667 55.36 59.2C53.2267 61.0133 51.4667 62.6133 50.08 64C48.8 65.3867 47.7333 66.7733 46.88 68.16C46.1333 69.5467 45.6 71.04 45.28 72.64C44.96 74.24 44.8 76.2133 44.8 78.56V82.72H25.92ZM22.72 104.96C22.72 101.547 23.9467 98.6133 26.4 96.16C28.96 93.7067 32 92.48 35.52 92.48C38.9333 92.48 41.92 93.6533 44.48 96C47.04 98.3467 48.32 101.227 48.32 104.64C48.32 108.053 47.04 110.987 44.48 113.44C42.0267 115.893 39.04 117.12 35.52 117.12C33.8133 117.12 32.16 116.8 30.56 116.16C29.0667 115.52 27.7333 114.667 26.56 113.6C25.3867 112.533 24.4267 111.253 23.68 109.76C23.04 108.267 22.72 106.667 22.72 104.96Z" fill="black"/>
+</svg>
+      </button>
       <button id="btn-sound-toggle" title="Sound on/off" style="background:none; border:none; padding:4px 6px; cursor:pointer; display:inline-flex; align-items:center;">
         <svg class="sound-icon-on" width="20" height="20" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <path d="M53 50.1821V6.01201C53 4.22999 50.8453 3.33775 49.5855 4.59811L26.098 28.096C25.7229 28.4712 25.2141 28.6821 24.6835 28.6821H6C4.89543 28.6821 4 29.5775 4 30.6821V50.1821" stroke="black" stroke-width="8"/>
@@ -1916,6 +1982,27 @@
 
     <!-- 260816.1: the teammates panel that closed .game-body here moved
          into .ticket-row inside .board-main (see above). -->
+  </div>
+</div>
+
+<!-- ══ ONBOARDING TIPS (260817.1, Session 18) ═══════════════
+     One reusable card in a fixed full-viewport layer parented to <body>
+     (the drag-ghost home: survives every panel re-render and screen
+     change by construction). Show/hide is class/style toggling on these
+     elements ONLY — never a rebuild of any game panel (Session 13
+     WebKit rule). See the ONBOARDING TIPS blocks in the stylesheet and
+     the script for the full design notes. -->
+<div id="tip-layer">
+  <div class="tip-highlight" id="tip-highlight"></div>
+  <div class="tip-card" id="tip-card">
+    <div class="tip-tail" id="tip-tail"></div>
+    <div class="tip-count" id="tip-count"></div>
+    <div class="tip-title" id="tip-title"></div>
+    <div class="tip-body" id="tip-body"></div>
+    <div class="tip-actions">
+      <button type="button" class="tip-btn tip-btn-next" id="tip-next">Next tip</button>
+      <button type="button" class="tip-btn tip-btn-skip" id="tip-skip">Skip all tips</button>
+    </div>
   </div>
 </div>
 
@@ -2713,6 +2800,9 @@ function showScreen(id) {
   // every .screen, which is why players saw one persist past the end of a
   // level. Nothing should ever survive a screen change.
   clearDragGhosts();
+  // 260817.1 (Session 18): nothing tooltip-shaped survives a screen
+  // change either — same reasoning as the ghost teardown above.
+  dismissTipsQuietly();
   // Session 13 diagnostics (Issue 3): records WHEN this client's screen
   // actually changed, which is a different number from when it received
   // the instruction to change. See diagNoteScreen().
@@ -4428,6 +4518,10 @@ function syncTeammateCardHeights() {
     c.style.paddingTop    = pad + "px";
     c.style.paddingBottom = pad + "px";
   });
+  // 260817.1 (Session 18): an open onboarding tip re-measures on the
+  // same trigger the layout uses (styles-only, tooltip-owned elements —
+  // this function's never-rebuilds contract is untouched).
+  repositionTipsIfActive();
 }
 
 let roomNudgeDismissed = false; // reset at lobby entry and round start
@@ -4452,6 +4546,7 @@ function applyLayoutFit(context) {
   const overlay = document.getElementById("room-modal-overlay");
   if (step < 3) {
     overlay.style.display = "none";   // self-dismiss on resize-to-fit
+    releaseTipsHeldForRoomModal();     // 260817.1: tips queued behind the modal
   } else if (!roomNudgeDismissed) {
     const onLobby = document.getElementById("screen-lobby").classList.contains("active");
     if (context === "round-start" || onLobby) overlay.style.display = "flex";
@@ -4461,12 +4556,352 @@ function applyLayoutFit(context) {
 document.getElementById("room-modal-btn").addEventListener("click", () => {
   roomNudgeDismissed = true;
   document.getElementById("room-modal-overlay").style.display = "none";
+  releaseTipsHeldForRoomModal();       // 260817.1: tips queued behind the modal
 });
 
 window.addEventListener("resize", () => {
   applyLayoutFit("resize");
   syncTeammateCardHeights();
 });
+
+/* ═══ ONBOARDING TIPS (260817.1, Session 18) ═══════════════════════
+   Designed and settled in testbed v1–v3 (kitchen-tips-testbed-v3.html
+   is the reference). Design rules this module lives by:
+
+   · Everything is tooltip-owned DOM in #tip-layer — show/hide is
+     class/style toggling on these elements only, NEVER a rebuild of
+     any game panel (the Session 13 WebKit touch rule).
+   · Positioning is measured from live anchor rects at show time and
+     re-measured on the layout's own triggers (window resize, the
+     card-height sync at the end of syncTeammateCardHeights, tip
+     advance) — never stored pixel positions, so the fit cascade and
+     auto-match can move things freely underneath.
+   · Anchors and highlight targets are SEPARATE per tip: the tail
+     points at one thing; the spotlight cutout frames another
+     (possibly the union of several elements — teammate cards, rail
+     stubs — so it centers over what it highlights by construction).
+   · Highlight visibility is class-toggled opacity ONLY — never
+     style.display = "" (the Session 17 ELAPSED trap; it bit this
+     feature's testbed v1). The card's own display IS set inline, but
+     always to an explicit value ("block"/"none"), never "".
+   · Triggering: tips auto-start at every Level 1 and Level 3 round
+     start (owner decision — no persistence; nothing in this file
+     persists locally, and per-team tracking waits on the session-code
+     work). They queue behind the "Make some room" modal, die on any
+     screen change (showScreen) and on a shared-challenge takeover,
+     and the header "?" re-summons them in any level — Level 2 runs
+     the Level 1 sequence (owner decision). Tips are per-player: one
+     player's Skip touches nobody else (nothing here writes to
+     Firebase). */
+
+const TIP_ANIM_MS  = 240;  // must match .tip-card / .tip-highlight CSS transitions
+const TIP_TAIL_LEN = 72, TIP_TAIL_BASE = 44, TIP_GAP = 6;
+
+const TIP_CONTENT = {
+  level1: [
+    { key: "l1t1",
+      title: "Welcome to The Kitchen.",
+      body: "Your goal: coordinate with your teammates to cook the ordered dishes as quickly as possible. You\u2019ll need to communicate verbally with them. They have ingredients and tools you need. You have ingredients and tools they need.",
+      highlight: { full: true } },  // whole dashboard dims behind the card
+    { key: "l1t2",
+      title: "This is a ticket.",
+      body: "It contains an order for a dish you need to make. When the needed ingredients and tools are all loaded, click Cook.",
+      highlight: { sel: ".ticket-col", pad: 10 } },
+    { key: "l1t3",
+      title: "Your resources sit here.",
+      body: "Drag needed ingredients and tools to your ticket. Tell teammates what other resources you need.",
+      highlight: { sel: ".station-panel", pad: 10 } },  // the whole copper zone
+    { key: "l1t4",
+      title: "These are your teammates.",
+      body: "Drag a resource to a teammate\u2019s name to send it to them. Listen for what they need. Good luck!",
+      highlight: { sel: ".teammate-card", all: true, pad: 8 } },
+  ],
+  level3: [
+    { key: "l3t1",
+      title: "The rail shows your tickets.",
+      body: "Leftmost is your current ticket. Further to the right is farther back in your queue. Drag tickets to re-order them. Tap a ticket to preview it.",
+      // union of the player's ACTUAL stubs (adapts to ticket count),
+      // clamped to the rail's visible scroll area
+      highlight: { sel: "#rail-row .stub-wrap", all: true, pad: 8, clampSel: "#rail-scroll" } },
+    { key: "l3t2",
+      title: "You can send tickets to teammates.",
+      body: "Drag a ticket from the rail to a teammate\u2019s name to send it to them.",
+      highlight: { sel: ".teammate-card", all: true, pad: 8 } },
+  ],
+};
+
+/* Owner-chosen placements (testbed v3). anchor:null = centered card,
+   no tail. The anchors are the VISIBLE shapes (.ticket-col, the
+   teammate-card union), not their wider wrappers — that was the v2→v3
+   centering fix. */
+const TIP_PLACEMENTS = {
+  l1t1: { anchor: null, side: null },
+  l1t2: { anchor: { sel: ".ticket-col" }, side: "right" },
+  l1t3: { anchor: { sel: ".station-panel" }, side: "top" },
+  l1t4: { anchor: { sel: ".teammate-card", all: true }, side: "bottom" },
+  l3t1: { anchor: { sel: "#rail-row .stub-wrap.is-now" }, side: "bottom" },
+  l3t2: { anchor: { sel: ".teammate-card", all: true }, side: "left" },
+};
+
+let tipSeq = [], tipIdx = -1, tipBusy = false, tipGen = 0;
+let tipListenersWired = false;
+let tipsPendingRoomModal = false;
+let tipStartRetries = 0;
+
+function tipEls() {
+  const layer = document.getElementById("tip-layer");
+  if (!tipListenersWired) {
+    layer.querySelector("#tip-next").addEventListener("click", advanceTips);
+    layer.querySelector("#tip-skip").addEventListener("click", skipTips);
+    tipListenersWired = true;
+  }
+  return layer;
+}
+
+/* Live rect for an anchor/highlight spec: a single element or the
+   union of all matches, optionally clamped to a container's visible
+   rect (the rail's horizontal scroll). Returns null when nothing
+   matches — callers fall back gracefully (centered card, no cutout). */
+function rectFor(spec) {
+  if (!spec || !spec.sel) return null;
+  const els = spec.all ? Array.from(document.querySelectorAll(spec.sel))
+                       : [document.querySelector(spec.sel)].filter(Boolean);
+  if (!els.length) return null;
+  let l = Infinity, t = Infinity, rt = -Infinity, bt = -Infinity;
+  els.forEach(el => { const q = el.getBoundingClientRect();
+    l = Math.min(l, q.left); t = Math.min(t, q.top);
+    rt = Math.max(rt, q.right); bt = Math.max(bt, q.bottom); });
+  if (spec.clampSel) {
+    const c = document.querySelector(spec.clampSel);
+    if (c) { const q = c.getBoundingClientRect();
+      l = Math.max(l, q.left); t = Math.max(t, q.top);
+      rt = Math.min(rt, q.right); bt = Math.min(bt, q.bottom); }
+  }
+  if (rt <= l || bt <= t) return null;
+  return { left: l, top: t, right: rt, bottom: bt, width: rt - l, height: bt - t };
+}
+
+function startTips(levelType) {
+  tipSeq = TIP_CONTENT[levelType] || [];
+  if (!tipSeq.length) return;
+  tipGen++;                    // invalidates any in-flight hide timeout
+  tipsPendingRoomModal = false;
+  tipIdx = -1; tipBusy = false;
+  tipEls();
+  showTip(0);
+}
+
+function showTip(i) {
+  tipIdx = i;
+  const layer = tipEls();
+  const card  = layer.querySelector("#tip-card");
+  const tip   = tipSeq[i];
+  layer.querySelector("#tip-count").textContent = (i + 1) + " of " + tipSeq.length;
+  layer.querySelector("#tip-title").textContent = tip.title;
+  layer.querySelector("#tip-body").textContent  = tip.body;
+  const last = i === tipSeq.length - 1;
+  layer.querySelector("#tip-next").textContent = last ? "Done" : "Next tip";
+  layer.querySelector("#tip-skip").style.display = last ? "none" : "";
+  card.style.display = "block";   // explicit value, never "" (Session 17 rule)
+  positionActiveTip();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    positionActiveTip();          // second pass after layout settles
+    card.classList.add("tip-show");
+    updateHighlight();
+  }));
+}
+
+function hideTipCard(then) {
+  const layer = tipEls();
+  const card  = layer.querySelector("#tip-card");
+  card.classList.remove("tip-show");
+  layer.querySelector("#tip-highlight").classList.remove("tip-show");
+  const gen = tipGen;
+  setTimeout(() => {
+    if (gen !== tipGen) return;   // a newer sequence started meanwhile
+    card.style.display = "none";
+    then && then();
+  }, TIP_ANIM_MS);
+}
+
+function advanceTips() {
+  if (tipBusy) return;
+  tipBusy = true;
+  const next = tipIdx + 1;
+  hideTipCard(() => {
+    tipBusy = false;
+    if (next < tipSeq.length) showTip(next);
+    else endTips();
+  });
+}
+
+function skipTips() {
+  if (tipBusy) return;
+  tipBusy = true;
+  hideTipCard(() => { tipBusy = false; endTips(); });
+}
+
+function endTips() { tipIdx = -1; tipSeq = []; }
+
+/* Immediate, animation-free teardown — used on screen changes and
+   shared-challenge takeovers, where a fading card would linger over
+   the wrong context. Idempotent, safe to call at any time. */
+function dismissTipsQuietly() {
+  tipGen++;
+  tipsPendingRoomModal = false;
+  if (tipIdx < 0 && !tipSeq.length) return;
+  const layer = tipEls();
+  const card = layer.querySelector("#tip-card");
+  card.classList.remove("tip-show");
+  card.style.display = "none";
+  layer.querySelector("#tip-highlight").classList.remove("tip-show");
+  tipIdx = -1; tipSeq = []; tipBusy = false;
+}
+
+/* The tail as inline SVG (no clip-path, so no clip+effect landmines;
+   the card's white-glow filter follows the full card+tail silhouette).
+   Fill is --accent's value — SVG presentation attributes can't read
+   CSS custom properties, so the hex is repeated here deliberately. */
+function tailSvg(side) {
+  const L = TIP_TAIL_LEN, B = TIP_TAIL_BASE;
+  const horiz = side === "left" || side === "right";
+  const w = horiz ? L : B, h = horiz ? B : L;
+  let d;
+  if (side === "right")  d = `M ${L} 0 L 0 ${B/2} L ${L} ${B}`;      // points left
+  if (side === "left")   d = `M 0 0 L ${L} ${B/2} L 0 ${B}`;         // points right
+  if (side === "bottom") d = `M 0 ${L} L ${B/2} 0 L ${B} ${L}`;      // points up
+  if (side === "top")    d = `M 0 0 L ${B/2} ${L} L ${B} 0`;         // points down
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow:visible;display:block" aria-hidden="true"><path d="${d}" fill="#B23A2E"/></svg>`;
+}
+
+/* Card position from the anchor rect: preferred side, flipped to the
+   opposite side when it has more room, clamped to the viewport; the
+   tail slides along the facing edge so it keeps pointing at the
+   anchor's center even when the card had to shift. */
+function positionActiveTip() {
+  if (tipIdx < 0 || !tipSeq.length) return;
+  const layer = tipEls();
+  const card  = layer.querySelector("#tip-card");
+  const tail  = layer.querySelector("#tip-tail");
+  const tip   = tipSeq[tipIdx];
+  const place = TIP_PLACEMENTS[tip.key];
+  const M = 10, L = TIP_TAIL_LEN, B = TIP_TAIL_BASE, G = L + TIP_GAP;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+
+  const r = place.anchor ? rectFor(place.anchor) : null;
+  if (!r) {                       // centered card (the welcome tip; also
+    // the graceful fallback when an anchor isn't on screen yet — the
+    // re-measure hooks recover the anchored position once it exists)
+    card.style.left = Math.round((vw - cw) / 2) + "px";
+    card.style.top  = Math.round(Math.max(M, (vh - ch) * 0.40)) + "px";
+    tail.style.display = "none";
+    updateHighlight();            // full-mode spotlight still dims (l1t1)
+    return;
+  }
+
+  let side = place.side;
+  const room = { left: r.left - M, right: vw - r.right - M,
+                 top: r.top - M,  bottom: vh - r.bottom - M };
+  const needAcross = (side === "left" || side === "right") ? cw + G : ch + G;
+  const opposite = { left: "right", right: "left", top: "bottom", bottom: "top" }[side];
+  if (room[side] < needAcross && room[opposite] > room[side]) side = opposite;
+
+  let x, y;
+  if (side === "right")  { x = r.right + G;      y = r.top + r.height/2 - ch/2; }
+  if (side === "left")   { x = r.left - G - cw;  y = r.top + r.height/2 - ch/2; }
+  if (side === "bottom") { x = r.left + r.width/2 - cw/2; y = r.bottom + G; }
+  if (side === "top")    { x = r.left + r.width/2 - cw/2; y = r.top - G - ch; }
+  x = Math.max(M, Math.min(vw - cw - M, x));
+  y = Math.max(M, Math.min(vh - ch - M, y));
+  card.style.left = Math.round(x) + "px";
+  card.style.top  = Math.round(y) + "px";
+
+  tail.style.display = "";
+  tail.innerHTML = tailSvg(side);
+  const clampPos = (v, max) => Math.max(18, Math.min(max - 18 - B, v));
+  tail.style.left = tail.style.right = tail.style.top = tail.style.bottom = "";
+  if (side === "right" || side === "left") {
+    tail.style.width = L + "px"; tail.style.height = B + "px";
+    tail.style.top = Math.round(clampPos(r.top + r.height/2 - y - B/2, ch)) + "px";
+    if (side === "right") tail.style.left  = (-L) + "px";
+    else                  tail.style.right = (-L) + "px";
+  } else {
+    tail.style.width = B + "px"; tail.style.height = L + "px";
+    tail.style.left = Math.round(clampPos(r.left + r.width/2 - x - B/2, cw)) + "px";
+    if (side === "bottom") tail.style.top    = (-L) + "px";
+    else                   tail.style.bottom = (-L) + "px";
+  }
+  updateHighlight();
+}
+
+/* Single owner of highlight geometry AND visibility. Geometry comes
+   from the tip's own highlight target (independent of the tail
+   anchor); visibility is class-toggled opacity only. */
+function updateHighlight() {
+  const layer = tipEls();
+  const hi   = layer.querySelector("#tip-highlight");
+  const card = layer.querySelector("#tip-card");
+  hi.classList.remove("hfull");
+  const tip = tipIdx >= 0 ? tipSeq[tipIdx] : null;
+  const tgt = tip && tip.highlight;
+  let on = false;
+  if (tgt && card.classList.contains("tip-show")) {
+    if (tgt.full) {
+      on = true;
+      hi.classList.add("hfull");
+      hi.style.left = "0px"; hi.style.top = "0px";
+      hi.style.width = "100vw"; hi.style.height = "100vh";
+      hi.style.borderRadius = "0";
+    } else {
+      const r = rectFor(tgt);
+      if (r) {
+        on = true;
+        const p = tgt.pad != null ? tgt.pad : 8;
+        hi.style.borderRadius = "";
+        hi.style.left   = Math.round(r.left - p) + "px";
+        hi.style.top    = Math.round(r.top  - p) + "px";
+        hi.style.width  = Math.round(r.width  + 2 * p) + "px";
+        hi.style.height = Math.round(r.height + 2 * p) + "px";
+      }
+    }
+  }
+  hi.classList.toggle("tip-show", on);
+}
+
+/* Called from the end of syncTeammateCardHeights — the same trigger
+   the layout uses — so an open tip tracks card-height changes and
+   post-render reflows without its own observers. */
+function repositionTipsIfActive() {
+  if (tipIdx >= 0) positionActiveTip();
+}
+
+/* Round-start trigger. Queues behind the "Make some room" modal
+   (released by both of the modal's close paths); for Level 3, waits
+   briefly for the rail to populate so the first tip has its anchor —
+   bounded retries, then starts anyway (the centered fallback recovers
+   via the re-measure hooks once stubs exist). */
+function maybeStartOnboardingTips() {
+  if (currentLevel !== "level1" && currentLevel !== "level3") return;
+  const overlay = document.getElementById("room-modal-overlay");
+  if (overlay && overlay.style.display === "flex") { tipsPendingRoomModal = true; return; }
+  if (currentLevel === "level3" && !document.querySelector("#rail-row .stub-wrap")
+      && tipStartRetries < 8) {
+    tipStartRetries++;
+    setTimeout(maybeStartOnboardingTips, 300);
+    return;
+  }
+  tipStartRetries = 0;
+  startTips(currentLevel);
+}
+
+function releaseTipsHeldForRoomModal() {
+  if (!tipsPendingRoomModal) return;
+  tipsPendingRoomModal = false;
+  maybeStartOnboardingTips();
+}
+
+window.addEventListener("resize", positionActiveTip);
 
 /* ─── TIMER ─────────────────────────────────────────────────── */
 // A client's own setInterval timer can fire long after the round has
@@ -4805,6 +5240,14 @@ function enterGame() {
       if (myTaskQueue.length > 0) loadTask(myTaskQueue[0]);
     }
     updateScoreDisplay(data.players);
+
+    // 260817.1 (Session 18): onboarding tips auto-start at every Level 1
+    // and Level 3 round start (owner decision — always, easily skipped;
+    // no persistence). Deferred a beat so first paint and the card-height
+    // sync settle before anchors are measured; queues behind the "Make
+    // some room" modal via maybeStartOnboardingTips itself.
+    tipStartRetries = 0;
+    setTimeout(maybeStartOnboardingTips, 600);
 
     // Start the timer directly from this authoritative read rather than
     // relying solely on gameUnsub's first firing, which registers around
@@ -5906,6 +6349,12 @@ document.getElementById("rail-arrow-left").addEventListener("click", () =>
 document.getElementById("rail-arrow-right").addEventListener("click", () =>
   document.getElementById("rail-scroll").scrollBy({ left: 130, behavior: "smooth" }));
 document.getElementById("btn-pause").addEventListener("click", pauseGame);
+// 260817.1 (Session 18): the header "?" re-summons the onboarding tips.
+// Level 2 runs the Level 1 sequence (owner decision — the board is the
+// same and the welcome tip's goal statement applies).
+document.getElementById("btn-help").addEventListener("click", () => {
+  startTips(currentLevel === "level3" ? "level3" : "level1");
+});
 document.getElementById("btn-resume").addEventListener("click", resumeGame);
 document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
 document.getElementById("activity-btn-cancel").addEventListener("click",      () => closeActivityModal(false));
@@ -6754,12 +7203,14 @@ function kfHandleChallengeUpdate(id, data) {
   if (!data) { kfCloseLobby(); kfTeardownChallengeUI(); return; }
 
   if (data.status === "lobby") {
+    dismissTipsQuietly();  // 260817.1: a takeover outranks the tips
     kfNonParticipantToastShown = false;
     kfShowLobby(id, data);
   } else if (data.status === "active") {
     kfCloseLobby();
     const amParticipant = (data.participants || []).includes(myPlayerId);
     if (amParticipant) {
+      dismissTipsQuietly();  // 260817.1: covers a client joining mid-active
       kfEnsureActiveChallengeRunning(id, data);
     } else {
       kfTeardownChallengeUI();
