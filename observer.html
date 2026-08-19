@@ -3,23 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Observer Dashboard — Testbed v4 (260819)</title>
+<title>Observer Dashboard — Testbed v5 (260819)</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   OBSERVER DASHBOARD TESTBED v4 — Session 21 branch chat
-   Changes from v3 (all owner-directed): doubled clearance between
-   the legend handle and the top card; pin interaction now DIMS all
-   unrelated icons (~30%) so matches pop — Echo controls whether
-   same-side matches stay bright with a dashed ring (on) or dim with
-   the rest (off); Fill row-gap dropped, Airy is the default; arrows
-   rebuilt on segment-vs-rectangle clipping so every arrow gets the
-   identical card-edge gap regardless of angle or spacing (v3 offset
-   endpoints could slide back onto a border); transfer counts adopt
-   the Level 2 debrief treatment — the number sits ON the line in a
-   borderless bg-colored circle, placed toward the arrowhead; base
-   transfers now include cross-board pairs, and the final simulate
-   step is an end-of-round flurry with a transfer between every pair
-   of players (the arrow stress test).
+   OBSERVER DASHBOARD TESTBED v5 — Session 21 branch chat
+   Changes from v4 (all owner-directed): Echo defaults ON (decided);
+   Airy2 row gap added (+20%) and made the default; middle rows of
+   two widen outward at 5 AND 6 players so top-to-bottom arrows pass
+   clear of them (6p shares 5p's geometry — flag to scope to 5 only);
+   CHANGE ANIMATIONS added — new HAS/NEEDS icons spring in, removed
+   ones shrink-and-fade out via a short-lived ghost appended at the
+   end of its zone, a transfer bulges its count circle while the line
+   briefly thickens and darkens; all animations FREEZE while a pin is
+   held (the baseline stops advancing) and play one catch-up pass on
+   unpin. Animations are diff-driven against the previous snapshot,
+   so unchanged icons never re-animate on re-renders.
    SUBJECT styling is sliced VERBATIM from the-kitchen-game_260819_1.html
    (byte-identity asserted). TESTBED CHROME is stand-in; .dash-* is
    the design candidate.
@@ -247,6 +245,19 @@
   box-shadow: 0 0 0 2px var(--text-2); }
 .dash-slot.echo { outline: 1.5px dashed var(--text-2); outline-offset: -1px; }
 .dash-slot.dim { opacity: 0.28; }
+
+/* Change animations (diff-driven; frozen while a pin is held). */
+.dash-slot.anim-in { animation: slotIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes slotIn { from { transform: scale(0.2); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; } to { transform: scale(1); opacity: 1; } }
+.dash-slot.anim-out { pointer-events: none; overflow: hidden; animation: slotOut 0.45s ease forwards; }
+@keyframes slotOut { from { transform: scale(1); opacity: 1; max-width: 48px; }
+  to { transform: scale(0.1); opacity: 0; max-width: 0; padding-left: 0; padding-right: 0; } }
+#dash-arrows path.flash { animation: lineFlash 0.9s ease-in-out; }
+@keyframes lineFlash { 0% { stroke: var(--text-2); stroke-width: 1.8; }
+  35% { stroke: var(--text); stroke-width: 3.4; } 100% { stroke: var(--text-2); stroke-width: 1.8; } }
+#dash-arrows g.tick { transform-box: fill-box; transform-origin: center; animation: tickBulge 0.9s ease-in-out; }
+@keyframes tickBulge { 0% { transform: scale(1); } 35% { transform: scale(1.55); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -448,8 +459,8 @@
 </svg>
 
 <div class="tb-header">
-  <h1>Observer Dashboard — Testbed v4</h1>
-  <p>Session 21 branch chat · v3 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
+  <h1>Observer Dashboard — Testbed v5</h1>
+  <p>Session 21 branch chat · v4 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
 </div>
 
 <div class="tb-controls">
@@ -460,7 +471,7 @@
   <div class="tb-group"><span class="lbl">Stage</span><span class="tb-seg" data-opt="stage">
     <button data-v="laptop" class="on">Laptop</button><button data-v="ipad">iPad portrait</button></span></div>
   <div class="tb-group"><span class="lbl">Row gap</span><span class="tb-seg" data-opt="rowgap">
-    <button data-v="compact">Compact</button><button data-v="medium">Medium</button><button data-v="airy" class="on">Airy</button></span></div>
+    <button data-v="compact">Compact</button><button data-v="medium">Medium</button><button data-v="airy">Airy</button><button data-v="airy2" class="on">Airy2</button></span></div>
   <div class="tb-group"><span class="lbl">Card border</span><span class="tb-seg" data-opt="border">
     <button data-v="1">1px</button><button data-v="2">2px</button><button data-v="3" class="on">3px</button></span></div>
   <div class="tb-group"><span class="lbl">Icon size</span><span class="tb-seg" data-opt="size">
@@ -468,7 +479,7 @@
   <div class="tb-group"><span class="lbl">Grouping</span><span class="tb-seg" data-opt="grouping">
     <button data-v="mixed" class="on">Mixed</button><button data-v="split">Ingredients / Tools</button></span></div>
   <div class="tb-group"><span class="lbl">Echo same-side</span><span class="tb-seg" data-opt="echo">
-    <button data-v="off" class="on">Off</button><button data-v="on">On</button></span></div>
+    <button data-v="off">Off</button><button data-v="on" class="on">On</button></span></div>
   <div class="tb-group"><span class="lbl">Simulate</span>
     <button class="btn btn-secondary" id="tb-step" style="padding:5px 12px; font-size:12px;">Step ▸</button>
     <button class="btn btn-reset btn-secondary" id="tb-reset" style="padding:5px 12px; font-size:12px;">Reset</button></div>
@@ -476,7 +487,7 @@
 
 <div class="tb-section">
   <h2>A · The dashboard — laptop-first, iPad portrait toggled</h2>
-  <p class="note">Pin an icon and everything unrelated dims: opposite-side matches glow and enlarge; Echo decides whether same-side matches (others in the same boat) stay bright with a dashed ring, or dim too. Transfer counts now sit on the line in a small bg circle near the arrowhead (the Level 2 debrief treatment). The last Simulate step is an end-of-round flurry — one transfer between every pair — to stress the arrows.</p>
+  <p class="note">Step the simulation to see the change animations: new icons spring in, removed ones shrink away, and each transfer bulges its count while the line briefly thickens and darkens. Hold a pin and the board freezes its animations — unpin and one catch-up pass shows everything that changed while you were focused. Middle rows now sit wider at 5 and 6 players so top-to-bottom arrows pass clear.</p>
   <div class="tb-stage-wrap"><div class="tb-stage-outer" id="tb-stage-outer">
     <div id="dash-stage">
       <div class="dash-top">
@@ -718,9 +729,9 @@ const SIM_STEPS = [
 ];
 
 /* ── Options + state ── */
-const opts = { players:4, scenario:"typical", stage:"laptop", rowgap:"airy",
-               border:3, size:20, grouping:"mixed", echo:"off" };
-const ROW_GAPS = { compact: 18, medium: 34, airy: 56 };
+const opts = { players:4, scenario:"typical", stage:"laptop", rowgap:"airy2",
+               border:3, size:20, grouping:"mixed", echo:"on" };
+const ROW_GAPS = { compact: 18, medium: 34, airy: 56, airy2: 67 };
 /* Row plans, clockwise from the top card (indexes into players). */
 const ROW_PLANS = {
   3: [[0],[2,1]],
@@ -729,10 +740,58 @@ const ROW_PLANS = {
   6: [[0],[5,1],[4,2],[3]],
 };
 let state = null, simIdx = 0, pinned = null, paused = false, clockSec = 252;
+let animBaseline = null;   // { slots: Map, agg: {} } — held still while a pin is active
+
+function snapshotSlots(players) {
+  const m = new Map();
+  players.forEach(p => {
+    const { has, needs } = computeHasNeeds(p);
+    Object.entries(has).forEach(([n, c])  => m.set(p.id + "|has|"   + n, c));
+    Object.entries(needs).forEach(([n, c]) => m.set(p.id + "|needs|" + n, c));
+  });
+  return m;
+}
+
+function playDiffs(prev, nowSlots, prevAgg, nowAgg) {
+  const board = document.getElementById("dash-board");
+  const keys = new Set([...prev.keys(), ...nowSlots.keys()]);
+  keys.forEach(key => {
+    const [pid, side, name] = key.split("|");
+    const delta = (nowSlots.get(key) || 0) - (prev.get(key) || 0);
+    if (delta === 0) return;
+    const card = board.querySelector(`.dash-card[data-pid="${pid}"]`);
+    if (!card) return;
+    if (delta > 0) {
+      const els = [...card.querySelectorAll(`.dash-slot[data-side="${side}"]`)]
+        .filter(el => el.dataset.resource === name && !el.classList.contains("anim-out"));
+      els.slice(-delta).forEach(el => el.classList.add("anim-in"));
+    } else {
+      const zone = card.querySelector(`.dash-${side} .dash-icons`);
+      if (!zone) return;
+      for (let i = 0; i < -delta; i++) {
+        const g = document.createElement("span");
+        g.className = "dash-slot anim-out";
+        g.dataset.resource = name; g.dataset.side = side;
+        g.innerHTML = resourceIconSVG(name, "dash-icon");
+        g.addEventListener("animationend", () => g.remove());
+        zone.appendChild(g);
+      }
+    }
+  });
+  Object.keys(nowAgg).forEach(k => {
+    if ((nowAgg[k] || 0) > (prevAgg[k] || 0)) {
+      const svg = document.getElementById("dash-arrows");
+      const line = svg.querySelector(`path[data-key="${k}"]`);
+      const grp  = svg.querySelector(`g[data-key="${k}"]`);
+      if (line) line.classList.add("flash");
+      if (grp)  grp.classList.add("tick");
+    }
+  });
+}
 
 function resetState() {
   state = SCENARIOS[opts.scenario]();
-  simIdx = 0; pinned = null;
+  simIdx = 0; pinned = null; animBaseline = null;
   document.getElementById("tb-simlog").textContent = "";
   document.getElementById("dash-event").textContent = state.event;
 }
@@ -837,7 +896,9 @@ function renderDashboard() {
   let y = topPad;
   rows.forEach((row, ri) => {
     const rh = rowHs[ri];
-    const fracs = row.length === 1 ? [0.5] : [0.24, 0.76];   // left card first in plan
+    const middle = ri > 0 && ri < rows.length - 1;
+    const wide = middle && row.length === 2 && opts.players >= 5;   // 5p/6p: clear the top→bottom arrow corridor
+    const fracs = row.length === 1 ? [0.5] : wide ? [0.155, 0.845] : [0.24, 0.76];   // left card first in plan
     row.forEach((p, ci) => {
       const el = cardEls[p.id];
       let cx = bw * fracs[ci];
@@ -879,13 +940,22 @@ function renderDashboard() {
     const seg = Math.hypot(x2 - x1, y2 - y1);
     const bow = Math.min(14, seg * 0.12);          // gentler curve on short hops
     const mx = (x1 + x2) / 2 + px * bow, my = (y1 + y2) / 2 + py * bow;
-    h += `<path class="tr-line" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" marker-end="url(#tr-arrowhead)"/>`;
+    h += `<path class="tr-line" data-key="${k}" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" marker-end="url(#tr-arrowhead)"/>`;
     // Count ON the line, toward the arrowhead (Level 2 debrief treatment).
     const cpt = qBezier(0.72, x1, y1, mx, my, x2, y2);
-    h += `<circle class="tr-dot" cx="${cpt.x}" cy="${cpt.y}" r="8"/>`;
-    h += `<text class="tr-num" x="${cpt.x}" y="${cpt.y + 3.5}" text-anchor="middle">${n}</text>`;
+    h += `<g data-key="${k}"><circle class="tr-dot" cx="${cpt.x}" cy="${cpt.y}" r="8"/>`
+       + `<text class="tr-num" x="${cpt.x}" y="${cpt.y + 3.5}" text-anchor="middle">${n}</text></g>`;
   });
   svg.innerHTML = h;
+
+  /* Change animations: diff against the baseline. While a pin is held the
+     baseline stays put (nothing plays, nothing is lost); the render after
+     unpinning is the catch-up pass. */
+  const nowSlots = snapshotSlots(players);
+  if (animBaseline && !pinned) {
+    playDiffs(animBaseline.slots, nowSlots, animBaseline.agg, agg);
+  }
+  if (!pinned || !animBaseline) animBaseline = { slots: nowSlots, agg: { ...agg } };
 
   applyPin();
   renderLookalikes();
@@ -918,12 +988,16 @@ function applyPin() {
 }
 document.getElementById("dash-board").addEventListener("click", e => {
   const slot = e.target.closest(".dash-slot");
-  if (!slot) { pinned = null; applyPin(); return; }
+  if (!slot) {
+    if (pinned) { pinned = null; renderDashboard(); }   // unpin → catch-up pass
+    return;
+  }
   const next = { pid: slot.closest(".dash-card").dataset.pid,
                  resource: slot.dataset.resource, side: slot.dataset.side };
-  pinned = (pinned && pinned.pid === next.pid && pinned.resource === next.resource && pinned.side === next.side)
-    ? null : next;
-  applyPin();
+  const unpinning = pinned && pinned.pid === next.pid
+    && pinned.resource === next.resource && pinned.side === next.side;
+  pinned = unpinning ? null : next;
+  if (unpinning) renderDashboard(); else applyPin();
 });
 
 /* ── Header: clock, pause, end, legend tray ── */
@@ -990,6 +1064,7 @@ document.querySelectorAll(".tb-seg").forEach(seg => {
     const key = seg.dataset.opt;
     opts[key] = (key === "players" || key === "size" || key === "border") ? parseInt(b.dataset.v, 10) : b.dataset.v;
     if (key === "scenario") resetState();
+    if (key === "players") animBaseline = null;   // don't spring-in a whole new card's icons
     renderDashboard();
   });
 });
