@@ -3,20 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Observer Dashboard — Testbed v2 (260819)</title>
+<title>Observer Dashboard — Testbed v4 (260819)</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   OBSERVER DASHBOARD TESTBED v2 — Session 21 branch chat
-   Changes from v1 (all owner-directed): Pause copy simplified;
-   reciprocal tap is opposite-side only (Echo toggle for comparison);
-   ring vertically tightened with a spacing control; card layout
-   Columns option (NEEDS left / HAS right); scarlet NEEDS decided
-   (copper removed); repeated duplicates decided (×N removed);
-   player name bigger, full black; border-weight control; icon
-   legend pull-down tray with background options; arrows always on
-   with visible arrowheads (v1 bug: var() in SVG presentation
-   attributes fails silently — now styled via CSS); game clock;
-   Observer guidance texts flanking the top card.
+   OBSERVER DASHBOARD TESTBED v4 — Session 21 branch chat
+   Changes from v3 (all owner-directed): doubled clearance between
+   the legend handle and the top card; pin interaction now DIMS all
+   unrelated icons (~30%) so matches pop — Echo controls whether
+   same-side matches stay bright with a dashed ring (on) or dim with
+   the rest (off); Fill row-gap dropped, Airy is the default; arrows
+   rebuilt on segment-vs-rectangle clipping so every arrow gets the
+   identical card-edge gap regardless of angle or spacing (v3 offset
+   endpoints could slide back onto a border); transfer counts adopt
+   the Level 2 debrief treatment — the number sits ON the line in a
+   borderless bg-colored circle, placed toward the arrowhead; base
+   transfers now include cross-board pairs, and the final simulate
+   step is an end-of-round flurry with a transfer between every pair
+   of players (the arrow stress test).
    SUBJECT styling is sliced VERBATIM from the-kitchen-game_260819_1.html
    (byte-identity asserted). TESTBED CHROME is stand-in; .dash-* is
    the design candidate.
@@ -148,7 +151,7 @@
 .tb-pin-status { font-size: 13px; color: var(--text-2); min-height: 18px; margin-top: 6px; }
 .tb-stage-wrap { display: flex; justify-content: center; }
 .tb-stage-outer { transform-origin: top center; }
-#dash-stage { width: 768px; height: 1024px; background: var(--bg);
+#dash-stage { background: var(--bg);
   border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
   display: flex; flex-direction: column; position: relative; }
 .tb-strip { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
@@ -160,7 +163,8 @@
 .tb-lookalike .dash-icon { width: var(--dash-icon, 20px); height: var(--dash-icon, 20px); display: block; margin: 0 auto; }
 
 /* ═══ DESIGN CANDIDATE: the Observer dashboard (.dash-*) ═══ */
-#dash-stage { --dash-icon: 20px; --dash-card-bw: 1px; }
+#dash-stage { --dash-icon: 20px; --dash-card-bw: 3px; }
+.dash-top { position: relative; flex-shrink: 0; z-index: 6; }
 
 .dash-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--border);
   background: var(--surface); flex-shrink: 0; }
@@ -173,26 +177,34 @@
 .dash-head-row2 .observer-status { flex: 1; }
 .dash-head-row2 .btn { padding: 7px 14px; font-size: 13px; }
 
-/* Icon legend tray: pulls down under the header, nudging the board. */
-.dash-tray { flex-shrink: 0; overflow: hidden; max-height: 0;
-  transition: max-height 0.25s ease; }
+/* Icon legend tray (Ink — owner-decided v2), opened by the handle tab. */
+.dash-tray { overflow: hidden; max-height: 0; transition: max-height 0.25s ease;
+  background: var(--text); }
 .dash-tray.open { max-height: 260px; border-bottom: 1px solid var(--border); }
 .dash-tray-inner { padding: 8px 14px 10px; display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 3px 10px; }
 .dash-tray .lg-item { display: inline-flex; align-items: center; gap: 6px;
-  font-size: 10px; letter-spacing: 0.02em; color: var(--text); }
+  font-size: 10px; letter-spacing: 0.02em; color: var(--surface); }
 .dash-tray .lg-item .dash-icon { width: 16px; height: 16px; flex-shrink: 0; }
-.dash-tray.bg-surface { background: var(--surface); }
-.dash-tray.bg-paper   { background: #FFFCF5; }
-.dash-tray.bg-ink     { background: var(--text); }
-.dash-tray.bg-ink .lg-item { color: var(--surface); }
+
+/* The handle: a short wide tab hanging off the top bar's bottom edge,
+   in the bar's border color, with concave fillets curving into it. */
+.dash-handle { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 100%);
+  background: var(--border); color: #fff; border: none; cursor: pointer;
+  font-family: var(--font); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
+  padding: 4px 18px 5px; border-radius: 0 0 10px 10px; }
+.dash-handle::before, .dash-handle::after { content: ""; position: absolute; top: 0; width: 10px; height: 10px; }
+.dash-handle::before { left: -10px;
+  background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--border) 10px); }
+.dash-handle::after  { right: -10px;
+  background: radial-gradient(circle at 100% 100%, transparent 9.5px, var(--border) 10px); }
 
 .dash-board { flex: 1; position: relative; min-height: 0; }
 #dash-arrows { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 #dash-arrows .tr-line { stroke: var(--text-2); stroke-width: 1.8; fill: none; opacity: 0.75; }
 #dash-arrows .tr-head { fill: var(--text-2); }
-#dash-arrows .tr-pill { fill: var(--bg); stroke: var(--border); stroke-width: 1; }
-#dash-arrows .tr-num  { font-size: 11px; font-weight: 700; fill: var(--text-2); }
+#dash-arrows .tr-dot { fill: var(--bg); }   /* borderless — opens a gap in the line (debrief treatment) */
+#dash-arrows .tr-num { font-size: 11px; font-weight: 700; fill: var(--text-2); }
 
 /* Observer guidance, flanking the topmost card. */
 .dash-guide { position: absolute; top: 10px; width: 186px; z-index: 2;
@@ -209,12 +221,10 @@
 .dash-card-name { font-size: 13px; font-weight: 700; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--text); margin-bottom: 5px; text-align: center; }
 
-/* Zones: Rows (HAS above NEEDS) or Columns (NEEDS left, HAS right). */
-.dash-zone { padding: 3px 0 2px; }
-.layout-rows .dash-zone + .dash-zone { border-top: 1px solid var(--surface-2); margin-top: 3px; }
-.layout-cols .dash-zones { display: flex; align-items: stretch; }
-.layout-cols .dash-zone { flex: 1; min-width: 0; padding: 2px 5px 2px 0; }
-.layout-cols .dash-zone + .dash-zone { border-left: 1px solid var(--surface-2); padding-left: 6px; padding-right: 0; }
+/* Zones as columns: NEEDS left, HAS right — owner-decided v2. */
+.dash-zones { display: flex; align-items: stretch; }
+.dash-zone { flex: 1; min-width: 0; padding: 2px 5px 2px 0; }
+.dash-zone + .dash-zone { border-left: 1px solid var(--surface-2); padding-left: 6px; padding-right: 0; }
 .dash-zone-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-3); display: block; margin-bottom: 2px; }
 .dash-icons { display: flex; flex-wrap: wrap; gap: 1px; align-items: center; min-height: calc(var(--dash-icon) + 8px); }
@@ -235,7 +245,8 @@
   box-shadow: 0 0 0 2px var(--accent), 0 2px 10px rgba(178,58,46,0.35); }
 .dash-slot.pinned { transform: scale(1.2); background: #FFF7EA; z-index: 4;
   box-shadow: 0 0 0 2px var(--text-2); }
-.dash-slot.echo { outline: 1.5px dashed var(--text-3); outline-offset: -1px; }
+.dash-slot.echo { outline: 1.5px dashed var(--text-2); outline-offset: -1px; }
+.dash-slot.dim { opacity: 0.28; }
 </style>
 </head>
 <body>
@@ -437,8 +448,8 @@
 </svg>
 
 <div class="tb-header">
-  <h1>Observer Dashboard — Testbed v2</h1>
-  <p>Session 21 branch chat · v1 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
+  <h1>Observer Dashboard — Testbed v4</h1>
+  <p>Session 21 branch chat · v3 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
 </div>
 
 <div class="tb-controls">
@@ -446,44 +457,44 @@
     <button data-v="3">3</button><button data-v="4" class="on">4</button><button data-v="5">5</button><button data-v="6">6</button></span></div>
   <div class="tb-group"><span class="lbl">Scenario</span><span class="tb-seg" data-opt="scenario">
     <button data-v="typical" class="on">Typical</button><button data-v="endow">Big endowment</button><button data-v="lookalike">Look-alike heavy</button></span></div>
-  <div class="tb-group"><span class="lbl">Card layout</span><span class="tb-seg" data-opt="layout">
-    <button data-v="cols" class="on">Columns</button><button data-v="rows">Rows</button></span></div>
-  <div class="tb-group"><span class="lbl">Ring spacing</span><span class="tb-seg" data-opt="spacing">
-    <button data-v="tight">Tight</button><button data-v="snug" class="on">Snug</button><button data-v="roomy">Roomy (v1)</button></span></div>
+  <div class="tb-group"><span class="lbl">Stage</span><span class="tb-seg" data-opt="stage">
+    <button data-v="laptop" class="on">Laptop</button><button data-v="ipad">iPad portrait</button></span></div>
+  <div class="tb-group"><span class="lbl">Row gap</span><span class="tb-seg" data-opt="rowgap">
+    <button data-v="compact">Compact</button><button data-v="medium">Medium</button><button data-v="airy" class="on">Airy</button></span></div>
   <div class="tb-group"><span class="lbl">Card border</span><span class="tb-seg" data-opt="border">
-    <button data-v="1" class="on">1px</button><button data-v="2">2px</button><button data-v="3">3px</button></span></div>
+    <button data-v="1">1px</button><button data-v="2">2px</button><button data-v="3" class="on">3px</button></span></div>
   <div class="tb-group"><span class="lbl">Icon size</span><span class="tb-seg" data-opt="size">
     <button data-v="16">16</button><button data-v="20" class="on">20</button><button data-v="24">24</button></span></div>
   <div class="tb-group"><span class="lbl">Grouping</span><span class="tb-seg" data-opt="grouping">
     <button data-v="mixed" class="on">Mixed</button><button data-v="split">Ingredients / Tools</button></span></div>
   <div class="tb-group"><span class="lbl">Echo same-side</span><span class="tb-seg" data-opt="echo">
     <button data-v="off" class="on">Off</button><button data-v="on">On</button></span></div>
-  <div class="tb-group"><span class="lbl">Tray bg</span><span class="tb-seg" data-opt="traybg">
-    <button data-v="surface" class="on">Surface</button><button data-v="paper">Paper</button><button data-v="ink">Ink</button></span></div>
   <div class="tb-group"><span class="lbl">Simulate</span>
     <button class="btn btn-secondary" id="tb-step" style="padding:5px 12px; font-size:12px;">Step ▸</button>
     <button class="btn btn-reset btn-secondary" id="tb-reset" style="padding:5px 12px; font-size:12px;">Reset</button></div>
 </div>
 
 <div class="tb-section">
-  <h2>A · The dashboard — iPad portrait (768×1024)</h2>
-  <p class="note">Tap is now opposite-side only: a NEEDS icon lights everyone who HAS it spare; a HAS icon lights everyone who NEEDS it. The tapped icon holds a pin ring. Echo (control above) adds same-side matches in a subtle dashed outline — the &ldquo;who else is in the same boat&rdquo; read — for comparison. &ldquo;Icons&rdquo; in the header pulls the legend tray down, nudging the board.</p>
+  <h2>A · The dashboard — laptop-first, iPad portrait toggled</h2>
+  <p class="note">Pin an icon and everything unrelated dims: opposite-side matches glow and enlarge; Echo decides whether same-side matches (others in the same boat) stay bright with a dashed ring, or dim too. Transfer counts now sit on the line in a small bg circle near the arrowhead (the Level 2 debrief treatment). The last Simulate step is an end-of-round flurry — one transfer between every pair — to stress the arrows.</p>
   <div class="tb-stage-wrap"><div class="tb-stage-outer" id="tb-stage-outer">
-    <div id="dash-stage" class="layout-cols">
-      <div class="dash-head">
-        <div class="dash-head-row1">
-          <span class="dash-event" id="dash-event">Admiral Worthington&rsquo;s Retirement</span>
-          <span class="dash-clock" id="dash-clock">04:12</span>
-          <span class="level-badge">Level 2</span>
+    <div id="dash-stage">
+      <div class="dash-top">
+        <div class="dash-head">
+          <div class="dash-head-row1">
+            <span class="dash-event" id="dash-event">Admiral Worthington&rsquo;s Retirement</span>
+            <span class="dash-clock" id="dash-clock">04:12</span>
+            <span class="level-badge">Level 2</span>
+          </div>
+          <div class="dash-head-row2">
+            <span class="observer-status" id="dash-status">Round in progress</span>
+            <button class="btn btn-primary" id="dash-pause">Pause</button>
+            <button class="btn btn-danger" id="dash-end">End game</button>
+          </div>
         </div>
-        <div class="dash-head-row2">
-          <span class="observer-status" id="dash-status">Round in progress</span>
-          <button class="btn btn-secondary" id="dash-tray-btn">Icons ▾</button>
-          <button class="btn btn-primary" id="dash-pause">Pause</button>
-          <button class="btn btn-danger" id="dash-end">End game</button>
-        </div>
+        <div class="dash-tray" id="dash-tray"><div class="dash-tray-inner" id="dash-tray-inner"></div></div>
+        <button class="dash-handle" id="dash-handle">Show icon legend</button>
       </div>
-      <div class="dash-tray bg-surface" id="dash-tray"><div class="dash-tray-inner" id="dash-tray-inner"></div></div>
       <div class="dash-board" id="dash-board">
         <svg id="dash-arrows"></svg>
         <div class="dash-guide left">Tap a <span class="g-needs">NEEDS</span> resource icon in red to see who has it. Tap a <span class="g-has">HAS</span> resource icon in black to see who needs it. Transfers show up below as arrows.</div>
@@ -673,7 +684,8 @@ function scenarioTypical() {
         ingredients:{ "Beans":1, "Fish":1, "Pasta":1 },
         tools:{ "Rolling Pin":1 } },
     ],
-    transfers: [ {from:"p2",to:"p1",n:2}, {from:"p3",to:"p4",n:1}, {from:"p1",to:"p2",n:1}, {from:"p4",to:"p3",n:2} ]
+    transfers: [ {from:"p2",to:"p1",n:2}, {from:"p3",to:"p4",n:1}, {from:"p1",to:"p2",n:1}, {from:"p4",to:"p3",n:2},
+                 {from:"p1",to:"p3",n:1}, {from:"p5",to:"p3",n:1}, {from:"p6",to:"p2",n:1} ]
   };
 }
 function scenarioEndow() {
@@ -698,12 +710,24 @@ const SIM_STEPS = [
   { d:"Jordan loads Mortar & Pestle.", f(s){ s.players[1].committed["Mortar & Pestle"]=1; } },
   { d:"A spawn lands: Sam receives Tray.", f(s){ s.players[3].tools["Tray"]=1; } },
   { d:"Sam loads Tray and cooks Pepper Chicken Tray \u2192 next ticket up; committed clears.", f(s){ const p=s.players[3]; delete p.ingredients["Chicken"]; delete p.tools["Chef's Knife"]; delete p.tools["Tray"]; p.committed={}; p.taskQueue=p.taskQueue.slice(1); } },
+  { d:"End-of-round flurry: one transfer between every pair of players (arrow stress test).", f(s){
+      for (let i = 0; i < s.players.length; i++)
+        for (let j = i + 1; j < s.players.length; j++)
+          s.transfers.push({ from: s.players[i].id, to: s.players[j].id, n: 1 });
+    } },
 ];
 
 /* ── Options + state ── */
-const opts = { players:4, scenario:"typical", layout:"cols", spacing:"snug",
-               border:1, size:20, grouping:"mixed", echo:"off", traybg:"surface" };
-const SPACING_RY = { tight: 0.60, snug: 0.76, roomy: 1.0 };
+const opts = { players:4, scenario:"typical", stage:"laptop", rowgap:"airy",
+               border:3, size:20, grouping:"mixed", echo:"off" };
+const ROW_GAPS = { compact: 18, medium: 34, airy: 56 };
+/* Row plans, clockwise from the top card (indexes into players). */
+const ROW_PLANS = {
+  3: [[0],[2,1]],
+  4: [[0],[3,1],[2]],
+  5: [[0],[4,1],[3,2]],
+  6: [[0],[5,1],[4,2],[3]],
+};
 let state = null, simIdx = 0, pinned = null, paused = false, clockSec = 252;
 
 function resetState() {
@@ -741,9 +765,7 @@ function zoneHTML(kind, map, o) {
 }
 function cardHTML(p, o) {
   const { has, needs } = computeHasNeeds(p);
-  const zones = o.layout === "cols"
-    ? zoneHTML("needs", needs, o) + zoneHTML("has", has, o)     // NEEDS left, HAS right
-    : zoneHTML("has", has, o) + zoneHTML("needs", needs, o);    // HAS above (v1)
+  const zones = zoneHTML("needs", needs, o) + zoneHTML("has", has, o);   // Columns: NEEDS left, HAS right — owner-decided v2
   return `<div class="dash-card" data-pid="${p.id}">
     <div class="dash-card-name">${p.name}</div>
     <div class="dash-zones">${zones}</div>
@@ -751,16 +773,39 @@ function cardHTML(p, o) {
 }
 
 /* ── Ring layout + arrows ── */
+/* Liang-Barsky: the [tIn, tOut] interval of segment P1→P2 inside a
+   card's rectangle expanded by `margin`, or null if it misses. Clipping
+   the OFFSET line against both rectangles gives every arrow an identical
+   card-edge gap, at any approach angle (v3's post-hoc endpoint shift
+   could slide a start point back onto a border). */
+function clipT(P1, P2, rect, margin) {
+  const hw = rect.w / 2 + margin, hh = rect.h / 2 + margin;
+  const dx = P2.x - P1.x, dy = P2.y - P1.y;
+  let t0 = -Infinity, t1 = Infinity;
+  const p = [-dx, dx, -dy, dy];
+  const q = [P1.x - (rect.x - hw), (rect.x + hw) - P1.x,
+             P1.y - (rect.y - hh), (rect.y + hh) - P1.y];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) { if (q[i] < 0) return null; }
+    else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return null; if (r > t0) t0 = r; }
+      else          { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+  }
+  return [t0, t1];
+}
+function qBezier(t, x1, y1, cx, cy, x2, y2) {
+  const u = 1 - t;
+  return { x: u*u*x1 + 2*u*t*cx + t*t*x2, y: u*u*y1 + 2*u*t*cy + t*t*y2 };
+}
+
 function renderDashboard() {
+  sizeStage();
   const stage = document.getElementById("dash-stage");
-  stage.classList.toggle("layout-cols", opts.layout === "cols");
-  stage.classList.toggle("layout-rows", opts.layout === "rows");
   stage.style.setProperty("--dash-icon", opts.size + "px");
   stage.style.setProperty("--dash-card-bw", opts.border + "px");
-  const cardW = opts.layout === "cols"
-    ? (opts.players >= 6 ? 218 : opts.players === 5 ? 232 : 248)
-    : (opts.players >= 6 ? 182 : opts.players === 5 ? 196 : 212);
-  stage.style.setProperty("--dash-card-w", cardW + "px");
+  stage.style.setProperty("--dash-card-w", "248px");
 
   const board = document.getElementById("dash-board");
   const players = state.players.slice(0, opts.players);
@@ -768,19 +813,45 @@ function renderDashboard() {
   board.insertAdjacentHTML("beforeend", players.map(p => cardHTML(p, opts)).join(""));
 
   const bw = board.clientWidth, bh = board.clientHeight;
-  const cards = [...board.querySelectorAll(".dash-card")];
+  const cardEls = {};
+  board.querySelectorAll(".dash-card").forEach(el => { cardEls[el.dataset.pid] = el; });
+
+  /* ── Structured rows, equal vertical gaps ── */
+  const plan = ROW_PLANS[opts.players];
+  const rows = plan.map(row => row.map(i => players[i]).filter(Boolean));
+  const rowHs = rows.map(r => Math.max(...r.map(p => cardEls[p.id].offsetHeight)));
+  const topPad = 50;    // v4: doubled clearance below the legend handle (owner)
+  const botPad = 14, sidePad = 14;
+  const sumH = rowHs.reduce((a, b) => a + b, 0);
+  let gap;
+  if (opts.rowgap === "fill") {
+    gap = rows.length > 1 ? (bh - topPad - botPad - sumH) / (rows.length - 1) : 0;
+  } else {
+    gap = ROW_GAPS[opts.rowgap];
+    const overflow = topPad + botPad + sumH + gap * (rows.length - 1) - bh;
+    if (overflow > 0 && rows.length > 1) gap -= overflow / (rows.length - 1);
+  }
+  gap = Math.max(8, gap);
+
   const centers = {};
-  cards.forEach((el, i) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI / cards.length);
-    const rx = (bw - el.offsetWidth) / 2 - 14;
-    const ry = ((bh - el.offsetHeight) / 2 - 14) * SPACING_RY[opts.spacing];
-    const cx = bw / 2 + rx * Math.cos(a);
-    const cy = bh / 2 + ry * Math.sin(a);
-    el.style.left = (cx - el.offsetWidth / 2) + "px";
-    el.style.top  = (cy - el.offsetHeight / 2) + "px";
-    centers[el.dataset.pid] = { x: cx, y: cy };
+  let y = topPad;
+  rows.forEach((row, ri) => {
+    const rh = rowHs[ri];
+    const fracs = row.length === 1 ? [0.5] : [0.24, 0.76];   // left card first in plan
+    row.forEach((p, ci) => {
+      const el = cardEls[p.id];
+      let cx = bw * fracs[ci];
+      // Clamp so wide-spread rows never leave the stage.
+      cx = Math.max(sidePad + el.offsetWidth / 2, Math.min(bw - sidePad - el.offsetWidth / 2, cx));
+      const cy = y + rh / 2;
+      el.style.left = (cx - el.offsetWidth / 2) + "px";
+      el.style.top  = (cy - el.offsetHeight / 2) + "px";
+      centers[p.id] = { x: cx, y: cy, w: el.offsetWidth, h: el.offsetHeight };
+    });
+    y += rh + gap;
   });
 
+  /* ── Transfer arrows: card-edge to card-edge, opposing pairs separated ── */
   const svg = document.getElementById("dash-arrows");
   svg.setAttribute("viewBox", `0 0 ${bw} ${bh}`);
   const agg = {};
@@ -792,14 +863,27 @@ function renderDashboard() {
     <path class="tr-head" d="M0,0 L9,4.5 L0,9 Z"/></marker></defs>`;
   Object.entries(agg).forEach(([k, n]) => {
     const [f, t] = k.split(">");
-    const a = centers[f], b = centers[t];
-    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+    const A = centers[f], B = centers[t];
+    const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy);
     const ux = dx / len, uy = dy / len;
-    const x1 = a.x + ux * 62, y1 = a.y + uy * 62, x2 = b.x - ux * 74, y2 = b.y - uy * 74;
-    const mx = (x1 + x2) / 2 - uy * 16, my = (y1 + y2) / 2 + ux * 16;
+    const px = -uy, py = ux;               // perpendicular; sign flips with direction,
+    const off = 8;                          // so A→B and B→A sit on opposite sides
+    const P1 = { x: A.x + px * off, y: A.y + py * off };
+    const P2 = { x: B.x + px * off, y: B.y + py * off };
+    const ca = clipT(P1, P2, A, 8), cb = clipT(P1, P2, B, 12);
+    const tStart = ca ? Math.max(0, ca[1]) : 0;    // where the line leaves A's rect
+    const tEnd   = cb ? Math.min(1, cb[0]) : 1;    // where it reaches B's rect
+    if (tEnd - tStart < 0.02) return;              // cards touching — nothing to draw
+    const x1 = P1.x + (P2.x - P1.x) * tStart, y1 = P1.y + (P2.y - P1.y) * tStart;
+    const x2 = P1.x + (P2.x - P1.x) * tEnd,   y2 = P1.y + (P2.y - P1.y) * tEnd;
+    const seg = Math.hypot(x2 - x1, y2 - y1);
+    const bow = Math.min(14, seg * 0.12);          // gentler curve on short hops
+    const mx = (x1 + x2) / 2 + px * bow, my = (y1 + y2) / 2 + py * bow;
     h += `<path class="tr-line" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" marker-end="url(#tr-arrowhead)"/>`;
-    h += `<rect class="tr-pill" x="${mx-11}" y="${my-9}" width="22" height="16" rx="8"/>`;
-    h += `<text class="tr-num" x="${mx}" y="${my+3}" text-anchor="middle">${n}</text>`;
+    // Count ON the line, toward the arrowhead (Level 2 debrief treatment).
+    const cpt = qBezier(0.72, x1, y1, mx, my, x2, y2);
+    h += `<circle class="tr-dot" cx="${cpt.x}" cy="${cpt.y}" r="8"/>`;
+    h += `<text class="tr-num" x="${cpt.x}" y="${cpt.y + 3.5}" text-anchor="middle">${n}</text>`;
   });
   svg.innerHTML = h;
 
@@ -810,15 +894,18 @@ function renderDashboard() {
 /* ── Reciprocal tap: opposite-side only; Echo optional ── */
 function applyPin() {
   const board = document.getElementById("dash-board");
-  board.querySelectorAll(".dash-slot").forEach(el => el.classList.remove("lit", "pinned", "echo"));
+  board.querySelectorAll(".dash-slot").forEach(el => el.classList.remove("lit", "pinned", "echo", "dim"));
   const status = document.getElementById("tb-pin-status");
   if (!pinned) { status.textContent = ""; return; }
   let litPlayers = new Set();
-  board.querySelectorAll(`.dash-slot[data-resource="${CSS.escape(pinned.resource)}"]`).forEach(el => {
+  board.querySelectorAll(".dash-slot").forEach(el => {
     const pid = el.closest(".dash-card").dataset.pid;
+    const related = el.dataset.resource === pinned.resource;
+    if (!related) { el.classList.add("dim"); return; }
     if (el.dataset.side === pinned.side) {
       if (pid === pinned.pid) el.classList.add("pinned");
-      else if (opts.echo === "on") el.classList.add("echo");
+      else if (opts.echo === "on") el.classList.add("echo");   // same boat — bright, dashed
+      else el.classList.add("dim");                            // Echo off — dims with the rest
     } else {
       el.classList.add("lit");
       litPlayers.add(pid);
@@ -865,11 +952,11 @@ function buildTray() {
   inner.innerHTML = [...ing, ...tool].map(n =>
     `<span class="lg-item">${resourceIconSVG(n, "dash-icon")}<span>${RESOURCES[n].label}</span></span>`).join("");
 }
-document.getElementById("dash-tray-btn").addEventListener("click", () => {
+document.getElementById("dash-handle").addEventListener("click", () => {
   const tray = document.getElementById("dash-tray");
   const open = tray.classList.toggle("open");
-  document.getElementById("dash-tray-btn").textContent = open ? "Icons ▴" : "Icons ▾";
-  setTimeout(renderDashboard, 270);   // re-ring once the board's height settles
+  document.getElementById("dash-handle").textContent = open ? "Close icon legend" : "Show icon legend";
+  setTimeout(renderDashboard, 270);   // re-lay the rows once the board's height settles
 });
 
 /* ── Simulation ── */
@@ -903,27 +990,29 @@ document.querySelectorAll(".tb-seg").forEach(seg => {
     const key = seg.dataset.opt;
     opts[key] = (key === "players" || key === "size" || key === "border") ? parseInt(b.dataset.v, 10) : b.dataset.v;
     if (key === "scenario") resetState();
-    if (key === "traybg") {
-      const tray = document.getElementById("dash-tray");
-      tray.classList.remove("bg-surface", "bg-paper", "bg-ink");
-      tray.classList.add("bg-" + opts.traybg);
-      return;   // no re-ring needed
-    }
     renderDashboard();
   });
 });
-function scaleStage() {
+function sizeStage() {
   const outer = document.getElementById("tb-stage-outer");
-  const avail = Math.min(document.documentElement.clientWidth - 32, 768);
-  const s = avail / 768;
-  outer.style.transform = s < 1 ? `scale(${s})` : "";
-  outer.style.height = (1024 * Math.min(s, 1)) + "px";
+  const stage = document.getElementById("dash-stage");
+  const availW = Math.min(document.documentElement.clientWidth - 32, 1280);
+  if (opts.stage === "laptop") {
+    stage.style.width = availW + "px";
+    stage.style.height = Math.max(560, Math.round(Math.min(availW * 0.62,
+      document.documentElement.clientHeight - 40))) + "px";
+    outer.style.transform = ""; outer.style.height = "";
+  } else {
+    stage.style.width = "768px"; stage.style.height = "1024px";
+    const sc = Math.min(availW, 768) / 768;
+    outer.style.transform = sc < 1 ? `scale(${sc})` : "";
+    outer.style.height = (1024 * Math.min(sc, 1)) + "px";
+  }
 }
-window.addEventListener("resize", () => { scaleStage(); renderDashboard(); });
+window.addEventListener("resize", renderDashboard);
 
 resetState();
 buildTray();
-scaleStage();
 renderDashboard();
 </script>
 </body>
