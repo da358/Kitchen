@@ -2030,7 +2030,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260818.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260819.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3688,6 +3688,14 @@ function dropIntoTask(name) {
 
   removeFromLocalInventory(name);
   taskZoneMap[name] = placed + 1;
+  // 260819.1 (Session 21): sync the committed map — the whole current
+  // taskZoneMap, not an increment, so any lost write is repaired by the
+  // next one. Written to its own sibling node so the ingredients/tools
+  // listeners never refire (dropIntoTask deliberately writes neither —
+  // see the 260713 comment at applyInventoryUpdate). Local assignment
+  // above precedes the write (Session 14 rule). This is the Observer
+  // dashboard's HAS/NEEDS source: committed items are neither.
+  set(ref(db, `games/${gameCode}/players/${myPlayerId}/committed`), { ...taskZoneMap });
   renderInventory();
   renderTask();
   renderTaskZone();
@@ -3761,6 +3769,10 @@ async function completeTask() {
     [`games/${gameCode}/players/${myPlayerId}/resourcesUsed`]:   newResUsed,
     [`games/${gameCode}/players/${myPlayerId}/taskQueue`]:        isLevel3 ? newQueue : newQueue,
     [`games/${gameCode}/players/${myPlayerId}/playerStatus`]:     nextActiveId ? "working" : "no-tasks",
+    // 260819.1 (Session 21): committed clears in the SAME atomic update
+    // that flushes the post-cook inventory below — a separate write would
+    // open a window where a dashboard double-counts (cooked AND loaded).
+    [`games/${gameCode}/players/${myPlayerId}/committed`]:         null,
   };
   if (isLevel3) {
     playerUpdate[`games/${gameCode}/players/${myPlayerId}/activeTaskId`] = nextActiveId;
@@ -4046,6 +4058,16 @@ function getRail() {
 // committed to that ticket to the player's own station inventory. Returns
 // true if the identity of position 0 changed (caller still needs to push
 // the update to Firebase and reload the main ticket).
+// 260819.1 (Session 21): when the resource-return branch below clears
+// taskZoneMap, the synced `committed` map must clear too — that write is
+// owned by this helper's CALLERS (handleRailReorder, executeTaskTrade),
+// which mirror { ...taskZoneMap } inside their existing atomic updates.
+// Deliberately NOT written here: this helper is pure local state, and a
+// hidden Firebase side effect is the kind of surprise this file's history
+// warns about. A future third caller that can reach the return branch
+// must carry the same mirror. (promoteIfNothingPrepping also calls this,
+// but its precondition — myActiveTaskId null — makes the return branch
+// unreachable from there.)
 function setRailFromArray(rail) {
   const prevActiveId = myActiveTaskId;
   myActiveTaskId = rail[0] || null;
@@ -4603,7 +4625,13 @@ function handleRailReorder(taskId, fromIdx, cx) {
 
   update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
     activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
-    playerStatus: myActiveTaskId ? "working" : "no-tasks"
+    playerStatus: myActiveTaskId ? "working" : "no-tasks",
+    // 260819.1 (Session 21): mirror the committed map in the same update.
+    // setRailFromArray()'s resource-return path just cleared taskZoneMap
+    // locally if position 0 changed hands; an empty object here deletes
+    // the node (RTDB semantics), which readers treat as {}. If nothing
+    // changed this rewrites the same value — idempotent by design.
+    committed: { ...taskZoneMap }
   });
 
   if (changed) {
@@ -4672,7 +4700,8 @@ async function executeTaskTrade(taskId, targetPlayerId, targetName, taskDef) {
   await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
     activeTaskId: myActiveTaskId, taskQueue: myTaskQueue,
     ingredients: ingMap, tools: toolMap,
-    playerStatus: myActiveTaskId ? "working" : "no-tasks"
+    playerStatus: myActiveTaskId ? "working" : "no-tasks",
+    committed: { ...taskZoneMap } // 260819.1 (Session 21): see handleRailReorder's mirror note
   });
 
   // Notify receiver — append to back of their queue
@@ -5591,6 +5620,7 @@ async function startRoundInFirebase(players, levelType) {
       updates[`games/${gameCode}/players/${pid}/startingTaskCount`] = 0;
       updates[`games/${gameCode}/players/${pid}/startingIngrCount`] = 0;
       updates[`games/${gameCode}/players/${pid}/playerStatus`]      = "observer";
+      updates[`games/${gameCode}/players/${pid}/committed`]          = null; // 260819.1: fresh round — readers treat missing as {}
       return;
     }
     const allTasks = setup.playerTasks[pid] || [];
@@ -5609,6 +5639,7 @@ async function startRoundInFirebase(players, levelType) {
     updates[`games/${gameCode}/players/${pid}/startingTaskCount`] = setup.startingTaskCounts[pid] || 0;
     updates[`games/${gameCode}/players/${pid}/startingIngrCount`] = setup.startingIngrCounts[pid] || 0;
     updates[`games/${gameCode}/players/${pid}/playerStatus`]      = activeId ? "working" : "no-tasks";
+    updates[`games/${gameCode}/players/${pid}/committed`]          = null; // 260819.1: fresh round — readers treat missing as {}
   });
 
   await update(ref(db), updates);
