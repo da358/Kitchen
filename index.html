@@ -285,6 +285,58 @@
   .lobby-actions { display: flex; gap: 12px; flex-direction: column; align-items: center; }
   .lobby-waiting { font-size: 13px; color: var(--text-2); text-align: center; }
 
+  /* ── LEVEL 2 ROLE SELECTION (260818.3, Session 20) ──────────────
+     Variant B "outlined CTA" cards, decided in
+     lobby-role-testbed_260818.html. Chosen = filled --accent (matches
+     an armed landing card); taken = dimmed (the players list already
+     names who's observing). Vocabulary note: the Observer is marked
+     with --accent-2 throughout (a role marker, like the level badge) —
+     deliberately NOT the copper CTA and NOT scarlet. Single tap
+     chooses: the choice is reversible and low-stakes, so no arming/
+     confirm step (unlike the landing cards, which create a game). */
+  .role-cards { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .role-card {
+    background: var(--bg); border: 2px solid var(--accent);
+    border-radius: var(--radius-lg); padding: 11px 15px; width: 208px;
+    cursor: pointer; box-shadow: var(--shadow); text-align: left;
+    font-family: var(--font);
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+  }
+  .role-card .role-title { display: block; font-size: 14px; font-weight: 700; margin-bottom: 3px; color: var(--accent); }
+  .role-card .role-desc  { display: block; font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
+  .role-card:not(.chosen):not(.taken):hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+  .role-card.chosen { background: var(--accent); border-color: var(--accent); }
+  .role-card.chosen .role-title { color: #fff; }
+  .role-card.chosen .role-desc  { color: rgba(255,255,255,0.85); }
+  .role-card.taken  { opacity: 0.45; cursor: default; }
+  .role-card.taken:hover { transform: none; box-shadow: var(--shadow); }
+
+  /* Role badges in the Level 2 lobby players list (replace the ready
+     badges there; Levels 1/3 keep .ready-badge). Scheme 1, decided in
+     the same testbed: Player = the existing ready-green pill treatment,
+     Observer = filled --accent-2 matching the level badge. */
+  .player-row .role-badge {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    padding: 3px 10px; border-radius: 20px;
+    background: var(--surface-2); color: var(--text-3);
+  }
+  .player-row .role-badge.is-player   { background: #DCE6C6; color: var(--ready); }
+  .player-row .role-badge.is-observer { background: var(--accent-2); color: #fff; }
+
+  /* ── OBSERVER SCREEN (260818.3, Session 20 — filler) ────────────
+     Placeholder until the Observer dashboard is designed (next
+     session's branch chat). Layout matches the summary screens'
+     centered-column pattern. */
+  #screen-observer {
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 20px; gap: 24px;
+  }
+  .observer-status {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  .observer-status.paused { color: var(--danger); }
+
   /* ── GAME DASHBOARD ────────────────────────────────────────── */
   #screen-game {
     flex-direction: column;
@@ -1978,7 +2030,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260818.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260818.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2019,7 +2071,27 @@
     <div id="lobby-players-list"></div>
   </div>
   <div class="lobby-actions">
+    <!-- 260818.3 (Session 20): Level 2 lobbies replace the ready check
+         with role selection (Player / Observer, one Observer max,
+         transaction-guarded via observerPlayerId). Levels 1/3 keep the
+         ready button. ALL levels now start via the host's "Let's go"
+         button — the all-ready auto-start was removed (it could start
+         the round while someone was still typing the game code;
+         joinGame() requires status "lobby", so they'd be locked out
+         until the next between-round lobby). Visibility and state of
+         all three controls is driven by the lobby listener. -->
+    <div class="role-cards" id="role-cards" style="display:none;">
+      <button type="button" class="role-card" id="role-card-player">
+        <span class="role-title">I'll be a Player</span>
+        <span class="role-desc">Cook, trade, and complete tickets with the team.</span>
+      </button>
+      <button type="button" class="role-card" id="role-card-observer">
+        <span class="role-title">I'll be the Observer</span>
+        <span class="role-desc">Watch silently, pause for a huddle, lead the debrief.</span>
+      </button>
+    </div>
     <button class="btn btn-primary" id="btn-ready" style="min-width:180px;">I'm ready ✓</button>
+    <button class="btn btn-primary" id="btn-lets-go" style="min-width:180px; display:none;" disabled>Let's go →</button>
     <div class="lobby-waiting" id="lobby-status">Waiting for everyone to be ready…</div>
   </div>
 </div>
@@ -2366,6 +2438,30 @@
       <button class="btn btn-primary"   id="diag-copy">Copy report</button>
       <button class="btn btn-secondary" id="diag-close">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: OBSERVER (260818.3, Session 20) ══════════════════
+     Filler build: proves the role plumbing (opt-in, exclusion from
+     setup, routing, pause authority, debrief hand-back) before the
+     dashboard is designed in its own branch chat. The Observer lands
+     here at round start instead of screen-game and moves to the normal
+     Level 2 summary when the round ends. New-screen wiring decisions,
+     recorded per the standing rule: tips — none (Level 2 has no
+     auto-tips and this screen has no "?" button); fit cascade — none
+     (nothing dense here; the dashboard will bring its own density
+     handling); diagnostics — reported automatically via showScreen(). -->
+<div id="screen-observer" class="screen">
+  <div style="text-align:center; max-width:520px;">
+    <span class="level-badge summary" id="level-badge-observer"></span>
+    <p id="observer-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2;"></p>
+    <h2 style="font-family:var(--font-display); font-size:32px; font-weight:normal; margin-top:8px;">Observer Dashboard</h2>
+    <p style="margin-top:12px; font-size:15px; color:var(--text-2);">The dashboard is on its way. For now: watch and listen — you'll lead the debrief when the round ends.</p>
+  </div>
+  <div class="observer-status" id="observer-round-status">Round in progress</div>
+  <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+    <button class="btn btn-primary" id="btn-observer-pause" style="min-width:220px;">Pause for a huddle</button>
+    <button class="btn btn-danger" id="btn-observer-end" style="min-width:220px; display:none;">End game</button>
   </div>
 </div>
 
@@ -2962,6 +3058,8 @@ function updateLevelBadge(el) {
 
 let hostPlayerId   = null;  // player ID of game creator
 let amHost         = false; // true if this player is the host
+let amObserver     = false; // 260818.3 (Session 20): true if this player holds the Level 2 Observer claim for the current round (games/{code}/observerPlayerId)
+let lobbyCanStart  = false; // 260818.3: computed by the lobby listener, checked by hostStartRound() — the single start gate
 let inventoryOrder = [];    // ordered list of resource names for stable display
 // Session 8 fix: names of resources confirmed via a claimed transfer
 // notification, waiting to be placed at the very end of the display order
@@ -3710,7 +3808,8 @@ async function completeTask() {
   await update(ref(db), playerUpdate);
 
   // ── Spawn ingredients (Level 3: team-wide scan; Levels 1/2: next-task targeting) ──
-  const otherPlayers = Object.keys(gameState.players || {}).filter(pid => pid !== myPlayerId);
+  const otherPlayers = Object.keys(gameState.players || {}).filter(pid =>
+    pid !== myPlayerId && pid !== (gameState.observerPlayerId || null)); // 260818.3: never spawn to the Observer
   const spawnCount   = Math.max(1, requiredIngrCount - (isLevel3 ? 1 : 0)); // mild deficit for Level 3
 
   // Bug found 260707: target selection below used to be a fresh
@@ -4592,7 +4691,7 @@ async function executeTaskTrade(taskId, targetPlayerId, targetName, taskDef) {
 
   renderQueueBar();
   renderInventory();
-  toast(`📋 Ticket "${taskDef?.name || taskId}" sent to ${targetName}`, "good");
+  toast(`Ticket "${taskDef?.name || taskId}" sent to ${targetName}`, "good");
 }
 
 /* ─── CONFIRM MODAL ─────────────────────────────────────────── */
@@ -5255,43 +5354,90 @@ function enterLobby() {
 
     const players = gameState.players;
     const listEl  = document.getElementById("lobby-players-list");
-    listEl.innerHTML = Object.values(players).map(p => `
+    // 260818.3 (Session 20): Level 2 lobbies run role selection instead
+    // of the ready check, and NO level auto-starts anymore — the host's
+    // "Let's go" button is the single start trigger (see hostStartRound()
+    // near the round-start logic). Role authority: observerPlayerId (the
+    // transaction-claimed field) decides who the Observer is; a player's
+    // own role field says "player" for everyone else who has chosen. A
+    // role of "observer" WITHOUT the claim is a mid-transition remnant
+    // (backing out is a release-then-write, two steps) and renders as
+    // unchosen.
+    const rtLobby        = gameState.pendingLevelType || gameState.levelType || "";
+    const isLevel2Lobby  = rtLobby === "level2";
+    const obsId          = gameState.observerPlayerId || null;
+    const effRole        = (pid, p) => pid === obsId ? "observer"
+                                     : (p.role === "player" ? "player" : null);
+    const isHostInLobby  = myPlayerId === gameState.hostPlayerId;
+
+    listEl.innerHTML = Object.entries(players).map(([pid, p]) => {
+      let badge;
+      if (isLevel2Lobby) {
+        const role = effRole(pid, p);
+        badge = role === "observer" ? `<span class="role-badge is-observer">Observer</span>`
+              : role === "player"   ? `<span class="role-badge is-player">Player</span>`
+              :                       `<span class="role-badge">Choosing…</span>`;
+      } else {
+        badge = `<span class="ready-badge ${p.ready?"is-ready":""}">${p.ready?"Ready ✓":"Waiting…"}</span>`;
+      }
+      return `
       <div class="player-row">
         <span class="name">${p.name}${p.name===myPlayerName?" (you)":""}</span>
-        <span class="ready-badge ${p.ready?"is-ready":""}">${p.ready?"Ready ✓":"Waiting…"}</span>
-      </div>`).join("");
+        ${badge}
+      </div>`;
+    }).join("");
 
-    const all = Object.values(players);
-    const allReady = all.length >= 2 && all.every(p => p.ready);
-    document.getElementById("lobby-status").textContent =
-      allReady ? "All ready! Starting…" :
-      `${all.filter(p=>p.ready).length} of ${all.length} ready`;
+    // Controls: role cards (Level 2 only), ready button (other levels),
+    // Let's go (host only, every level). Explicit display values per the
+    // Session 18 rule — never "" against a stylesheet display:none.
+    const roleCardsEl = document.getElementById("role-cards");
+    const btnReadyEl  = document.getElementById("btn-ready");
+    const btnGoEl     = document.getElementById("btn-lets-go");
+    roleCardsEl.style.display = isLevel2Lobby ? "flex" : "none";
+    btnReadyEl.style.display  = isLevel2Lobby ? "none" : "inline-flex";
+    btnGoEl.style.display     = isHostInLobby ? "inline-flex" : "none";
 
-    if (allReady && gameState.status === "lobby" && !roundStartInFlight) {
-      // Derive host status here directly — amHost isn't set until enterGame()
-      const isHostInLobby = myPlayerId === gameState.hostPlayerId;
-      if (isHostInLobby) {
-        // Guard against re-entrancy: the update() below applies optimistically
-        // to Firebase's local cache, which re-invokes this SAME onValue callback
-        // before this async function finishes — and status is still "lobby" at
-        // that point, so the guard above would otherwise pass a second time and
-        // start the round twice concurrently with two different random setups
-        // racing to write over each other. Found 260707 during the Level 2→Level 3 bug.
-        roundStartInFlight = true;
-        try {
-          // Resolve the pending level (set by enterBetweenRoundLobby) vs the initial choice
-          const rt = gameState.pendingLevelType || gameState.levelType || "level2";
-          // Promote pending field to live before starting — clear pending to avoid re-trigger
-          await update(ref(db, `games/${gameCode}`), {
-            levelType:        rt,
-            pendingLevelType: null,
-          });
-          await startRoundInFirebase(players, rt);
-        } finally {
-          roundStartInFlight = false;
-        }
-      }
+    if (isLevel2Lobby) {
+      const myRole       = effRole(myPlayerId, players[myPlayerId] || {});
+      const takenByOther = !!obsId && obsId !== myPlayerId;
+      const cardP = document.getElementById("role-card-player");
+      const cardO = document.getElementById("role-card-observer");
+      cardP.classList.toggle("chosen", myRole === "player");
+      cardO.classList.toggle("chosen", myRole === "observer");
+      cardO.classList.toggle("taken",  takenByOther);
+      cardO.disabled = takenByOther;
     }
+
+    const entries = Object.entries(players);
+    let statusText;
+    if (isLevel2Lobby) {
+      const chosen    = entries.filter(([pid, p]) => effRole(pid, p) !== null).length;
+      const cookCount = entries.filter(([pid, p]) => effRole(pid, p) === "player").length;
+      const everyone  = entries.length >= 2 && chosen === entries.length;
+      lobbyCanStart   = everyone && cookCount >= 2;
+      statusText = entries.length < 2 ? "Waiting for players to join…"
+        : !everyone     ? `${chosen} of ${entries.length} have chosen`
+        : cookCount < 2 ? "Need at least two Players to start"
+        : obsId         ? (isHostInLobby ? "Everyone's chosen — start when ready"
+                                         : "Everyone's chosen — waiting for the host")
+                        : (isHostInLobby ? "No Observer this round — start when ready"
+                                         : "No Observer this round — waiting for the host");
+    } else {
+      const vals = Object.values(players);
+      const allReady = vals.length >= 2 && vals.every(p => p.ready);
+      lobbyCanStart = allReady;
+      statusText = allReady
+        ? (isHostInLobby ? "All ready — start when ready" : "All ready — waiting for the host")
+        : `${vals.filter(p=>p.ready).length} of ${vals.length} ready`;
+    }
+    document.getElementById("lobby-status").textContent = statusText;
+    btnGoEl.disabled = !lobbyCanStart || gameState.status !== "lobby" || roundStartInFlight;
+    /* 260818.3: the auto-start block that lived here (all-ready →
+       roundStartInFlight → startRoundInFirebase) moved into
+       hostStartRound(), triggered by the host's Let's go button — the
+       round no longer starts itself. The 260707 re-entrancy lesson
+       (Firebase's optimistic local echo re-invokes this callback before
+       the async start finishes) lives on there as a click-side guard. */
 
     if (gameState.eventName) {
       document.getElementById("lobby-event-name").textContent = gameState.eventName;
@@ -5323,10 +5469,74 @@ function enterLobby() {
   unsubscribers.push(() => off(ref(db, `games/${gameCode}`), "value", lobbyUnsub));
 }
 
+// ── 260818.3 (Session 20): LOBBY ROLE SELECTION + HOST START ─────────
+// The Observer claim is a transaction on games/{code}/observerPlayerId so
+// two simultaneous taps resolve to exactly one Observer (the Session 8
+// notification-claim pattern). The player's own role field is display/gate
+// state written AFTER the claim succeeds; effRole() in the lobby listener
+// treats claim + field together, so mid-transition snapshots render as
+// "Choosing…" rather than flickering a stale role.
+async function chooseRole(role) {
+  if (!gameCode || !myPlayerId) return;
+  const obsRef = ref(db, `games/${gameCode}/observerPlayerId`);
+  if (role === "observer") {
+    const result = await runTransaction(obsRef, current =>
+      (current === null || current === myPlayerId) ? myPlayerId : undefined);
+    if (!result.committed || result.snapshot.val() !== myPlayerId) return; // someone else holds it
+    await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { role: "observer" });
+  } else {
+    // Also the Observer's back-out path: release the claim only if we hold
+    // it (the transaction aborts otherwise — nothing to release), then
+    // take Player.
+    await runTransaction(obsRef, current => current === myPlayerId ? null : undefined)
+      .catch(() => {});
+    await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { role: "player" });
+  }
+}
+
+// The single round-start trigger for ALL levels (260818.3): the host's
+// "Let's go" button. Replaces the old all-ready auto-start, which could
+// start the round while someone was still typing the game code —
+// joinGame() requires status "lobby", so they'd be locked out until the
+// next between-round lobby. Re-entrancy: the button is disabled by the
+// listener while a start is in flight, and this handler re-checks live
+// state (the 260707 lesson — Firebase's optimistic echo re-fires the
+// lobby listener before the awaits below resolve, so nothing here may
+// depend on being called exactly once).
+async function hostStartRound() {
+  if (myPlayerId !== gameState.hostPlayerId) return;
+  if (!lobbyCanStart || gameState.status !== "lobby" || roundStartInFlight) return;
+  roundStartInFlight = true;
+  document.getElementById("btn-lets-go").disabled = true;
+  try {
+    // Resolve the pending level (set by enterBetweenRoundLobby) vs the
+    // initial choice; promote pending to live and clear it, exactly as
+    // the old auto-start did.
+    const rt = gameState.pendingLevelType || gameState.levelType || "level2";
+    await update(ref(db, `games/${gameCode}`), { levelType: rt, pendingLevelType: null });
+    await startRoundInFirebase(gameState.players, rt);
+  } finally {
+    roundStartInFlight = false;
+  }
+}
+
 // Core round-start logic — used for initial start AND between-round replays.
 // levelType: "level1" | "level2" | "level3"
 async function startRoundInFirebase(players, levelType) {
   const playerIds = Object.keys(players);
+  // 260818.3 (Session 20): the Observer (claimed in the Level 2 lobby via
+  // the observerPlayerId transaction) is excluded from ALL task and
+  // resource distribution — generateGameSetup() never sees them, so
+  // taskTarget, mismatch math, and endowments are computed over cooks
+  // only. Their player record is still written every round (zeroed,
+  // playerStatus "observer" — a new stored value, wire format) so every
+  // consumer sees a consistent record shape. observerPlayerId can only be
+  // non-null for a Level 2 round: the claim UI exists only in Level 2
+  // lobbies and enterBetweenRoundLobby() clears the field on every
+  // transition.
+  const observerId = gameState.observerPlayerId && players[gameState.observerPlayerId]
+    ? gameState.observerPlayerId : null;
+  const cookingIds = playerIds.filter(pid => pid !== observerId);
   const isLevel1 = levelType === "level1";
   const isLevel3 = levelType === "level3";
 
@@ -5337,7 +5547,7 @@ async function startRoundInFirebase(players, levelType) {
   // no clock at all, same as when this was endTime-based.
   const startTime = isLevel1 ? null : Date.now();
   const evtName = gameState.eventName || genEventName();
-  const setup   = generateGameSetup(playerIds, levelType);
+  const setup   = generateGameSetup(cookingIds, levelType);
   const tgt     = Object.values(setup.startingTaskCounts).reduce((a, b) => a + b, 0);
   // Unique per round start (see completeTask() for why this exists).
   const roundInstanceId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -5369,6 +5579,20 @@ async function startRoundInFirebase(players, levelType) {
     : Date.now() + (90_000 + Math.random() * 90_000); // 1.5–3 min into the round
 
   playerIds.forEach(pid => {
+    if (pid === observerId) {
+      // 260818.3: zeroed record for the Observer — no tasks, no resources.
+      updates[`games/${gameCode}/players/${pid}/ingredients`]       = {};
+      updates[`games/${gameCode}/players/${pid}/tools`]             = {};
+      updates[`games/${gameCode}/players/${pid}/taskQueue`]         = [];
+      updates[`games/${gameCode}/players/${pid}/activeTaskId`]      = null;
+      updates[`games/${gameCode}/players/${pid}/tasksCompleted`]    = 0;
+      updates[`games/${gameCode}/players/${pid}/resourcesUsed`]     = 0;
+      updates[`games/${gameCode}/players/${pid}/ready`]             = false;
+      updates[`games/${gameCode}/players/${pid}/startingTaskCount`] = 0;
+      updates[`games/${gameCode}/players/${pid}/startingIngrCount`] = 0;
+      updates[`games/${gameCode}/players/${pid}/playerStatus`]      = "observer";
+      return;
+    }
     const allTasks = setup.playerTasks[pid] || [];
     // For Level 3: first task becomes activeTaskId, rest go into taskQueue
     // For Levels 1/2: activeTaskId mirrors taskQueue[0] for compatibility
@@ -5394,7 +5618,12 @@ function enterGame() {
   if (inGameEntered) return;
   inGameEntered = true;
 
-  showScreen("game");
+  // 260818.3 (Session 20): route the Observer to their own screen. The
+  // lobby listener assigns gameState from the same snapshot that flipped
+  // status to "playing", so observerPlayerId is already current here; the
+  // authoritative get() below re-derives it and populates the screen.
+  amObserver = !!gameState.observerPlayerId && gameState.observerPlayerId === myPlayerId;
+  showScreen(amObserver ? "observer" : "game");
   // 260815.4: the final-ticket celebration leaves .ticket-col hidden into
   // the debrief (see the arrival beat in completeTask). Restore it here so
   // a repeated round can never begin with an invisible ticket column.
@@ -5411,6 +5640,17 @@ function enterGame() {
     currentRoundInstanceId = data.roundInstanceId || null;
     hostPlayerId = data.hostPlayerId || null;
     amHost       = (myPlayerId === hostPlayerId);
+    // 260818.3 (Session 20): authoritative Observer derivation + filler
+    // screen population. showScreen is idempotent if the entry routing
+    // already landed here. The End game control is host-only even on the
+    // Observer screen (pause authority is extended; end authority is not).
+    amObserver   = !!data.observerPlayerId && data.observerPlayerId === myPlayerId;
+    if (amObserver) {
+      showScreen("observer");
+      document.getElementById("observer-event-name").textContent = data.eventName || "";
+      updateLevelBadge(document.getElementById("level-badge-observer"));
+      document.getElementById("btn-observer-end").style.display = amHost ? "inline-flex" : "none";
+    }
 
     if (data.taskDefs) Object.assign(localTaskDefs, data.taskDefs);
 
@@ -5446,7 +5686,9 @@ function enterGame() {
     // and the first card-height sync runs after this frame's layout.
     document.body.classList.toggle("level3-round", isLevel3);
     roomNudgeDismissed = false;
-    applyLayoutFit("round-start");
+    // 260818.3: the "Make some room" nudge is about the game board's
+    // density — meaningless on the Observer's filler screen, so skip it.
+    if (!amObserver) applyLayoutFit("round-start");
     requestAnimationFrame(syncTeammateCardHeights);
 
     // Load my task state
@@ -5802,6 +6044,10 @@ function renderTeammates() {
   if (!gameState.players) return;
   Object.entries(gameState.players).forEach(([pid, p]) => {
     if (pid === myPlayerId) return;
+    // 260818.3 (Session 20): the Observer is not a send target — no card.
+    // (Task-trade targeting rides on these cards too, so this one
+    // exclusion covers both sendResource and executeTaskTrade.)
+    if (pid === (gameState.observerPlayerId || null)) return;
     // Only surface the two edge states — cooking (briefly unavailable)
     // and no-tickets (has capacity). Working is the default and needs no label (brief §3.9).
     const ps = p.playerStatus || "";
@@ -5852,7 +6098,7 @@ function resetToLanding() {
   gameState = {}; gameCode = null; myPlayerId = null;
   inGameEntered = false; myTaskQueue = []; myActiveTaskId = null;
   taskTarget = 0; eventName = ""; currentLevel = "level2";
-  hostPlayerId = null; amHost = false; currentTask = null;
+  hostPlayerId = null; amHost = false; amObserver = false; currentTask = null;
   inspectedTaskId = null;
   Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
   Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
@@ -5960,12 +6206,21 @@ async function showSummary() {
     document.getElementById("level-badge-summary-level2").textContent = levelLabel;
     document.getElementById("summary-event-name").textContent = evtName;
 
+    // 260818.3 (Session 20): a Level 2 round may have had an Observer —
+    // exclude them from the per-player table and the network diagram
+    // (they cooked nothing and made no transfers; the node would render
+    // as a dead circle). Totals are computed over all players, unchanged
+    // — the Observer's count is structurally 0.
+    const observerId     = data.observerPlayerId || null;
+    const cookingPlayers = Object.fromEntries(
+      Object.entries(players).filter(([pid]) => pid !== observerId));
+
     const tgt   = data.taskTarget || 0;
     const total = Object.values(players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     const won   = tgt > 0 && total >= tgt;
 
     const taskEl = document.getElementById("summary-tasks");
-    taskEl.innerHTML = Object.values(players).map(p => `
+    taskEl.innerHTML = Object.values(cookingPlayers).map(p => `
       <div class="stat-row">
         <span>${p.name}</span>
         <span class="stat-value">${p.tasksCompleted||0}</span>
@@ -5989,7 +6244,7 @@ async function showSummary() {
                 : `Event ended at ${formatElapsedMMSS(data.endedAt - data.startTime)}`)
         : "Event complete";
 
-    drawNetwork(players, transferArr);
+    drawNetwork(cookingPlayers, transferArr);
 
     document.getElementById("summary-level2-host-actions").style.display  = isHost ? "flex" : "none";
     document.getElementById("summary-level2-guest-actions").style.display = isHost ? "none" : "flex";
@@ -6005,6 +6260,7 @@ async function showSummary() {
       off(ref(db, `games/${gameCode}/status`), "value", summaryStatusUnsub);
       inGameEntered  = false; myTaskQueue = []; myActiveTaskId = null;
       taskTarget = 0; eventName = ""; currentTask = null; taskZoneMap = {};
+      amObserver = false; // 260818.3: per-round role, re-derived at next round start
       inventoryOrder = []; pendingArrivals = []; localInventory = {}; inspectedTaskId = null;
       Object.keys(localTaskDefs).forEach(k => delete localTaskDefs[k]);
       Object.keys(lastKnownInventoryRef.ingredients).forEach(k => delete lastKnownInventoryRef.ingredients[k]);
@@ -6331,7 +6587,9 @@ function isGamePaused() {
 }
 
 function pauseGame() {
-  if (!amHost || gameState.status !== "playing") return;
+  // 260818.3 (Session 20): the Observer holds pause authority too — the
+  // huddle flow is theirs to call. Everything else stays host-only.
+  if (!(amHost || amObserver) || gameState.status !== "playing") return;
   clearInterval(timerInterval); timerInterval = null;
   update(ref(db, `games/${gameCode}`), { status: "paused", pausedAt: Date.now() });
 }
@@ -6347,7 +6605,7 @@ function pauseGame() {
 // the synced field instead means resume is correct even after a host
 // refresh, or if a different host device ends up clicking Resume.
 function resumeGame() {
-  if (!amHost) return;
+  if (!(amHost || amObserver)) return; // 260818.3: see pauseGame()
   const pausedMs = gameState.pausedAt ? Math.max(0, Date.now() - gameState.pausedAt) : 0;
   const newStartTime = gameState.startTime ? gameState.startTime + pausedMs : null;
   update(ref(db, `games/${gameCode}`), {
@@ -6370,6 +6628,15 @@ function applyPausedState(paused) {
   // Host pause modal
   const pauseModal = document.getElementById("pause-modal");
   if (pauseModal && amHost) pauseModal.style.display = paused ? "flex" : "none";
+  // 260818.3 (Session 20): keep the Observer's filler screen in step —
+  // static elements, harmless to update on every client.
+  const obsStatus = document.getElementById("observer-round-status");
+  if (obsStatus) {
+    obsStatus.textContent = paused ? "Paused — huddle in progress" : "Round in progress";
+    obsStatus.classList.toggle("paused", paused);
+  }
+  const obsPauseBtn = document.getElementById("btn-observer-pause");
+  if (obsPauseBtn) obsPauseBtn.textContent = paused ? "Resume the round" : "Pause for a huddle";
 }
 
 /* ─── FREEZE AN IN-PROGRESS MINI-GAME DURING PAUSE (Session 11) ──────
@@ -6541,6 +6808,17 @@ document.getElementById("btn-ready").addEventListener("click", () => {
   document.getElementById("btn-ready").disabled = true;
   document.getElementById("btn-ready").textContent = "Waiting for team…";
 });
+// 260818.3 (Session 20): role cards, host start, and the Observer filler
+// screen's controls (see chooseRole()/hostStartRound() by the round-start
+// logic). The pause button toggles by live status; endGame stays host-only
+// (the button is only shown to a host Observer — see enterGame()).
+document.getElementById("role-card-player").addEventListener("click", () => chooseRole("player"));
+document.getElementById("role-card-observer").addEventListener("click", () => chooseRole("observer"));
+document.getElementById("btn-lets-go").addEventListener("click", hostStartRound);
+document.getElementById("btn-observer-pause").addEventListener("click", () => {
+  if (gameState.status === "paused") resumeGame(); else pauseGame();
+});
+document.getElementById("btn-observer-end").addEventListener("click", endGame);
 
 document.getElementById("btn-complete").addEventListener("click", () => {
   if (!currentTask) return;
@@ -6631,8 +6909,13 @@ async function enterBetweenRoundLobby(nextLevelType) {
   // `gameState.eventName || genEventName()` picks it up unchanged. Host-only
   // write — this function is only ever called by the host.
   updates[`games/${gameCode}/eventName`] = genEventName();
+  // 260818.3 (Session 20): the Observer role is per-round — clear the
+  // claim and every player's role in this same atomic update, so each
+  // Level 2 lobby re-chooses (same Observer / different Observer / none).
+  updates[`games/${gameCode}/observerPlayerId`] = null;
   playerIds.forEach(pid => {
     updates[`games/${gameCode}/players/${pid}/ready`] = false;
+    updates[`games/${gameCode}/players/${pid}/role`]  = null;
   });
   await update(ref(db), updates);
 
@@ -6648,6 +6931,7 @@ async function enterBetweenRoundLobby(nextLevelType) {
   clearInterval(rescueInterval); rescueInterval = null;
   clearInterval(kfNaturalTriggerCheckInterval); kfNaturalTriggerCheckInterval = null;
   setActivityFrozen(false); // Session 11: don't let a stale freeze leak into the next round
+  amObserver = false; // 260818.3: per-round role, re-derived at next round start
 
   // Reset the Ready button so the host (and anyone else on this device) can click it again
   const btnReady = document.getElementById("btn-ready");
@@ -7438,8 +7722,15 @@ function kfHandleChallengeUpdate(id, data) {
       kfTeardownChallengeUI();
       if (!kfNonParticipantToastShown) {
         kfNonParticipantToastShown = true;
-        const names = (data.participants || []).map(pid => gameState.players?.[pid]?.name).filter(Boolean).join(" & ");
-        toast(`🔥 ${names || "Teammates"} are handling a shared challenge — keep cooking, you're covered.`, "");
+        // 260818.3 (Session 20): the Observer saw the countdown overlay
+        // (kept for them deliberately — it explains the table talk, and
+        // when the HOST is the Observer its tick is what resolves the
+        // all-hands lobby) but the "keep cooking" copy isn't for them.
+        // Spectating the live fire modal is dashboard-session work.
+        if (!amObserver) {
+          const names = (data.participants || []).map(pid => gameState.players?.[pid]?.name).filter(Boolean).join(" & ");
+          toast(`🔥 ${names || "Teammates"} are handling a shared challenge — keep cooking, you're covered.`, "");
+        }
       }
     }
   } else if (data.status === "abandoned-timeout") {
@@ -7516,7 +7807,10 @@ function kfStartLobbyCountdownAllHands(id, data) {
 async function kfResolveAllHandsLobby(id) {
   const snap = await get(ref(db, `games/${gameCode}/challenges/${id}/status`));
   if (snap.val() !== "lobby") return; // already resolved by another callback — don't double-write
-  const participants = Object.keys(gameState.players || {});
+  // 260818.3 (Session 20): the Observer watches, never fights — excluded
+  // from participants (and therefore from authority selection).
+  const participants = Object.keys(gameState.players || {})
+    .filter(pid => pid !== (gameState.observerPlayerId || null));
   const authorityPlayerId = [...participants].sort()[0];
   await update(ref(db, `games/${gameCode}/challenges/${id}`), {
     status: "active", participants, authorityPlayerId, startedAt: Date.now(),
@@ -7535,6 +7829,7 @@ function kfRenderSubsetLobby(id, data) {
   const volunteers = data.volunteers || {};
   rosterEl.innerHTML = "";
   Object.entries(gameState.players || {}).forEach(([pid, p]) => {
+    if (pid === (gameState.observerPlayerId || null)) return; // 260818.3: Observer can't volunteer
     const row = document.createElement("div");
     row.className = "kf-lobby-roster-row";
     const selected = !!volunteers[pid];
