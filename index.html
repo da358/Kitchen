@@ -2160,7 +2160,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -8421,8 +8421,29 @@ function kfHandleChallengeUpdate(id, data) {
     kfCloseLobby();
     setTimeout(() => { if (kfActiveChallengeId === id) kfTeardownChallengeUI(); }, 1800);
     if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 2400);
+  } else if (data.status === "resolved" && data.outcome === "cleared" && kfActiveChallengeId === id) {
+    // 260820.7: cleared gets the SAME freeze-show-delay shape as the
+    // timeout branch above (Session 22's lesson, finally applied to the
+    // path that predates it): the authority's own resolve echo lands here
+    // SYNCHRONOUSLY from inside kfAuthorityFinish, so the old immediate
+    // teardown in the else-branch below hid the overlay before "Fire's
+    // out!" ever painted a frame — on EVERY client. Owner confirmed live
+    // (Session 23): game snapped straight back to the dashboard. Now:
+    // freeze the sim/flush at once, show the banner for ~1.8s, tear down
+    // on an id-guarded delay, and (host) clear activeChallengeId a beat
+    // after so the null-doc listener pass is a no-op. This branch owns the
+    // banner's lifetime for everyone — kfAuthorityFinish only enriches the
+    // authority's detail line after its echo returns.
+    if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
+    if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
+    document.getElementById('kf-banner-big').textContent = "Fire's out!";
+    document.getElementById('kf-success-detail').textContent = "Nice work — back to cooking.";
+    document.getElementById('kf-success-banner').classList.add('show');
+    kfCloseLobby();
+    setTimeout(() => { if (kfActiveChallengeId === id) kfTeardownChallengeUI(); }, 1800);
+    if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 2400);
   } else {
-    // resolved / abandoned
+    // resolved (round-ended) / abandoned / not in this challenge's modal
     kfTeardownChallengeUI();
     kfCloseLobby();
     if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 1600);
@@ -9435,10 +9456,13 @@ function kfAuthorityFinish(outcome) {
   const challengeData = kfTrackedChallenge();
   kfFlushTargetsToFirebase(); // one last flush so everyone sees the cleared board
   kfResolveChallenge(challengeId, { roundInstanceId: currentRoundInstanceId }, outcome);
-  document.getElementById('kf-success-banner').classList.add('show');
-  document.getElementById('kf-banner-big').textContent = "Fire's out!";  // 260820.5: explicit — the element is shared with the timeout banner now; 260820.6: emoji removed (owner, Session 23)
+  // 260820.7: the resolve call above echoes SYNCHRONOUSLY into
+  // kfHandleChallengeUpdate's cleared branch, which now shows the banner
+  // and owns its ~1.8s lifetime + teardown for every client, this one
+  // included. All that's left here is enriching the authority's detail
+  // line (only the authority knows budgetTotal). The old private 1.5s
+  // overlay-hide raced that shared teardown and is gone.
   document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
-  setTimeout(() => { document.getElementById('kf-overlay').classList.remove('active'); }, 1500);
 }
 // Small helper so kfAuthorityFinish doesn't need the whole challenge doc
 // threaded through the RAF loop just for its roundInstanceId.
