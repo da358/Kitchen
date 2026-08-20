@@ -422,7 +422,7 @@
   .dash-progress-text { font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
     text-transform: uppercase; color: var(--text-3); justify-self: start;
     white-space: nowrap; display: inline-block; transform-origin: left center; }
-  .dash-progress-text.bump { animation: obsProgBump 0.8s ease-in-out; }
+  .dash-progress-text.bump { animation: obsProgBump 1.05s ease-in-out; }
   @keyframes obsProgBump { 0% { transform: scale(1); color: var(--text-3); }
     35% { transform: scale(1.35); color: var(--text); }
     100% { transform: scale(1); color: var(--text-3); } }
@@ -2153,7 +2153,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -5550,6 +5550,17 @@ function obsQBezier(t, x1, y1, cx, cy, x2, y2) {
 function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
   const board = document.getElementById("obs-board");
   const keys = new Set([...prev.keys(), ...nowSlots.keys()]);
+  /* 260820.3: departure ghosts are inserted at the icon's ORIGINAL
+     position, so it shrinks in place and the row closes the gap —
+     previously ghosts were appended at the end of the zone, which read
+     as the icon jumping before fading. The baseline Map preserves each
+     zone's old display order (obsSnapshot and the renderer both derive
+     it from the same obsComputeHasNeeds iteration), so the old index of
+     every removed instance is recoverable. Removals are grouped per
+     card zone; a removed name loses the LAST instances of its run; the
+     insertion index counts the survivors that precede it, plus any
+     ghosts already inserted this pass. */
+  const perZone = new Map();   // "pid|side" -> { adds:[], removals:[] }
   keys.forEach(key => {
     const [pid, side, name] = key.split("|");
     const delta = (nowSlots.get(key) || 0) - (prev.get(key) || 0);
@@ -5567,7 +5578,28 @@ function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
       }
       return;
     }
-    if (delta > 0) {
+    const zk = pid + "|" + side;
+    if (!perZone.has(zk)) perZone.set(zk, { adds: [], removals: [] });
+    if (delta > 0) perZone.get(zk).adds.push({ name, delta });
+    else perZone.get(zk).removals.push({ name, count: -delta });
+  });
+
+  const seqOf = (map, pid, side) => {
+    const seq = [];
+    map.forEach((count, key) => {
+      const parts = key.split("|");
+      if (parts[0] === pid && parts[1] === side && parts[2] !== undefined) {
+        for (let i = 0; i < count; i++) seq.push(parts[2]);
+      }
+    });
+    return seq;
+  };
+
+  perZone.forEach((z, zk) => {
+    const [pid, side] = zk.split("|");
+    const card = board.querySelector(`.dash-card[data-pid="${pid}"]`);
+    if (!card) return;
+    z.adds.forEach(({ name, delta }) => {
       const els = [...card.querySelectorAll(`.dash-slot[data-side="${side}"]`)]
         .filter(el => el.dataset.resource === name && !el.classList.contains("anim-out"));
       els.slice(-delta).forEach(el => {
@@ -5575,18 +5607,28 @@ function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
         el.classList.add("anim-in");
         el.addEventListener("animationend", () => el.classList.remove("anim-in"), { once: true });
       });
-    } else {
-      const zone = card.querySelector(`.dash-${side} .dash-icons`);
-      if (!zone) return;
-      for (let i = 0; i < -delta; i++) {
-        const g = document.createElement("span");
-        g.className = "dash-slot anim-out";
-        g.dataset.resource = name; g.dataset.side = side;
-        g.innerHTML = resourceIconSVG(name, "dash-icon");
-        g.addEventListener("animationend", () => g.remove());
-        zone.appendChild(g);
-      }
-    }
+    });
+    if (!z.removals.length) return;
+    const zone = card.querySelector(`.dash-${side} .dash-icons`);
+    if (!zone) return;
+    const oldSeq = seqOf(prev, pid, side);
+    const removedPositions = [];
+    z.removals.forEach(({ name, count }) => {
+      const idxs = [];
+      oldSeq.forEach((n, i) => { if (n === name) idxs.push(i); });
+      idxs.slice(-count).forEach(i => removedPositions.push(i));
+    });
+    const removedSet = new Set(removedPositions);
+    removedPositions.sort((a, b) => a - b).forEach((pos, j) => {
+      let idx = 0;
+      for (let i = 0; i < pos; i++) if (!removedSet.has(i)) idx++;
+      const g = document.createElement("span");
+      g.className = "dash-slot anim-out";
+      g.dataset.resource = oldSeq[pos]; g.dataset.side = side;
+      g.innerHTML = resourceIconSVG(oldSeq[pos], "dash-icon");
+      g.addEventListener("animationend", () => g.remove(), { once: true });
+      zone.insertBefore(g, zone.children[idx + j] || null);
+    });
   });
   Object.keys(nowAgg).forEach(k => {
     if ((nowAgg[k] || 0) > (prevAgg[k] || 0)) {
