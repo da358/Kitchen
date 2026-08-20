@@ -327,15 +327,138 @@
      Placeholder until the Observer dashboard is designed (next
      session's branch chat). Layout matches the summary screens'
      centered-column pattern. */
+  /* 260820.1 (Session 21): the real dashboard, replacing the filler.
+     Design approved in the branch-chat testbeds (v1–v6): columns cards
+     (NEEDS left in --danger scarlet, HAS right in --text), repeated
+     duplicate icons at a fixed 20px, 3px card borders, structured rows
+     with equal 67px gaps, Echo-on pin interaction with dim, Ink legend
+     tray on a handle tab, bold transfer animations, per-arrow heads. */
   #screen-observer {
-    flex-direction: column; align-items: center; justify-content: center;
-    padding: 40px 20px; gap: 24px;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
   .observer-status {
     font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
     text-transform: uppercase; color: var(--text-3);
   }
   .observer-status.paused { color: var(--danger); }
+
+  .dash-top { position: relative; flex-shrink: 0; z-index: 6; }
+  .dash-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--border);
+    background: var(--surface); }
+  .dash-head-row1 { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .dash-event { font-family: var(--font-display); font-size: 20px; color: var(--accent);
+    font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1; min-width: 0; text-align: left; }
+  .dash-clock { font-size: 16px; font-weight: 700; letter-spacing: 0.05em;
+    color: var(--text); font-variant-numeric: tabular-nums; }
+  .dash-head-row2 { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .dash-head-row2 .observer-status { flex: 1; text-align: left; }
+  /* The later global `.btn { flex: 1 }` (modal-actions block) would
+     stretch these across the row — pin them to content width. */
+  .dash-head-row2 .btn { padding: 7px 14px; font-size: 13px; flex: 0 0 auto; width: auto; }
+
+  .dash-tray { overflow: hidden; max-height: 0; transition: max-height 0.25s ease;
+    background: var(--text); }
+  .dash-tray.open { max-height: 260px; border-bottom: 1px solid var(--border); }
+  .dash-tray-inner { padding: 8px 14px 10px; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 3px 10px; }
+  .dash-tray .lg-item { display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; letter-spacing: 0.02em; color: var(--surface); }
+  .dash-tray .lg-item .dash-icon { width: 16px; height: 16px; flex-shrink: 0; }
+  .dash-handle { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 100%);
+    background: var(--border); color: #fff; border: none; cursor: pointer;
+    font-family: var(--font); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
+    padding: 4px 18px 5px; border-radius: 0 0 10px 10px; z-index: 6; }
+  .dash-handle::before, .dash-handle::after { content: ""; position: absolute; top: 0;
+    width: 10px; height: 10px; }
+  .dash-handle::before { left: -10px;
+    background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--border) 10px); }
+  .dash-handle::after  { right: -10px;
+    background: radial-gradient(circle at 100% 100%, transparent 9.5px, var(--border) 10px); }
+
+  .dash-board { flex: 1; position: relative; min-height: 0; }
+  #obs-arrows { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;
+    pointer-events: none; }
+  #obs-arrows .tr-line { stroke: var(--text-2); stroke-width: 1.8; fill: none; opacity: 0.75; }
+  #obs-arrows .tr-headp { fill: var(--text-2); opacity: 0.85; }
+  #obs-arrows .tr-dot { fill: var(--bg); }
+  #obs-arrows .tr-num { font-size: 11px; font-weight: 700; fill: var(--text-2); }
+  /* Bold transfer animation (owner-decided v6); the head scales and
+     shades in tandem with its own line — per-arrow triangles, since a
+     shared SVG marker cannot animate per-line. */
+  #obs-arrows .tr-line.flash { animation: obsLineFlash 1.7s ease-in-out; }
+  #obs-arrows .tr-headp.flash { transform-box: fill-box; transform-origin: center;
+    animation: obsHeadFlash 1.7s ease-in-out; }
+  #obs-arrows g.tick { transform-box: fill-box; transform-origin: center;
+    animation: obsTickBulge 1.7s ease-in-out; }
+  @keyframes obsLineFlash { 0% { stroke: var(--text-2); stroke-width: 1.8; }
+    28% { stroke: var(--text); stroke-width: 5; } 65% { stroke: var(--text); stroke-width: 5; }
+    100% { stroke: var(--text-2); stroke-width: 1.8; } }
+  @keyframes obsHeadFlash { 0% { fill: var(--text-2); transform: scale(1); }
+    28% { fill: var(--text); transform: scale(1.6); } 65% { fill: var(--text); transform: scale(1.6); }
+    100% { fill: var(--text-2); transform: scale(1); } }
+  @keyframes obsTickBulge { 0% { transform: scale(1); } 28% { transform: scale(1.9); }
+    65% { transform: scale(1.9); } 100% { transform: scale(1); } }
+
+  .dash-guide { position: absolute; top: 10px; width: 186px; z-index: 2;
+    font-size: 11.5px; line-height: 1.45; color: var(--text-2); text-align: left; }
+  .dash-guide.left  { left: 12px; }
+  .dash-guide.right { right: 12px; text-align: right; }
+  .dash-guide .g-needs { color: var(--danger); font-weight: 700; }
+  .dash-guide .g-has   { color: var(--text);   font-weight: 700; }
+  .dash-caption { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
+    font-size: 12px; color: var(--text-2); z-index: 2; pointer-events: none; min-height: 16px; }
+
+  .dash-card { position: absolute; z-index: 2; width: var(--dash-card-w, 248px);
+    background: var(--surface); border: 3px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow);
+    padding: 8px 10px 9px; --dash-icon: 20px; }
+  .dash-card-top { display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 4px; margin-bottom: 5px; }
+  .dash-card-name { font-size: 13px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text); text-align: center; }
+  .dash-progress-text { font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-3); justify-self: start;
+    white-space: nowrap; display: inline-block; transform-origin: left center; }
+  .dash-progress-text.bump { animation: obsProgBump 0.8s ease-in-out; }
+  @keyframes obsProgBump { 0% { transform: scale(1); color: var(--text-3); }
+    35% { transform: scale(1.35); color: var(--text); }
+    100% { transform: scale(1); color: var(--text-3); } }
+  .dash-cooktag { font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); justify-self: end; white-space: nowrap;
+    animation: obsCookPulse 0.8s ease-in-out infinite alternate; }
+  @keyframes obsCookPulse { from { opacity: 1; } to { opacity: 0; } }
+
+  .dash-zones { display: flex; align-items: stretch; }
+  .dash-zone { flex: 1; min-width: 0; padding: 2px 5px 2px 0; }
+  .dash-zone + .dash-zone { border-left: 1px solid var(--surface-2); padding-left: 6px; padding-right: 0; }
+  .dash-zone-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3); display: block; margin-bottom: 2px;
+    text-align: left; }
+  .dash-icons { display: flex; flex-wrap: wrap; gap: 1px; align-items: center;
+    min-height: calc(var(--dash-icon) + 8px); }
+  .dash-has   .dash-slot { color: var(--text); }
+  .dash-needs .dash-slot { color: var(--danger); }
+  .dash-slot { display: inline-flex; align-items: center; padding: 3px;
+    border-radius: 7px; position: relative; cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease,
+      opacity 0.16s ease; }
+  .dash-slot .dash-icon { width: var(--dash-icon); height: var(--dash-icon); display: block; }
+  .dash-slot.lit { transform: scale(1.5); background: #FFF7EA; z-index: 4;
+    box-shadow: 0 0 0 2px var(--accent), 0 2px 10px rgba(178,58,46,0.35); }
+  .dash-slot.pinned { transform: scale(1.2); background: #FFF7EA; z-index: 4;
+    box-shadow: 0 0 0 2px var(--text-2); }
+  .dash-slot.echo { outline: 1.5px dashed var(--text-2); outline-offset: -1px; }
+  .dash-slot.dim { opacity: 0.28; }
+  .dash-slot.anim-in { animation: obsSlotIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes obsSlotIn { from { transform: scale(0.2); opacity: 0; }
+    60% { transform: scale(1.18); opacity: 1; } to { transform: scale(1); opacity: 1; } }
+  .dash-slot.anim-out { pointer-events: none; overflow: hidden;
+    animation: obsSlotOut 0.45s ease forwards; }
+  @keyframes obsSlotOut { from { transform: scale(1); opacity: 1; max-width: 48px; }
+    to { transform: scale(0.1); opacity: 0; max-width: 0; padding-left: 0; padding-right: 0; } }
 
   /* ── GAME DASHBOARD ────────────────────────────────────────── */
   #screen-game {
@@ -2030,7 +2153,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260819.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2452,16 +2575,27 @@
      (nothing dense here; the dashboard will bring its own density
      handling); diagnostics — reported automatically via showScreen(). -->
 <div id="screen-observer" class="screen">
-  <div style="text-align:center; max-width:520px;">
-    <span class="level-badge summary" id="level-badge-observer"></span>
-    <p id="observer-event-name" style="font-family:var(--font-display); font-size:26px; color:var(--accent); font-style:italic; min-height:32px; line-height:1.2;"></p>
-    <h2 style="font-family:var(--font-display); font-size:32px; font-weight:normal; margin-top:8px;">Observer Dashboard</h2>
-    <p style="margin-top:12px; font-size:15px; color:var(--text-2);">The dashboard is on its way. For now: watch and listen — you'll lead the debrief when the round ends.</p>
+  <div class="dash-top">
+    <div class="dash-head">
+      <div class="dash-head-row1">
+        <p id="observer-event-name" class="dash-event"></p>
+        <span class="dash-clock" id="obs-clock">0:00</span>
+        <span class="level-badge" id="level-badge-observer"></span>
+      </div>
+      <div class="dash-head-row2">
+        <span class="observer-status" id="observer-round-status">Round in progress</span>
+        <button class="btn btn-primary" id="btn-observer-pause">Pause</button>
+        <button class="btn btn-danger" id="btn-observer-end" style="display:none;">End game</button>
+      </div>
+    </div>
+    <div class="dash-tray" id="obs-tray"><div class="dash-tray-inner" id="obs-tray-inner"></div></div>
+    <button class="dash-handle" id="obs-handle" type="button">Show icon legend</button>
   </div>
-  <div class="observer-status" id="observer-round-status">Round in progress</div>
-  <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
-    <button class="btn btn-primary" id="btn-observer-pause" style="min-width:220px;">Pause for a huddle</button>
-    <button class="btn btn-danger" id="btn-observer-end" style="min-width:220px; display:none;">End game</button>
+  <div class="dash-board" id="obs-board">
+    <svg id="obs-arrows"></svg>
+    <div class="dash-guide left">Tap a <span class="g-needs">NEEDS</span> resource icon in red to see who has it. Tap a <span class="g-has">HAS</span> resource icon in black to see who needs it. Transfers show up below as arrows.</div>
+    <div class="dash-guide right">Listen carefully as the team coordinates. How are they identifying and closing the gaps between NEEDS and HAS?</div>
+    <div class="dash-caption" id="obs-caption"></div>
   </div>
 </div>
 
@@ -5288,6 +5422,381 @@ function startTimer(startTime) {
   }, 500);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   OBSERVER DASHBOARD — 260820.1 (Session 21)
+   ══════════════════════════════════════════════════════════════════════
+   The display half of the Observer role (plumbing shipped in Session 20;
+   the `committed` sync shipped in 260819.1). Design was built and
+   approved across six branch-chat testbeds; this module is that design
+   transplanted onto live data. Key facts:
+   - Renders ONLY when #screen-observer is active — every entry point is
+     self-guarded, so the render call in gameUnsub is a no-op for cooks.
+   - No new Firebase listeners: gameUnsub already mirrors the whole game
+     record (players incl. `committed`, transfers, taskDefs, startTime,
+     status) into gameState; this module only reads it.
+   - HAS = inventory minus committed; NEEDS = unfilled active-ticket
+     slots (requirements minus committed); the active ticket is
+     taskQueue[0] (Level 2 semantics — the Observer is L2-only).
+   - Ticket progress reads players' tasksCompleted against
+     TASKS_PER_PLAYER; Cooking tag reads playerStatus === "cooking"
+     (written at mini-game launch, restored on cancel and completion).
+   - The clock reads gameState.startTime fresh each tick — the same
+     shared value and pause-shift rules as startTimer(), so the
+     Observer's clock cannot drift from the players'.
+   - Change animations are diff-driven against a baseline snapshot; the
+     baseline stops advancing while an icon is pinned (freeze) and the
+     first render after unpinning plays one catch-up pass. */
+
+let obsPinned       = null;   // { pid, resource, side } | null
+let obsAnimBaseline = null;   // { slots: Map, agg: {} }
+let obsFrozenCount  = 0;      // queued changes while pinned (caption)
+let obsLastRoundId  = null;   // resets interaction state on a fresh round
+let obsTrayBuilt    = false;
+
+function obsComputeHasNeeds(p) {
+  const committed = p.committed || {};   // missing map reads as {} (wire rule, 260819.1)
+  const has = {};
+  [p.ingredients || {}, p.tools || {}].forEach(inv => {
+    Object.entries(inv).forEach(([name, count]) => {
+      const avail = count - (committed[name] || 0);
+      if (avail > 0) has[name] = (has[name] || 0) + avail;
+    });
+  });
+  const activeId = (p.taskQueue || [])[0] || null;
+  const needs = {};
+  const def = activeId ? localTaskDefs[activeId] : null;
+  if (def && def.requirements) def.requirements.forEach(r => {
+    const rem = r.qty - (committed[r.resource] || 0);
+    if (rem > 0) needs[r.resource] = rem;
+  });
+  return { has, needs };
+}
+
+function obsTicketsDone(p) {
+  return Math.max(0, Math.min(TASKS_PER_PLAYER, p.tasksCompleted || 0));
+}
+
+function obsSlotHTML(name, side) {
+  return `<span class="dash-slot" data-resource="${name.replace(/"/g, "&quot;")}" data-side="${side}">`
+    + resourceIconSVG(name, "dash-icon") + `</span>`;
+}
+function obsIconsHTML(map, side) {
+  return Object.keys(map).map(name => {
+    let h = "";
+    for (let i = 0; i < map[name]; i++) h += obsSlotHTML(name, side);
+    return h;
+  }).join("");
+}
+function obsZoneHTML(kind, map) {
+  return `<div class="dash-zone dash-${kind}"><span class="dash-zone-label">${kind === "has" ? "Has" : "Needs"}</span>`
+    + `<div class="dash-icons">${obsIconsHTML(map, kind)}</div></div>`;
+}
+function obsCardHTML(pid, p) {
+  const { has, needs } = obsComputeHasNeeds(p);
+  const done = obsTicketsDone(p);
+  const prog = `<span class="dash-progress-text">${done} of ${TASKS_PER_PLAYER} done</span>`;
+  const cook = (p.playerStatus === "cooking")
+    ? `<span class="dash-cooktag">Cooking</span>` : `<span></span>`;
+  const nm = (p.name || "?").replace(/</g, "&lt;");
+  return `<div class="dash-card" data-pid="${pid}">
+    <div class="dash-card-top">${prog}<span class="dash-card-name">${nm}</span>${cook}</div>
+    <div class="dash-zones">${obsZoneHTML("needs", needs)}${obsZoneHTML("has", has)}</div>
+  </div>`;
+}
+
+function obsSnapshot(players) {
+  const m = new Map();
+  players.forEach(({ pid, p }) => {
+    const { has, needs } = obsComputeHasNeeds(p);
+    Object.entries(has).forEach(([n, c])  => m.set(pid + "|has|"   + n, c));
+    Object.entries(needs).forEach(([n, c]) => m.set(pid + "|needs|" + n, c));
+    m.set(pid + "|done", obsTicketsDone(p));
+  });
+  return m;
+}
+
+function obsRowPlan(n) {
+  const plans = { 2: [[0],[1]], 3: [[0],[2,1]], 4: [[0],[3,1],[2]],
+                  5: [[0],[4,1],[3,2]], 6: [[0],[5,1],[4,2],[3]] };
+  if (plans[n]) return plans[n];
+  const rows = [[0]];                       // >6 cooks: 1 on top, pairs below
+  for (let i = 1; i < n; i += 2) rows.push(i + 1 < n ? [i + 1, i] : [i]);
+  return rows;
+}
+
+// Liang-Barsky: [tIn, tOut] of segment P1→P2 inside a card rect expanded
+// by `margin` — gives every arrow an identical card-edge gap (testbed v4).
+function obsClipT(P1, P2, rect, margin) {
+  const hw = rect.w / 2 + margin, hh = rect.h / 2 + margin;
+  const dx = P2.x - P1.x, dy = P2.y - P1.y;
+  let t0 = -Infinity, t1 = Infinity;
+  const p = [-dx, dx, -dy, dy];
+  const q = [P1.x - (rect.x - hw), (rect.x + hw) - P1.x,
+             P1.y - (rect.y - hh), (rect.y + hh) - P1.y];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) { if (q[i] < 0) return null; }
+    else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return null; if (r > t0) t0 = r; }
+      else          { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+  }
+  return [t0, t1];
+}
+function obsQBezier(t, x1, y1, cx, cy, x2, y2) {
+  const u = 1 - t;
+  return { x: u*u*x1 + 2*u*t*cx + t*t*x2, y: u*u*y1 + 2*u*t*cy + t*t*y2 };
+}
+
+function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
+  const board = document.getElementById("obs-board");
+  const keys = new Set([...prev.keys(), ...nowSlots.keys()]);
+  keys.forEach(key => {
+    const [pid, side, name] = key.split("|");
+    const delta = (nowSlots.get(key) || 0) - (prev.get(key) || 0);
+    if (delta === 0) return;
+    const card = board.querySelector(`.dash-card[data-pid="${pid}"]`);
+    if (!card) return;
+    if (side === "done") {
+      if (delta > 0) {
+        const t = card.querySelector(".dash-progress-text");
+        if (t) t.classList.add("bump");
+      }
+      return;
+    }
+    if (delta > 0) {
+      const els = [...card.querySelectorAll(`.dash-slot[data-side="${side}"]`)]
+        .filter(el => el.dataset.resource === name && !el.classList.contains("anim-out"));
+      els.slice(-delta).forEach(el => el.classList.add("anim-in"));
+    } else {
+      const zone = card.querySelector(`.dash-${side} .dash-icons`);
+      if (!zone) return;
+      for (let i = 0; i < -delta; i++) {
+        const g = document.createElement("span");
+        g.className = "dash-slot anim-out";
+        g.dataset.resource = name; g.dataset.side = side;
+        g.innerHTML = resourceIconSVG(name, "dash-icon");
+        g.addEventListener("animationend", () => g.remove());
+        zone.appendChild(g);
+      }
+    }
+  });
+  Object.keys(nowAgg).forEach(k => {
+    if ((nowAgg[k] || 0) > (prevAgg[k] || 0)) {
+      const svg = document.getElementById("obs-arrows");
+      svg.querySelectorAll(`[data-key="${k}"]`).forEach(el => {
+        if (el.tagName === "g") el.classList.add("tick");
+        else el.classList.add("flash");
+      });
+    }
+  });
+}
+
+function renderObserverDashboard() {
+  const screen = document.getElementById("screen-observer");
+  if (!screen || !screen.classList.contains("active")) return;
+  if (!gameState || !gameState.players) return;
+
+  if ((gameState.roundInstanceId || null) !== obsLastRoundId) {
+    obsLastRoundId = gameState.roundInstanceId || null;
+    obsPinned = null; obsAnimBaseline = null; obsFrozenCount = 0;
+  }
+  if (!obsTrayBuilt) obsBuildTray();
+
+  const obsId = gameState.observerPlayerId || null;
+  const players = Object.entries(gameState.players)
+    .filter(([pid, p]) => pid !== obsId && (p.playerStatus || "") !== "observer")
+    .map(([pid, p]) => ({ pid, p }));
+  if (!players.length) return;
+
+  const board = document.getElementById("obs-board");
+  board.querySelectorAll(".dash-card").forEach(el => el.remove());
+  board.insertAdjacentHTML("beforeend", players.map(({ pid, p }) => obsCardHTML(pid, p)).join(""));
+
+  const bw = board.clientWidth, bh = board.clientHeight;
+  if (!bw || !bh) return;
+  const cardW = Math.min(248, Math.floor((bw - 42) / 2));
+  board.querySelectorAll(".dash-card").forEach(el => el.style.width = cardW + "px");
+  const cardEls = {};
+  board.querySelectorAll(".dash-card").forEach(el => { cardEls[el.dataset.pid] = el; });
+
+  // Structured rows, equal vertical gaps (testbed v3/v5): 67px "Airy2",
+  // shrinking uniformly if the board is short; middle pairs widen at 5+
+  // cooks so top-to-bottom arrows pass clear.
+  const plan = obsRowPlan(players.length);
+  const rows = plan.map(row => row.map(i => players[i]).filter(Boolean));
+  const rowHs = rows.map(r => Math.max(...r.map(({ pid }) => cardEls[pid].offsetHeight)));
+  const topPad = 50, botPad = 34, sidePad = 14;
+  const sumH = rowHs.reduce((a, b) => a + b, 0);
+  let gap = 67;
+  const overflow = topPad + botPad + sumH + gap * (rows.length - 1) - bh;
+  if (overflow > 0 && rows.length > 1) gap -= overflow / (rows.length - 1);
+  gap = Math.max(8, gap);
+
+  const centers = {};
+  let y = topPad;
+  rows.forEach((row, ri) => {
+    const rh = rowHs[ri];
+    const middle = ri > 0 && ri < rows.length - 1;
+    const wide = middle && row.length === 2 && players.length >= 5;
+    const fracs = row.length === 1 ? [0.5] : wide ? [0.155, 0.845] : [0.24, 0.76];
+    row.forEach(({ pid }, ci) => {
+      const el = cardEls[pid];
+      let cx = bw * fracs[ci];
+      cx = Math.max(sidePad + el.offsetWidth / 2, Math.min(bw - sidePad - el.offsetWidth / 2, cx));
+      const cy = y + rh / 2;
+      el.style.left = (cx - el.offsetWidth / 2) + "px";
+      el.style.top  = (cy - el.offsetHeight / 2) + "px";
+      centers[pid] = { x: cx, y: cy, w: el.offsetWidth, h: el.offsetHeight };
+    });
+    y += rh + gap;
+  });
+
+  // Transfer arrows: aggregated per direction, card-edge to card-edge,
+  // opposing directions laterally separated, explicit per-arrow heads,
+  // count on the line near the head (debrief treatment).
+  const svg = document.getElementById("obs-arrows");
+  svg.setAttribute("viewBox", `0 0 ${bw} ${bh}`);
+  const agg = {};
+  Object.values(gameState.transfers || {}).forEach(t => {
+    if (!centers[t.from] || !centers[t.to]) return;
+    const k = t.from + ">" + t.to; agg[k] = (agg[k] || 0) + 1;
+  });
+  let h = "";
+  Object.entries(agg).forEach(([k, n]) => {
+    const [f, t] = k.split(">");
+    const A = centers[f], B = centers[t];
+    const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy);
+    if (!len) return;
+    const ux = dx / len, uy = dy / len;
+    const px = -uy, py = ux, off = 8;
+    const P1 = { x: A.x + px * off, y: A.y + py * off };
+    const P2 = { x: B.x + px * off, y: B.y + py * off };
+    const ca = obsClipT(P1, P2, A, 8), cb = obsClipT(P1, P2, B, 12);
+    const tStart = ca ? Math.max(0, ca[1]) : 0;
+    const tEnd   = cb ? Math.min(1, cb[0]) : 1;
+    if (tEnd - tStart < 0.02) return;
+    const x1 = P1.x + (P2.x - P1.x) * tStart, y1 = P1.y + (P2.y - P1.y) * tStart;
+    const x2 = P1.x + (P2.x - P1.x) * tEnd,   y2 = P1.y + (P2.y - P1.y) * tEnd;
+    const seg = Math.hypot(x2 - x1, y2 - y1);
+    const bow = Math.min(14, seg * 0.12);
+    const mx = (x1 + x2) / 2 + px * bow, my = (y1 + y2) / 2 + py * bow;
+    // Head: tangent at the curve's end is P2end − control point.
+    let hx = x2 - mx, hy = y2 - my;
+    const hl = Math.hypot(hx, hy) || 1; hx /= hl; hy /= hl;
+    const bxp = x2 - hx * 9, byp = y2 - hy * 9;          // head base center
+    const c1x = bxp - hy * 4.5, c1y = byp + hx * 4.5;
+    const c2x = bxp + hy * 4.5, c2y = byp - hx * 4.5;
+    h += `<path class="tr-line" data-key="${k}" d="M${x1},${y1} Q${mx},${my} ${bxp},${byp}"/>`;
+    h += `<polygon class="tr-headp" data-key="${k}" points="${x2},${y2} ${c1x},${c1y} ${c2x},${c2y}"/>`;
+    const cpt = obsQBezier(0.72, x1, y1, mx, my, bxp, byp);
+    h += `<g data-key="${k}"><circle class="tr-dot" cx="${cpt.x}" cy="${cpt.y}" r="8"/>`
+       + `<text class="tr-num" x="${cpt.x}" y="${cpt.y + 3.5}" text-anchor="middle">${n}</text></g>`;
+  });
+  svg.innerHTML = h;
+
+  // Change animations, frozen while pinned (testbed v5/v6).
+  const nowSlots = obsSnapshot(players);
+  if (obsAnimBaseline && !obsPinned) {
+    obsPlayDiffs(obsAnimBaseline.slots, nowSlots, obsAnimBaseline.agg, agg);
+  }
+  if (!obsPinned || !obsAnimBaseline) {
+    obsAnimBaseline = { slots: nowSlots, agg: { ...agg } };
+    obsFrozenCount = 0;
+  } else {
+    let c = 0;
+    const ks = new Set([...obsAnimBaseline.slots.keys(), ...nowSlots.keys()]);
+    ks.forEach(k => { if ((nowSlots.get(k) || 0) !== (obsAnimBaseline.slots.get(k) || 0)) c++; });
+    Object.keys(agg).forEach(k => { if ((agg[k] || 0) > (obsAnimBaseline.agg[k] || 0)) c++; });
+    obsFrozenCount = c;
+  }
+
+  applyObsPin();
+}
+
+function applyObsPin() {
+  const board = document.getElementById("obs-board");
+  board.querySelectorAll(".dash-slot").forEach(el => el.classList.remove("lit", "pinned", "echo", "dim"));
+  const cap = document.getElementById("obs-caption");
+  if (!obsPinned) { cap.textContent = ""; return; }
+  let litPlayers = new Set();
+  board.querySelectorAll(".dash-slot").forEach(el => {
+    const card = el.closest(".dash-card");
+    if (!card) return;
+    const pid = card.dataset.pid;
+    const related = el.dataset.resource === obsPinned.resource;
+    if (!related) { el.classList.add("dim"); return; }
+    if (el.dataset.side === obsPinned.side) {
+      if (pid === obsPinned.pid) el.classList.add("pinned");
+      else el.classList.add("echo");            // Echo ON — owner-decided v5
+    } else {
+      el.classList.add("lit");
+      litPlayers.add(pid);
+    }
+  });
+  const many = litPlayers.size > 1;
+  const verb = obsPinned.side === "has" ? (many ? "need it" : "needs it")
+                                        : (many ? "have it spare" : "has it spare");
+  const frozen = obsFrozenCount > 0
+    ? ` \u00b7 updates held \u2014 ${obsFrozenCount} change${obsFrozenCount > 1 ? "s" : ""} queued` : "";
+  cap.textContent = (litPlayers.size
+    ? `${obsPinned.resource}: ${litPlayers.size} player${many ? "s" : ""} ${verb}.`
+    : `${obsPinned.resource}: no one ${obsPinned.side === "has" ? "needs it" : "has it spare"} right now.`) + frozen;
+}
+
+function obsBuildTray() {
+  const inner = document.getElementById("obs-tray-inner");
+  if (!inner) return;
+  const names = Object.keys(RESOURCES);
+  const ing = names.filter(n => RESOURCES[n].type === "ingredient");
+  const tool = names.filter(n => RESOURCES[n].type !== "ingredient");
+  inner.innerHTML = [...ing, ...tool].map(n =>
+    `<span class="lg-item">${resourceIconSVG(n, "dash-icon")}<span>${RESOURCES[n].label}</span></span>`).join("");
+  obsTrayBuilt = true;
+}
+
+// Tap-to-pin, tap-elsewhere-to-clear (touch-first, Session 13 rule).
+// Unpinning re-renders — that render is the animation catch-up pass.
+document.getElementById("obs-board").addEventListener("click", e => {
+  const slot = e.target.closest(".dash-slot");
+  if (!slot) {
+    if (obsPinned) { obsPinned = null; renderObserverDashboard(); }
+    return;
+  }
+  const card = slot.closest(".dash-card");
+  if (!card) return;
+  const next = { pid: card.dataset.pid, resource: slot.dataset.resource, side: slot.dataset.side };
+  const unpinning = obsPinned && obsPinned.pid === next.pid
+    && obsPinned.resource === next.resource && obsPinned.side === next.side;
+  obsPinned = unpinning ? null : next;
+  if (unpinning) renderObserverDashboard(); else applyObsPin();
+});
+
+document.getElementById("obs-handle").addEventListener("click", () => {
+  const tray = document.getElementById("obs-tray");
+  const open = tray.classList.toggle("open");
+  document.getElementById("obs-handle").textContent = open ? "Close icon legend" : "Show icon legend";
+  setTimeout(renderObserverDashboard, 270);   // re-lay the rows once the board height settles
+});
+
+// The Observer's clock: same shared startTime and pause-shift rules as
+// startTimer() — reads gameState fresh each tick, freezes while paused
+// (resume shifts startTime, so elapsed excludes the pause everywhere at
+// once). One standing interval, fully guarded: it only ever writes text
+// into the clock element, and only while the Observer screen is active.
+setInterval(() => {
+  const screen = document.getElementById("screen-observer");
+  if (!screen || !screen.classList.contains("active")) return;
+  const el = document.getElementById("obs-clock");
+  if (!el || !gameState) return;
+  if (!gameState.startTime) { el.textContent = "0:00"; return; }
+  if (gameState.status !== "playing") return;   // freeze the display during a pause
+  const elapsed = Math.max(0, Math.floor((Date.now() - gameState.startTime) / 1000));
+  el.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+}, 500);
+
+window.addEventListener("resize", renderObserverDashboard);
+
 /* ─── GAME FLOW ─────────────────────────────────────────────── */
 async function createGame(levelType) {
   myPlayerName = document.getElementById("create-name").value.trim();
@@ -5681,6 +6190,7 @@ function enterGame() {
       document.getElementById("observer-event-name").textContent = data.eventName || "";
       updateLevelBadge(document.getElementById("level-badge-observer"));
       document.getElementById("btn-observer-end").style.display = amHost ? "inline-flex" : "none";
+      renderObserverDashboard();   // 260820.1: first paint; gameUnsub repaints on every snapshot
     }
 
     if (data.taskDefs) Object.assign(localTaskDefs, data.taskDefs);
@@ -5968,6 +6478,7 @@ function enterGame() {
     currentRoundInstanceId = gameState.roundInstanceId || currentRoundInstanceId;
     renderTeammates();
     updateScoreDisplay(gameState.players);
+    renderObserverDashboard();   // 260820.1: self-guarded — no-op unless the Observer screen is active
 
     if (!eventName && gameState.eventName) {
       eventName    = gameState.eventName;
@@ -6663,11 +7174,11 @@ function applyPausedState(paused) {
   // static elements, harmless to update on every client.
   const obsStatus = document.getElementById("observer-round-status");
   if (obsStatus) {
-    obsStatus.textContent = paused ? "Paused — huddle in progress" : "Round in progress";
+    obsStatus.textContent = paused ? "Paused" : "Round in progress";
     obsStatus.classList.toggle("paused", paused);
   }
   const obsPauseBtn = document.getElementById("btn-observer-pause");
-  if (obsPauseBtn) obsPauseBtn.textContent = paused ? "Resume the round" : "Pause for a huddle";
+  if (obsPauseBtn) obsPauseBtn.textContent = paused ? "Resume" : "Pause";
 }
 
 /* ─── FREEZE AN IN-PROGRESS MINI-GAME DURING PAUSE (Session 11) ──────
