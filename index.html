@@ -1258,6 +1258,13 @@
     align-items: center; justify-content: center; padding: 16px;
   }
   #kf-overlay.active { display: flex; }
+  /* 260820.4: Observer spectator — the modal's ONLY input surface is
+     #kf-blueprint's pointer listeners (kfSetupPointerInput), so one
+     pointer-events cut plus the JS-side kfSpectating guards is the
+     whole input story; no capture-phase cover needed here. */
+  #kf-overlay.kf-spectating #kf-blueprint { pointer-events: none; }
+  #kf-overlay.kf-spectating #kf-extinguisher-icon { display: none; }
+  #kf-overlay.kf-spectating .kf-board-instructions { display: none; }
   .kf-modal {
     width: min(860px, calc(100vw - 32px));
     background: var(--bg); border-radius: var(--radius-lg);
@@ -2153,7 +2160,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2480,7 +2487,7 @@
     <div class="kf-modal-header">
       <div>
         <div class="title">🔥 KITCHEN FIRE</div>
-        <div class="sub">Grab an extinguisher — put out every flame!</div>
+        <div class="sub" id="kf-modal-sub">Grab an extinguisher — put out every flame!</div>
       </div>
     </div>
     <div class="kf-blueprint-wrap">
@@ -8341,20 +8348,28 @@ function kfHandleChallengeUpdate(id, data) {
     const amParticipant = (data.participants || []).includes(myPlayerId);
     if (amParticipant) {
       dismissTipsQuietly();  // 260817.1: covers a client joining mid-active
+      kfSpectating = false;  // 260820.4: explicit — a participant never spectates
+      kfEnsureActiveChallengeRunning(id, data);
+    } else if (amObserver) {
+      // 260820.4 (Session 22): the Observer spectates the live fire — the
+      // same non-authority render-from-sync path a participant rides
+      // (kfEnsureActiveChallengeRunning; the Observer can never be
+      // authority, kfResolveAllHandsLobby excludes them), with input,
+      // the own rig/YOU tag, and engagement writes suppressed via
+      // kfSpectating. The dashboard keeps rendering beneath the overlay
+      // (screen-observer stays active; pin and animation baseline are
+      // untouched — a mid-round fire is not a round boundary).
+      kfSpectating = true;
       kfEnsureActiveChallengeRunning(id, data);
     } else {
+      // Only reachable by a true non-participant non-Observer — no such
+      // client exists in an all-hands challenge today; this is the
+      // future-subset-challenge path (Session 9 groundwork).
       kfTeardownChallengeUI();
       if (!kfNonParticipantToastShown) {
         kfNonParticipantToastShown = true;
-        // 260818.3 (Session 20): the Observer saw the countdown overlay
-        // (kept for them deliberately — it explains the table talk, and
-        // when the HOST is the Observer its tick is what resolves the
-        // all-hands lobby) but the "keep cooking" copy isn't for them.
-        // Spectating the live fire modal is dashboard-session work.
-        if (!amObserver) {
-          const names = (data.participants || []).map(pid => gameState.players?.[pid]?.name).filter(Boolean).join(" & ");
-          toast(`🔥 ${names || "Teammates"} are handling a shared challenge — keep cooking, you're covered.`, "");
-        }
+        const names = (data.participants || []).map(pid => gameState.players?.[pid]?.name).filter(Boolean).join(" & ");
+        toast(`🔥 ${names || "Teammates"} are handling a shared challenge — keep cooking, you're covered.`, "");
       }
     }
   } else if (data.status === "abandoned-timeout") {
@@ -8640,7 +8655,7 @@ function kfBuildBoardSVGInner() {
   out += `</g></g>`;
   const midX = KF_BOARD_VIEW_W / 2;
   const textTop = KF_BOARD_MARGIN_TOP + KF_BOARD_H + 22;
-  out += `<text x="${midX}" y="${textTop}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="15" fill="var(--text)">
+  out += `<text class="kf-board-instructions" x="${midX}" y="${textTop}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="15" fill="var(--text)">
     <tspan x="${midX}" dy="0">Aim your extinguisher at the flames.</tspan>
     <tspan x="${midX}" dy="20">Coordinate as a team to put them all out.</tspan>
     <tspan x="${midX}" dy="20">Your clock is still ticking.</tspan>
@@ -8815,6 +8830,13 @@ let kfRemoteEngagement = {};
 let kfTargetsUnsub = null, kfBudgetUnsub = null, kfEngagementUnsub = null;
 let kfSyncListenersChallengeId = null;
 let kfLastWrittenEngagementTargetId = undefined;
+// 260820.4 (Session 22): true while this client is the Observer
+// spectating a live fire — render from sync like a non-authority
+// participant, but no pointer input, no own extinguisher rig/YOU tag,
+// and NEVER an engagement write. Set in kfHandleChallengeUpdate's
+// active branch, cleared in kfTeardownChallengeUI (so it dies on
+// round end / resolve / abandon / disband / reset, same as the rest).
+let kfSpectating = false;
 
 function kfSetupPointerInput() {
   const container = document.getElementById('kf-blueprint');
@@ -8836,8 +8858,10 @@ function kfSetupPointerInput() {
     kf.you.x = (e.clientX - rect.left) - anchorOffsetX;
     kf.you.y = (e.clientY - rect.top) - anchorOffsetY;
   }
-  container.addEventListener('pointerdown', e => { container.setPointerCapture(e.pointerId); updatePos(e); kf.you.spraying = true; });
-  container.addEventListener('pointermove', e => { updatePos(e); });
+  // 260820.4: kfSpectating guards are belt-and-braces behind the
+  // .kf-spectating pointer-events:none cut on this same container.
+  container.addEventListener('pointerdown', e => { if (kfSpectating) return; container.setPointerCapture(e.pointerId); updatePos(e); kf.you.spraying = true; });
+  container.addEventListener('pointermove', e => { if (kfSpectating) return; updatePos(e); });
   container.addEventListener('pointerup',    () => { kf.you.spraying = false; });
   container.addEventListener('pointercancel',() => { kf.you.spraying = false; });
 }
@@ -8894,6 +8918,7 @@ function kfMergeRemoteEngagementIntoTargets() {
 }
 
 function kfMaybeWriteEngagement() {
+  if (kfSpectating) return; // 260820.4: a spectator NEVER writes engagement
   if (!kfActiveChallengeId) return;
   const targetId = kf.you._engagedTargetId || null;
   const now = Date.now();
@@ -9008,6 +9033,7 @@ function kfRenderPlayerTags() {
   const now = Date.now();
   const visible = [];
 
+  if (!kfSpectating) { // 260820.4: the Observer has no canister to pin a YOU tag to
   let myTagEl = kfPlayerTagEls.get(myPlayerId);
   if (!myTagEl) { myTagEl = document.createElement('div'); myTagEl.className = 'kf-flame-tag'; tagsLayer.appendChild(myTagEl); kfPlayerTagEls.set(myPlayerId, myTagEl); }
   const extScaleVal = kfExtScaleVal();
@@ -9024,6 +9050,7 @@ function kfRenderPlayerTags() {
   myTagEl.style.left = canisterX + 'px';
   myTagEl.style.top = (canisterTopY - 14 - tagHeight * 0.2) + 'px';
   visible.push({ id: myPlayerId, tagEl: myTagEl, px: canisterX, py: canisterTopY });
+  }
 
   const seen = new Set([myPlayerId]);
   Object.entries(kfRemoteEngagement).forEach(([pid, e]) => {
@@ -9055,6 +9082,7 @@ function kfRenderPlayerTags() {
 function kfRenderSpray(dtSec) {
   const { width, height } = kfFxOverCtx.canvas;
   kfFxOverCtx.clearRect(0, 0, width, height);
+  if (kfSpectating) return; // 260820.4: no own hose/nozzle/spray for the Observer
   const p = kf.you;
   const cursorX = p.x, cursorY = p.y;
   const extScaleVal = kfExtScaleVal();
@@ -9247,6 +9275,12 @@ function kfEnsureActiveChallengeRunning(id, data) {
 
   kfActiveChallengeId = id;
   kfIsAuthority = (data.authorityPlayerId === myPlayerId);
+  // 260820.4: spectator dressing — set BOTH ways so a participant
+  // entry always restores the participant copy/class.
+  document.getElementById('kf-overlay').classList.toggle('kf-spectating', kfSpectating);
+  document.getElementById('kf-modal-sub').textContent = kfSpectating
+    ? 'Your team is fighting the fire — listen to how they coordinate.'
+    : 'Grab an extinguisher — put out every flame!';
   document.getElementById('kf-success-banner').classList.remove('show');
 
   kfComputeScale(); kfApplyScale(); kfResizeCanvases();
@@ -9284,6 +9318,8 @@ function kfTeardownChallengeUI() {
   kfDetachParticipantSync();
   kfActiveChallengeId = null;
   kfIsAuthority = false;
+  kfSpectating = false; // 260820.4: spectator state dies on every teardown path
+  document.getElementById('kf-overlay').classList.remove('kf-spectating');
   document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
   kfFlameEls.clear(); kfPlayerTagEls.clear();
 }
