@@ -3,10 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Observer Dashboard — Testbed v5 (260819)</title>
+<title>Observer Dashboard — Testbed v6 (260819)</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   OBSERVER DASHBOARD TESTBED v5 — Session 21 branch chat
+   OBSERVER DASHBOARD TESTBED v6 — Session 21 branch chat
+   Changes from v5 (all owner-directed): TICKET PROGRESS on each card
+   (Level 2 standard: 3 tickets/player; done = target minus queue) as
+   Dots (open circles that fill, with a pop when one completes) or
+   Text ("1 of 3 done"), left of the name; COOKING tag right of the
+   name (Text or Pulse variants, Off available) — mock flag for now,
+   the real-data mapping is an integration question; Transfer-anim
+   intensity toggle (Standard vs Bold: thicker, slower, held longer);
+   pin caption shows "animations frozen — N changes queued" while a
+   pin is held, making the freeze/catch-up testable; caption
+   pluralization fixed; pin-restore hardened.
+   ─────────────────────────────────────────────────────────────────
    Changes from v4 (all owner-directed): Echo defaults ON (decided);
    Airy2 row gap added (+20%) and made the default; middle rows of
    two widen outward at 5 AND 6 players so top-to-bottom arrows pass
@@ -216,8 +227,22 @@
   background: var(--surface); border: var(--dash-card-bw) solid var(--border);
   border-radius: var(--radius-lg); box-shadow: var(--shadow);
   padding: 8px 10px 9px; }
+.dash-card-top { display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 4px; margin-bottom: 5px; }
 .dash-card-name { font-size: 13px; font-weight: 700; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--text); margin-bottom: 5px; text-align: center; }
+  text-transform: uppercase; color: var(--text); text-align: center; }
+.dash-progress { display: inline-flex; align-items: center; gap: 3px; justify-self: start; }
+.dash-progress .tick-dot { width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid var(--text-3); box-sizing: border-box; }
+.dash-progress .tick-dot.done { background: var(--text); border-color: var(--text); }
+.dash-progress .tick-dot.pop { animation: dotPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes dotPop { from { transform: scale(0.4); } 60% { transform: scale(1.6); } to { transform: scale(1); } }
+.dash-progress-text { font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3); justify-self: start; white-space: nowrap; }
+.dash-cooktag { font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent); justify-self: end; white-space: nowrap; }
+.dash-cooktag.pulse { animation: cookPulse 1.2s ease-in-out infinite alternate; }
+@keyframes cookPulse { from { opacity: 0.45; } to { opacity: 1; } }
 
 /* Zones as columns: NEEDS left, HAS right — owner-decided v2. */
 .dash-zones { display: flex; align-items: stretch; }
@@ -258,6 +283,14 @@
   35% { stroke: var(--text); stroke-width: 3.4; } 100% { stroke: var(--text-2); stroke-width: 1.8; } }
 #dash-arrows g.tick { transform-box: fill-box; transform-origin: center; animation: tickBulge 0.9s ease-in-out; }
 @keyframes tickBulge { 0% { transform: scale(1); } 35% { transform: scale(1.55); } 100% { transform: scale(1); } }
+/* Bold variant: thicker, slower, held longer mid-flight. */
+#dash-stage.anim-bold #dash-arrows path.flash { animation: lineFlashBold 1.7s ease-in-out; }
+@keyframes lineFlashBold { 0% { stroke: var(--text-2); stroke-width: 1.8; }
+  28% { stroke: var(--text); stroke-width: 5; } 65% { stroke: var(--text); stroke-width: 5; }
+  100% { stroke: var(--text-2); stroke-width: 1.8; } }
+#dash-stage.anim-bold #dash-arrows g.tick { animation: tickBulgeBold 1.7s ease-in-out; }
+@keyframes tickBulgeBold { 0% { transform: scale(1); } 28% { transform: scale(1.9); }
+  65% { transform: scale(1.9); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -459,8 +492,8 @@
 </svg>
 
 <div class="tb-header">
-  <h1>Observer Dashboard — Testbed v5</h1>
-  <p>Session 21 branch chat · v4 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
+  <h1>Observer Dashboard — Testbed v6</h1>
+  <p>Session 21 branch chat · v5 owner feedback applied · sliced from the-kitchen-game_260819_1.html (byte-identical) · .dash-* is the design candidate · mock data only, no Firebase.</p>
 </div>
 
 <div class="tb-controls">
@@ -478,6 +511,12 @@
     <button data-v="16">16</button><button data-v="20" class="on">20</button><button data-v="24">24</button></span></div>
   <div class="tb-group"><span class="lbl">Grouping</span><span class="tb-seg" data-opt="grouping">
     <button data-v="mixed" class="on">Mixed</button><button data-v="split">Ingredients / Tools</button></span></div>
+  <div class="tb-group"><span class="lbl">Progress</span><span class="tb-seg" data-opt="progress">
+    <button data-v="dots" class="on">Dots</button><button data-v="text">Text</button><button data-v="off">Off</button></span></div>
+  <div class="tb-group"><span class="lbl">Cooking tag</span><span class="tb-seg" data-opt="cooking">
+    <button data-v="text" class="on">Text</button><button data-v="pulse">Pulse</button><button data-v="off">Off</button></span></div>
+  <div class="tb-group"><span class="lbl">Transfer anim</span><span class="tb-seg" data-opt="anim">
+    <button data-v="std" class="on">Standard</button><button data-v="bold">Bold</button></span></div>
   <div class="tb-group"><span class="lbl">Echo same-side</span><span class="tb-seg" data-opt="echo">
     <button data-v="off">Off</button><button data-v="on" class="on">On</button></span></div>
   <div class="tb-group"><span class="lbl">Simulate</span>
@@ -487,7 +526,7 @@
 
 <div class="tb-section">
   <h2>A · The dashboard — laptop-first, iPad portrait toggled</h2>
-  <p class="note">Step the simulation to see the change animations: new icons spring in, removed ones shrink away, and each transfer bulges its count while the line briefly thickens and darkens. Hold a pin and the board freezes its animations — unpin and one catch-up pass shows everything that changed while you were focused. Middle rows now sit wider at 5 and 6 players so top-to-bottom arrows pass clear.</p>
+  <p class="note">Each card now shows ticket progress left of the name (Dots fill in with a pop as tickets complete; Text reads &ldquo;1 of 3 done&rdquo;) and an optional Cooking tag on the right. Hold a pin and Step: the caption below counts the frozen, queued changes — unpin to watch the catch-up pass play them. Try the Bold transfer animation against Standard.</p>
   <div class="tb-stage-wrap"><div class="tb-stage-outer" id="tb-stage-outer">
     <div id="dash-stage">
       <div class="dash-top">
@@ -674,7 +713,7 @@ function scenarioTypical() {
         committed:{},
         ingredients:{ "Rice":1, "Thyme":1, "Butter":1 },
         tools:{ "Pan":1, "Whisk":1 } },
-      { id:"p3", name:"Priya",
+      { id:"p3", name:"Priya", cooking:true,
         taskQueue:["t10","t01"],
         committed:{ "Tofu":1, "Serrated Knife":1 },
         ingredients:{ "Tofu":1, "Cumin":1, "Paprika":1 },
@@ -720,7 +759,8 @@ const SIM_STEPS = [
   { d:"Priya sends Mortar & Pestle to Jordan.", f(s){ delete s.players[2].tools["Mortar & Pestle"]; s.players[1].tools["Mortar & Pestle"]=1; s.transfers.push({from:"p3",to:"p2",n:1}); } },
   { d:"Jordan loads Mortar & Pestle.", f(s){ s.players[1].committed["Mortar & Pestle"]=1; } },
   { d:"A spawn lands: Sam receives Tray.", f(s){ s.players[3].tools["Tray"]=1; } },
-  { d:"Sam loads Tray and cooks Pepper Chicken Tray \u2192 next ticket up; committed clears.", f(s){ const p=s.players[3]; delete p.ingredients["Chicken"]; delete p.tools["Chef's Knife"]; delete p.tools["Tray"]; p.committed={}; p.taskQueue=p.taskQueue.slice(1); } },
+  { d:"Sam loads Tray and starts the cooking mini-game \u2014 the Cooking tag appears.", f(s){ s.players[3].committed["Tray"]=1; s.players[3].cooking=true; } },
+  { d:"Sam finishes cooking Pepper Chicken Tray \u2192 a progress dot fills; committed clears.", f(s){ const p=s.players[3]; delete p.ingredients["Chicken"]; delete p.tools["Chef's Knife"]; delete p.tools["Tray"]; p.committed={}; p.cooking=false; p.taskQueue=p.taskQueue.slice(1); } },
   { d:"End-of-round flurry: one transfer between every pair of players (arrow stress test).", f(s){
       for (let i = 0; i < s.players.length; i++)
         for (let j = i + 1; j < s.players.length; j++)
@@ -730,7 +770,9 @@ const SIM_STEPS = [
 
 /* ── Options + state ── */
 const opts = { players:4, scenario:"typical", stage:"laptop", rowgap:"airy2",
-               border:3, size:20, grouping:"mixed", echo:"on" };
+               border:3, size:20, grouping:"mixed", echo:"on",
+               progress:"dots", cooking:"text", anim:"std" };
+const TICKET_TARGET = 3;   // Level 2 standard: three tickets per player
 const ROW_GAPS = { compact: 18, medium: 34, airy: 56, airy2: 67 };
 /* Row plans, clockwise from the top card (indexes into players). */
 const ROW_PLANS = {
@@ -741,6 +783,7 @@ const ROW_PLANS = {
 };
 let state = null, simIdx = 0, pinned = null, paused = false, clockSec = 252;
 let animBaseline = null;   // { slots: Map, agg: {} } — held still while a pin is active
+let frozenCount = 0;       // queued changes while pinned (shown in the caption)
 
 function snapshotSlots(players) {
   const m = new Map();
@@ -748,6 +791,7 @@ function snapshotSlots(players) {
     const { has, needs } = computeHasNeeds(p);
     Object.entries(has).forEach(([n, c])  => m.set(p.id + "|has|"   + n, c));
     Object.entries(needs).forEach(([n, c]) => m.set(p.id + "|needs|" + n, c));
+    m.set(p.id + "|done", ticketsDone(p));
   });
   return m;
 }
@@ -761,6 +805,13 @@ function playDiffs(prev, nowSlots, prevAgg, nowAgg) {
     if (delta === 0) return;
     const card = board.querySelector(`.dash-card[data-pid="${pid}"]`);
     if (!card) return;
+    if (side === "done") {
+      if (delta > 0) {
+        const dots = card.querySelectorAll(".tick-dot.done");
+        if (dots.length) dots[dots.length - 1].classList.add("pop");
+      }
+      return;
+    }
     if (delta > 0) {
       const els = [...card.querySelectorAll(`.dash-slot[data-side="${side}"]`)]
         .filter(el => el.dataset.resource === name && !el.classList.contains("anim-out"));
@@ -822,11 +873,26 @@ function zoneHTML(kind, map, o) {
   return `<div class="dash-zone dash-${kind}"><span class="dash-zone-label">${kind === "has" ? "Has" : "Needs"}</span>
       <div class="dash-icons">${iconsHTML(map, kind, o)}</div></div>`;
 }
+function ticketsDone(p) {
+  return Math.max(0, Math.min(TICKET_TARGET, TICKET_TARGET - (p.taskQueue || []).length));
+}
 function cardHTML(p, o) {
   const { has, needs } = computeHasNeeds(p);
   const zones = zoneHTML("needs", needs, o) + zoneHTML("has", has, o);   // Columns: NEEDS left, HAS right — owner-decided v2
+  const done = ticketsDone(p);
+  let prog = "";
+  if (o.progress === "dots") {
+    let dots = "";
+    for (let i = 0; i < TICKET_TARGET; i++) dots += `<span class="tick-dot${i < done ? " done" : ""}"></span>`;
+    prog = `<span class="dash-progress">${dots}</span>`;
+  } else if (o.progress === "text") {
+    prog = `<span class="dash-progress-text">${done} of ${TICKET_TARGET} done</span>`;
+  } else prog = `<span></span>`;
+  const cook = (o.cooking !== "off" && p.cooking)
+    ? `<span class="dash-cooktag${o.cooking === "pulse" ? " pulse" : ""}">Cooking</span>`
+    : `<span></span>`;
   return `<div class="dash-card" data-pid="${p.id}">
-    <div class="dash-card-name">${p.name}</div>
+    <div class="dash-card-top">${prog}<span class="dash-card-name">${p.name}</span>${cook}</div>
     <div class="dash-zones">${zones}</div>
   </div>`;
 }
@@ -862,6 +928,7 @@ function qBezier(t, x1, y1, cx, cy, x2, y2) {
 function renderDashboard() {
   sizeStage();
   const stage = document.getElementById("dash-stage");
+  stage.classList.toggle("anim-bold", opts.anim === "bold");
   stage.style.setProperty("--dash-icon", opts.size + "px");
   stage.style.setProperty("--dash-card-bw", opts.border + "px");
   stage.style.setProperty("--dash-card-w", "248px");
@@ -955,7 +1022,15 @@ function renderDashboard() {
   if (animBaseline && !pinned) {
     playDiffs(animBaseline.slots, nowSlots, animBaseline.agg, agg);
   }
-  if (!pinned || !animBaseline) animBaseline = { slots: nowSlots, agg: { ...agg } };
+  if (!pinned || !animBaseline) { animBaseline = { slots: nowSlots, agg: { ...agg } }; frozenCount = 0; }
+  else {
+    // Pinned: count what's queued so the caption can show the freeze working.
+    let c = 0;
+    const ks = new Set([...animBaseline.slots.keys(), ...nowSlots.keys()]);
+    ks.forEach(k => { if ((nowSlots.get(k) || 0) !== (animBaseline.slots.get(k) || 0)) c++; });
+    Object.keys(agg).forEach(k => { if ((agg[k] || 0) > (animBaseline.agg[k] || 0)) c++; });
+    frozenCount = c;
+  }
 
   applyPin();
   renderLookalikes();
@@ -969,7 +1044,9 @@ function applyPin() {
   if (!pinned) { status.textContent = ""; return; }
   let litPlayers = new Set();
   board.querySelectorAll(".dash-slot").forEach(el => {
-    const pid = el.closest(".dash-card").dataset.pid;
+    const card = el.closest(".dash-card");
+    if (!card) return;                       // hardening: never let a stray node break the pass
+    const pid = card.dataset.pid;
     const related = el.dataset.resource === pinned.resource;
     if (!related) { el.classList.add("dim"); return; }
     if (el.dataset.side === pinned.side) {
@@ -981,10 +1058,13 @@ function applyPin() {
       litPlayers.add(pid);
     }
   });
-  const verb = pinned.side === "has" ? "needs it" : "has it spare";
-  status.textContent = litPlayers.size
-    ? `Pinned: ${pinned.resource} (${pinned.side.toUpperCase()}) \u2014 ${litPlayers.size} player${litPlayers.size>1?"s":""} ${verb}.`
-    : `Pinned: ${pinned.resource} (${pinned.side.toUpperCase()}) \u2014 no one ${verb} right now (committed items are resolved).`;
+  const many = litPlayers.size > 1;
+  const verb = pinned.side === "has" ? (many ? "need it" : "needs it")
+                                     : (many ? "have it spare" : "has it spare");
+  const frozen = frozenCount > 0 ? ` \u00b7 animations frozen \u2014 ${frozenCount} change${frozenCount>1?"s":""} queued` : " \u00b7 animations frozen";
+  status.textContent = (litPlayers.size
+    ? `Pinned: ${pinned.resource} (${pinned.side.toUpperCase()}) \u2014 ${litPlayers.size} player${many?"s":""} ${verb}.`
+    : `Pinned: ${pinned.resource} (${pinned.side.toUpperCase()}) \u2014 no one ${pinned.side === "has" ? "needs it" : "has it spare"} right now (committed items are resolved).`) + frozen;
 }
 document.getElementById("dash-board").addEventListener("click", e => {
   const slot = e.target.closest(".dash-slot");
