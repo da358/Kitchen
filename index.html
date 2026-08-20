@@ -1353,7 +1353,7 @@
     padding: 8px 16px 14px; font-size: 11.5px; color: var(--text-2);
   }
   .kf-success-banner {
-    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    position: absolute; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center;
     flex-direction: column; gap: 8px; background: rgba(220,230,198,0.96); text-align: center; padding: 20px;
   }
   .kf-success-banner.show { display: flex; }
@@ -2160,7 +2160,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2503,7 +2503,7 @@
         <div id="kf-tags-layer"></div>
         <canvas class="kf-fx-layer" id="kf-fx-over"></canvas>
         <div class="kf-success-banner" id="kf-success-banner">
-          <div class="big">🎉 Fire's out!</div>
+          <div class="big" id="kf-banner-big">🎉 Fire's out!</div>
           <div class="small" id="kf-success-detail">Nice work.</div>
         </div>
       </div>
@@ -6362,7 +6362,7 @@ function enterGame() {
     // unrelated Firebase write" — see kfCheckNaturalTrigger() for why
     // onValue alone isn't sufficient here.
     if (amHost) {
-      kfNaturalTriggerCheckInterval = setInterval(() => kfCheckNaturalTrigger(), 1000);
+      kfNaturalTriggerCheckInterval = setInterval(() => { kfCheckNaturalTrigger(); kfCheckChallengeTimeout(); }, 1000);
     }
   });
 
@@ -6612,6 +6612,7 @@ function enterGame() {
     // symptom. The interval poll is the actual fix; this call just keeps
     // reaction time snappy when data does change anyway.
     kfCheckNaturalTrigger();
+    kfCheckChallengeTimeout();  // 260820.5: same snappy-reaction pairing as above
 
     // Shared challenges (Session 9) — track the active challenge doc.
     if (gameState.activeChallengeId !== kfLastSeenActiveChallengeId) {
@@ -8303,6 +8304,30 @@ let kfChallengeDocUnsubId = null;
 // set up in enterGame()) — the interval is what actually guarantees this
 // runs on a real clock tick instead of only when something else happens
 // to write to games/{code} first.
+// 260820.5 (Session 22): the ONLY hard escape valve for a stuck active
+// fire. The mercy mechanic softens "can't figure it out", but nothing
+// resolved a technical stall — sharpest case: the AUTHORITY client dies
+// mid-fire, the sim freezes, and (rounds being count-up with no expiry)
+// nothing else ever ends the challenge. Host-side deliberately, NOT
+// authority-side, so it fires even when the authority is the dead
+// client; if the host dies the game is over anyway. Runs from the same
+// two places as kfCheckNaturalTrigger (the 1s host poll + the game
+// listener) for the same reason. Benign race accepted: a clear landing
+// within sync latency of the deadline means both writers write
+// status "resolved" and last outcome wins — either message is true
+// enough.
+const KF_CHALLENGE_TIMEOUT_MS = 90000; // owner spec, Session 22: healthy teams clear in well under a minute
+function kfCheckChallengeTimeout() {
+  if (!amHost) return;
+  const d = kfTrackedChallengeData;
+  if (!d || d.status !== "active" || !d.startedAt) return;
+  if (kfTrackedChallengeId !== gameState.activeChallengeId) return; // stale doc
+  if (Date.now() - d.startedAt < KF_CHALLENGE_TIMEOUT_MS) return;
+  if (kfTimeoutResolvedForId === kfTrackedChallengeId) return;      // one-shot
+  kfTimeoutResolvedForId = kfTrackedChallengeId;
+  kfResolveChallenge(kfTrackedChallengeId, d, "timeout");
+}
+
 function kfCheckNaturalTrigger() {
   if (amHost && (gameState.levelType === "level2" || gameState.levelType === "level3")
       && gameState.status === "playing"
@@ -8329,6 +8354,8 @@ function kfSetupChallengeDocListener(challengeId) {
 
 /* ---- lobby + active + resolution state machine ---- */
 let kfTrackedChallengeId = null;
+let kfTrackedChallengeData = null;   // 260820.5: latest challenge doc from the listener — the timeout watchdog reads THIS, not a fresh get()
+let kfTimeoutResolvedForId = null;   // 260820.5: one-shot guard so the host writes the timeout resolve once per challenge
 let kfNonParticipantToastShown = false;
 let kfLobbyCountdownInterval = null;
 let kfLobbyCountdownForId = null;
@@ -8337,6 +8364,7 @@ let kfLobbyTimeoutForId = null;
 
 function kfHandleChallengeUpdate(id, data) {
   kfTrackedChallengeId = id;
+  kfTrackedChallengeData = data;
   if (!data) { kfCloseLobby(); kfTeardownChallengeUI(); return; }
 
   if (data.status === "lobby") {
@@ -8376,6 +8404,23 @@ function kfHandleChallengeUpdate(id, data) {
     kfTeardownChallengeUI();
     kfShowLobbyAverted();
     if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 3200);
+  } else if (data.status === "resolved" && data.outcome === "timeout" && kfActiveChallengeId === id) {
+    // 260820.5: timed out — every client still in the modal (participants
+    // and the spectator alike) sees "The fire burned out." for ~1.8s, then
+    // the normal teardown. Freeze the sim/flush IMMEDIATELY so the
+    // authority doesn't keep simulating and writing to a resolved doc
+    // behind the banner; the guarded delayed teardown does the rest. The
+    // host clears activeChallengeId a beat AFTER the teardown so the
+    // resulting null-doc listener pass is a no-op, not the thing that
+    // cuts the banner short.
+    if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
+    if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
+    document.getElementById('kf-banner-big').textContent = "The fire burned out.";
+    document.getElementById('kf-success-detail').textContent = "Back to cooking.";
+    document.getElementById('kf-success-banner').classList.add('show');
+    kfCloseLobby();
+    setTimeout(() => { if (kfActiveChallengeId === id) kfTeardownChallengeUI(); }, 1800);
+    if (amHost) setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 2400);
   } else {
     // resolved / abandoned
     kfTeardownChallengeUI();
@@ -9226,6 +9271,7 @@ function kfAuthorityFinish(outcome) {
   kfFlushTargetsToFirebase(); // one last flush so everyone sees the cleared board
   kfResolveChallenge(challengeId, { roundInstanceId: currentRoundInstanceId }, outcome);
   document.getElementById('kf-success-banner').classList.add('show');
+  document.getElementById('kf-banner-big').textContent = "🎉 Fire's out!";  // 260820.5: explicit — the element is shared with the timeout banner now
   document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
   setTimeout(() => { document.getElementById('kf-overlay').classList.remove('active'); }, 1500);
 }
