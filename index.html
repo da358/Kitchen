@@ -2153,7 +2153,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -5452,6 +5452,7 @@ let obsAnimBaseline = null;   // { slots: Map, agg: {} }
 let obsFrozenCount  = 0;      // queued changes while pinned (caption)
 let obsLastRoundId  = null;   // resets interaction state on a fresh round
 let obsTrayBuilt    = false;
+let obsCardSigs     = new Map();   // pid -> last-rendered card inner HTML (keyed updates, 260820.2)
 
 function obsComputeHasNeeds(p) {
   const committed = p.committed || {};   // missing map reads as {} (wire rule, 260819.1)
@@ -5491,17 +5492,15 @@ function obsZoneHTML(kind, map) {
   return `<div class="dash-zone dash-${kind}"><span class="dash-zone-label">${kind === "has" ? "Has" : "Needs"}</span>`
     + `<div class="dash-icons">${obsIconsHTML(map, kind)}</div></div>`;
 }
-function obsCardHTML(pid, p) {
+function obsCardInnerHTML(p) {
   const { has, needs } = obsComputeHasNeeds(p);
   const done = obsTicketsDone(p);
   const prog = `<span class="dash-progress-text">${done} of ${TASKS_PER_PLAYER} done</span>`;
   const cook = (p.playerStatus === "cooking")
     ? `<span class="dash-cooktag">Cooking</span>` : `<span></span>`;
   const nm = (p.name || "?").replace(/</g, "&lt;");
-  return `<div class="dash-card" data-pid="${pid}">
-    <div class="dash-card-top">${prog}<span class="dash-card-name">${nm}</span>${cook}</div>
-    <div class="dash-zones">${obsZoneHTML("needs", needs)}${obsZoneHTML("has", has)}</div>
-  </div>`;
+  return `<div class="dash-card-top">${prog}<span class="dash-card-name">${nm}</span>${cook}</div>`
+    + `<div class="dash-zones">${obsZoneHTML("needs", needs)}${obsZoneHTML("has", has)}</div>`;
 }
 
 function obsSnapshot(players) {
@@ -5560,14 +5559,22 @@ function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
     if (side === "done") {
       if (delta > 0) {
         const t = card.querySelector(".dash-progress-text");
-        if (t) t.classList.add("bump");
+        if (t) {
+          t.classList.remove("bump"); void t.offsetWidth;
+          t.classList.add("bump");
+          t.addEventListener("animationend", () => t.classList.remove("bump"), { once: true });
+        }
       }
       return;
     }
     if (delta > 0) {
       const els = [...card.querySelectorAll(`.dash-slot[data-side="${side}"]`)]
         .filter(el => el.dataset.resource === name && !el.classList.contains("anim-out"));
-      els.slice(-delta).forEach(el => el.classList.add("anim-in"));
+      els.slice(-delta).forEach(el => {
+        el.classList.remove("anim-in"); void el.offsetWidth;   // restart if re-hit
+        el.classList.add("anim-in");
+        el.addEventListener("animationend", () => el.classList.remove("anim-in"), { once: true });
+      });
     } else {
       const zone = card.querySelector(`.dash-${side} .dash-icons`);
       if (!zone) return;
@@ -5585,8 +5592,11 @@ function obsPlayDiffs(prev, nowSlots, prevAgg, nowAgg) {
     if ((nowAgg[k] || 0) > (prevAgg[k] || 0)) {
       const svg = document.getElementById("obs-arrows");
       svg.querySelectorAll(`[data-key="${k}"]`).forEach(el => {
-        if (el.tagName === "g") el.classList.add("tick");
-        else el.classList.add("flash");
+        const cls = el.tagName === "g" ? "tick" : "flash";
+        el.classList.remove(cls);
+        void svg.getBoundingClientRect();                       // reflow: restart on repeat
+        el.classList.add(cls);
+        el.addEventListener("animationend", () => el.classList.remove(cls), { once: true });
       });
     }
   });
@@ -5600,6 +5610,9 @@ function renderObserverDashboard() {
   if ((gameState.roundInstanceId || null) !== obsLastRoundId) {
     obsLastRoundId = gameState.roundInstanceId || null;
     obsPinned = null; obsAnimBaseline = null; obsFrozenCount = 0;
+    obsCardSigs = new Map();
+    const svgEl = document.getElementById("obs-arrows");
+    if (svgEl) delete svgEl.dataset.sig;
   }
   if (!obsTrayBuilt) obsBuildTray();
 
@@ -5610,8 +5623,31 @@ function renderObserverDashboard() {
   if (!players.length) return;
 
   const board = document.getElementById("obs-board");
-  board.querySelectorAll(".dash-card").forEach(el => el.remove());
-  board.insertAdjacentHTML("beforeend", players.map(({ pid, p }) => obsCardHTML(pid, p)).join(""));
+  /* 260820.2: keyed, in-place card updates. A single transfer lands as
+     3+ gameUnsub snapshots (sender decrement, receiver increment, the
+     transfers push); the 260820.1 wholesale rebuild destroyed the whole
+     board on each one, killing every running animation ~100ms in (why
+     the flash/spring/bump were invisible outside the pinned catch-up
+     path, which renders exactly once) and recreating pinned elements —
+     the reported flicker. Now a card's content is rebuilt only when its
+     OWN data changed; untouched cards keep their DOM, so animations
+     survive the burst and pinned icons are never redrawn by someone
+     else's change. */
+  const present = new Set(players.map(({ pid }) => pid));
+  board.querySelectorAll(".dash-card").forEach(el => {
+    if (!present.has(el.dataset.pid)) { el.remove(); obsCardSigs.delete(el.dataset.pid); }
+  });
+  players.forEach(({ pid, p }) => {
+    const inner = obsCardInnerHTML(p);
+    let el = board.querySelector(`.dash-card[data-pid="${pid}"]`);
+    if (!el) {
+      board.insertAdjacentHTML("beforeend", `<div class="dash-card" data-pid="${pid}">${inner}</div>`);
+      obsCardSigs.set(pid, inner);
+    } else if (obsCardSigs.get(pid) !== inner) {
+      el.innerHTML = inner;
+      obsCardSigs.set(pid, inner);
+    }
+  });
 
   const bw = board.clientWidth, bh = board.clientHeight;
   if (!bw || !bh) return;
@@ -5693,7 +5729,11 @@ function renderObserverDashboard() {
     h += `<g data-key="${k}"><circle class="tr-dot" cx="${cpt.x}" cy="${cpt.y}" r="8"/>`
        + `<text class="tr-num" x="${cpt.x}" y="${cpt.y + 3.5}" text-anchor="middle">${n}</text></g>`;
   });
-  svg.innerHTML = h;
+  const svgSig = bw + "x" + bh + "|" + h;
+  if (svg.dataset.sig !== svgSig) {
+    svg.innerHTML = h;
+    svg.dataset.sig = svgSig;
+  }
 
   // Change animations, frozen while pinned (testbed v5/v6).
   const nowSlots = obsSnapshot(players);
