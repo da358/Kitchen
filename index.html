@@ -2160,7 +2160,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2503,7 +2503,7 @@
         <div id="kf-tags-layer"></div>
         <canvas class="kf-fx-layer" id="kf-fx-over"></canvas>
         <div class="kf-success-banner" id="kf-success-banner">
-          <div class="big" id="kf-banner-big">🎉 Fire's out!</div>
+          <div class="big" id="kf-banner-big">Fire's out!</div>
           <div class="small" id="kf-success-detail">Nice work.</div>
         </div>
       </div>
@@ -8576,10 +8576,31 @@ const KF_CONFIG = {
   spawnCheckIntervalSec: 2.2, maxSimultaneousMultiplier: 5, maxTargetsPerZone: 5,
   maxFoamBubbles: 85, foamPileHeight: 30, foamPileWidth: 22.5,
 };
+/* Fire movement (Session 23) — owner-tuned in the movement testbed, adopted
+   as-is. Keyed by levelType; a level with no entry here gets a stationary
+   fire, byte-for-byte the pre-Session-23 behavior (level1, and any future
+   level until it opts in). mix fractions are per-flame probabilities
+   (owner: probabilities, not a guaranteed deal). Speeds are board units
+   (of 400) per second. sprayedSpeedMult is how fast a flame still creeps
+   while being sprayed (0.20 = a fifth of its pace). */
+const KF_MOVE_CONFIG = {
+  levels: {
+    level2: { mix: { stationary: 0.20, slow: 0.60, fast: 0.20 }, slowSpeed: 7,  fastSpeed: 22, waypointCount: 3, sprayedSpeedMult: 0.20 },
+    level3: { mix: { stationary: 0.10, slow: 0.20, fast: 0.70 }, slowSpeed: 10, fastSpeed: 28, waypointCount: 5, sprayedSpeedMult: 0.30 },
+  },
+  speedJitter: 0.20,   // each flame's own pace varies ±20% so no two match
+  waypointJitter: 12,  // the same ±12 wiggle kfPickSafeSpawnPoint uses
+  hopMax: 190,         // a route never jumps further than this between stops
+  sprayPins: true,     // being sprayed slows a flame's wandering (eased)
+  pinEaseSec: 0.35,    // how quickly a flame slows down / speeds back up
+};
 const kfEngine = {
-  targets: [], budgetRemaining: 0, budgetTotal: 0, lastSpawnCheck: 0,
-  reset(playerCount) {
+  targets: [], budgetRemaining: 0, budgetTotal: 0, lastSpawnCheck: 0, moveProfile: null,
+  reset(playerCount, moveProfile) {
     this.targets = [];
+    // Session 23: level-keyed movement profile; null = stationary fire
+    // (identical to pre-Session-23 behavior).
+    this.moveProfile = moveProfile || null;
     this.budgetTotal = Math.ceil(playerCount * KF_CONFIG.flamesPerPlayer * (1 + KF_CONFIG.budgetSlack));
     this.budgetRemaining = this.budgetTotal;
     this.lastSpawnCheck = 0;
@@ -8594,6 +8615,7 @@ const kfEngine = {
     const t = { id: "f_" + Math.random().toString(36).slice(2, 8), zoneId, bx, by, spentSec: 0,
       requiredSec: KF_CONFIG.baseRequiredSec, bornAt: performance.now(), stage: 0, status: "burning",
       engagedBy: [], foamBubbles: [] };
+    if (this.moveProfile) kfAssignMovement(t, this.moveProfile); // Session 23: deal a tier + route
     this.targets.push(t); this.budgetRemaining--; return t;
   },
   rateFor(engagedCount) {
@@ -8602,6 +8624,9 @@ const kfEngine = {
     return KF_CONFIG.rateTableCap;
   },
   tick(dtSec, nowMs) {
+    // Session 23: movement steps first, so a flame's engagedBy list (set by
+    // the authority loop just before tick) decides whether it is pinned.
+    if (this.moveProfile) kfMoveBurningFlames(this.targets, this.moveProfile, dtSec);
     for (const t of this.targets) {
       if (t.status === "out") continue;
       const ageSec = (nowMs - t.bornAt) / 1000;
@@ -8721,6 +8746,143 @@ function kfPickSafeSpawnPoint(zoneId) {
   const jitter = () => (Math.random() - 0.5) * 24;
   return [x + jitter(), y + jitter()];
 }
+
+/* ---- fire movement (Session 23) — tiers and winding routes ----
+   Ported from the Session 23 movement testbed after owner tuning; the
+   stepping/assignment logic is the tested testbed code with tb→kf names
+   and the level profile threaded through. Route safety is by
+   construction: every stop is one of the SAME known-safe points used for
+   spawning (own zone + one adjoining zone, per KF_ZONE_NEIGHBORS, with
+   the same ±12 jitter), and the corner-cutting smoothing below can only
+   pull the curve INSIDE its dot-to-dot outline — so no route can leave
+   the safe margin. Flames walk their route end to end and back. The
+   _move* fields live only on the authority's target objects; the flush
+   (kfFlushTargetsToFirebase) picks explicit fields, so nothing here ever
+   touches the wire or the sync schema. */
+const KF_ZONE_NEIGHBORS = {
+  prep:     ['pantry', 'grill', 'stovetop'],
+  pantry:   ['prep', 'stovetop'],
+  grill:    ['prep', 'stovetop', 'dessert'],
+  stovetop: ['prep', 'pantry', 'grill', 'dessert', 'fryer'],
+  dessert:  ['grill', 'stovetop', 'fryer'],
+  fryer:    ['stovetop', 'dessert'],
+};
+/* Tiny seeded random helper: seeding by flame id keeps each flame's route
+   choices self-consistent and cheap to reason about; no cross-client
+   determinism is needed (only the authority ever simulates). */
+function kfMoveHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function kfMoveRng(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/* Deal a freshly spawned flame its movement tier and, if it moves, its own
+   route. Probabilities, not a guaranteed mix (owner, Session 23). */
+function kfAssignMovement(t, profile) {
+  const rng = kfMoveRng(kfMoveHash(t.id));
+  const mix = profile.mix;
+  const r = rng();
+  let tier;
+  if (r < mix.stationary) tier = 'stationary';
+  else if (r < mix.stationary + mix.slow) tier = 'slow';
+  else tier = 'fast';
+  t._moveTier = tier;
+  if (tier === 'stationary') return;
+  const path = kfBuildMovePath(t, profile, rng);
+  if (!path) { t._moveTier = 'stationary'; return; } // nowhere sensible to go
+  const base = tier === 'slow' ? profile.slowSpeed : profile.fastSpeed;
+  t._moveSpeed = base * (1 + (rng() - 0.5) * 2 * KF_MOVE_CONFIG.speedJitter);
+  t._movePath = path;
+  t._moveDist = 0;   // how far along its route this flame has traveled
+  t._moveDir = 1;    // walked back and forth, end to end
+  t._moveMul = 1;    // eases toward sprayedSpeedMult while being sprayed
+}
+function kfBuildMovePath(t, profile, rng) {
+  const pool = [];
+  const zones = [t.zoneId].concat(KF_ZONE_NEIGHBORS[t.zoneId] || []);
+  zones.forEach(z => (KF_ZONE_SAFE_POINTS[z] || []).forEach(p => pool.push(p)));
+  const jit = () => (rng() - 0.5) * 2 * KF_MOVE_CONFIG.waypointJitter;
+  const pts = [[t.bx, t.by]];
+  let prev = [t.bx, t.by];
+  let lastPicked = null;
+  for (let i = 0; i < profile.waypointCount; i++) {
+    const options = pool.filter(p => {
+      if (p === lastPicked) return false;
+      const d = Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+      return d > 30 && d <= KF_MOVE_CONFIG.hopMax;
+    });
+    if (!options.length) break;
+    const pick = options[Math.floor(rng() * options.length)];
+    lastPicked = pick;
+    const wp = [pick[0] + jit(), pick[1] + jit()];
+    pts.push(wp);
+    prev = wp;
+  }
+  if (pts.length < 2) return null;
+  return kfFinishMovePath(kfSmoothPolyline(pts, 2));
+}
+/* Chaikin corner-cutting: every produced point is a blend of two existing
+   ones, so the smoothed curve stays strictly inside the original
+   dot-to-dot route — the property the safety argument rests on. */
+function kfSmoothPolyline(pts, iterations) {
+  let p = pts;
+  for (let k = 0; k < iterations; k++) {
+    const q = [p[0]];
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i], b = p[i + 1];
+      q.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+      q.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    q.push(p[p.length - 1]);
+    p = q;
+  }
+  return p;
+}
+function kfFinishMovePath(smooth) {
+  const cum = [0];
+  for (let i = 1; i < smooth.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(smooth[i][0] - smooth[i - 1][0], smooth[i][1] - smooth[i - 1][1]));
+  }
+  return { pts: smooth, cum, total: cum[cum.length - 1] };
+}
+function kfMovePathPointAt(path, dist) {
+  const d = Math.max(0, Math.min(path.total, dist));
+  let i = 1;
+  while (i < path.cum.length && path.cum[i] < d) i++;
+  if (i >= path.cum.length) return path.pts[path.pts.length - 1];
+  const seg = (path.cum[i] - path.cum[i - 1]) || 1;
+  const f = (d - path.cum[i - 1]) / seg;
+  return [
+    path.pts[i - 1][0] + (path.pts[i][0] - path.pts[i - 1][0]) * f,
+    path.pts[i - 1][1] + (path.pts[i][1] - path.pts[i - 1][1]) * f,
+  ];
+}
+/* Move every wandering flame one small step. Runs at the top of
+   kfEngine.tick, when engagedBy is fresh from the authority loop — being
+   sprayed eases a flame down to the level's sprayedSpeedMult. */
+function kfMoveBurningFlames(targets, profile, dtSec) {
+  for (const t of targets) {
+    if (t.status !== 'burning') continue;
+    if (!t._movePath || t._moveTier === 'stationary') continue;
+    const wanted = (KF_MOVE_CONFIG.sprayPins && t.engagedBy.length > 0)
+      ? profile.sprayedSpeedMult : 1;
+    const ease = Math.min(1, dtSec / Math.max(KF_MOVE_CONFIG.pinEaseSec, 0.01));
+    t._moveMul += (wanted - t._moveMul) * ease;
+    t._moveDist += t._moveSpeed * t._moveMul * dtSec * t._moveDir;
+    if (t._moveDist >= t._movePath.total) { t._moveDist = t._movePath.total; t._moveDir = -1; }
+    if (t._moveDist <= 0) { t._moveDist = 0; t._moveDir = 1; }
+    const p = kfMovePathPointAt(t._movePath, t._moveDist);
+    t.bx = p[0]; t.by = p[1];
+  }
+}
+
 function kfZonePicker(existingTargets) {
   const counts = {};
   existingTargets.forEach(t => { if (t.status === 'burning') counts[t.zoneId] = (counts[t.zoneId] || 0) + 1; });
@@ -8870,6 +9032,9 @@ let kfActiveChallengeId = null;
 let kfIsAuthority = false;
 let kfFlushInterval = null;
 let kfSyncedTargets = {};
+// Session 23 (smooth-follow): the last two target snapshots, so
+// non-authority screens can glide between them instead of stepping.
+let kfSnapPrev = null, kfSnapLatest = null;
 let kfSyncedBudgetRemaining = 0;
 let kfRemoteEngagement = {};
 let kfTargetsUnsub = null, kfBudgetUnsub = null, kfEngagementUnsub = null;
@@ -9271,13 +9436,56 @@ function kfAuthorityFinish(outcome) {
   kfFlushTargetsToFirebase(); // one last flush so everyone sees the cleared board
   kfResolveChallenge(challengeId, { roundInstanceId: currentRoundInstanceId }, outcome);
   document.getElementById('kf-success-banner').classList.add('show');
-  document.getElementById('kf-banner-big').textContent = "🎉 Fire's out!";  // 260820.5: explicit — the element is shared with the timeout banner now
+  document.getElementById('kf-banner-big').textContent = "Fire's out!";  // 260820.5: explicit — the element is shared with the timeout banner now; 260820.6: emoji removed (owner, Session 23)
   document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
   setTimeout(() => { document.getElementById('kf-overlay').classList.remove('active'); }, 1500);
 }
 // Small helper so kfAuthorityFinish doesn't need the whole challenge doc
 // threaded through the RAF loop just for its roundInstanceId.
 function kfTrackedChallenge() { return { roundInstanceId: currentRoundInstanceId }; }
+
+/* ---- smooth-follow (Session 23): glide between the last two snapshots ----
+   Non-authority screens (participants AND the Observer — both run
+   kfParticipantRenderLoop) deliberately show the fire ONE snapshot
+   interval (~180ms) behind the authority's truth. In exchange, motion is
+   continuous, and the flames, foam piles, name tags and the aim check all
+   read the same glided positions — the loop swaps kfSyncedTargets before
+   kfRecomputeMyEngagement runs, and every consumer downstream reads that
+   one store. Chosen over the CSS-transition alternative in the Session 23
+   testbed (owner: foam/tags stepping under gliding flames was visible).
+   FAIL-OPEN by design: any error inside the glide falls back to the raw
+   latest snapshot — byte-for-byte the pre-Session-23 shipped behavior —
+   and warns once. A stalled network freezes flames in place (no guessing
+   ahead); they resume when snapshots resume. */
+let kfSmoothingWarned = false;
+function kfInterpolatedTargets() {
+  if (!kfSnapLatest) return kfSyncedTargets;
+  if (!kfSnapPrev) return kfSnapLatest.targets;
+  const span = Math.max(kfSnapLatest.at - kfSnapPrev.at, 1);
+  const a = Math.min(1, (performance.now() - kfSnapLatest.at) / span);
+  const out = {};
+  Object.keys(kfSnapLatest.targets).forEach(id => {
+    const t = kfSnapLatest.targets[id];
+    const p = kfSnapPrev.targets[id];
+    if (!p || t.status !== 'burning') { out[id] = t; return; }
+    out[id] = Object.assign({}, t, {
+      bx: p.bx + (t.bx - p.bx) * a,
+      by: p.by + (t.by - p.by) * a,
+    });
+  });
+  return out;
+}
+function kfApplySnapshotSmoothing() {
+  try {
+    kfSyncedTargets = kfInterpolatedTargets();
+  } catch (err) {
+    if (kfSnapLatest) kfSyncedTargets = kfSnapLatest.targets;
+    if (!kfSmoothingWarned) {
+      kfSmoothingWarned = true;
+      console.warn('Kitchen Fire smoothing fell back to raw snapshots:', err);
+    }
+  }
+}
 
 /* ---- non-authority participants: render from the synced snapshot ---- */
 function kfParticipantRenderLoop(ts) {
@@ -9286,6 +9494,7 @@ function kfParticipantRenderLoop(ts) {
   const dtSec = Math.min((ts - kf.lastFrameMs) / 1000, 0.08);
   kf.lastFrameMs = ts;
 
+  kfApplySnapshotSmoothing(); // Session 23: swap in glided positions FIRST
   kfRecomputeMyEngagement();
   kfRenderTargetsFromSync();
   kfRenderFoamFromSync();
@@ -9301,7 +9510,15 @@ function kfParticipantRenderLoop(ts) {
 function kfSetupParticipantSync(id) {
   kfDetachParticipantSync();
   kfSyncListenersChallengeId = id;
-  kfTargetsUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/targets`), snap => { kfSyncedTargets = snap.val() || {}; });
+  kfTargetsUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/targets`), snap => {
+    const t = snap.val() || {};
+    // Session 23 (smooth-follow): keep the last two snapshots for the glide.
+    // kfSyncedTargets still takes the raw value immediately — that is also
+    // the fail-open state if smoothing ever trips.
+    kfSnapPrev = kfSnapLatest;
+    kfSnapLatest = { targets: t, at: performance.now() };
+    kfSyncedTargets = t;
+  });
   kfBudgetUnsub   = onValue(ref(db, `games/${gameCode}/challenges/${id}/budgetRemaining`), snap => { kfSyncedBudgetRemaining = snap.val() || 0; });
   kfEngagementUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/engagement`), snap => { kfRemoteEngagement = snap.val() || {}; });
 }
@@ -9313,6 +9530,7 @@ function kfDetachParticipantSync() {
   }
   kfTargetsUnsub = null; kfBudgetUnsub = null; kfEngagementUnsub = null; kfSyncListenersChallengeId = null;
   kfSyncedTargets = {}; kfSyncedBudgetRemaining = 0; kfRemoteEngagement = {};
+  kfSnapPrev = null; kfSnapLatest = null; // Session 23
 }
 
 function kfEnsureActiveChallengeRunning(id, data) {
@@ -9344,7 +9562,10 @@ function kfEnsureActiveChallengeRunning(id, data) {
     const participantCount = (data.participants || []).length || 1;
     kf.maxSimultaneous = kfEngine.maxSimultaneous(participantCount);
     Object.keys(kfZoneLastActivity).forEach(k => delete kfZoneLastActivity[k]);
-    kfEngine.reset(participantCount);
+    // Session 23: level-keyed movement — same levelType resolution shape as
+    // elsewhere in the file. Unlisted levels get a stationary fire.
+    const kfMoveProfile = KF_MOVE_CONFIG.levels[(gameState && gameState.levelType) || currentLevel] || null;
+    kfEngine.reset(participantCount, kfMoveProfile);
     kfEngine.spawnBurst(participantCount * KF_CONFIG.flamesPerPlayer, kfZonePicker);
     kf.lastFrameMs = 0;
     kf.loopHandle = requestAnimationFrame(kfAuthorityLoop);
