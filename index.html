@@ -1323,6 +1323,31 @@
   @media (prefers-reduced-motion: reduce) {
     .kf-flame * { animation: none !important; }
   }
+  /* Spawn model (260821.1, Session 24): flame KIND is a size axis separate
+     from stage (stage = progress-toward-out). Spawners are the base stage
+     ladder x 1.5; babies x 0.85 (owner-tuned, spawn testbed 260821). */
+  .kf-flame.kind-spawner         { width: calc(101.25px * var(--kf-scale, 1)); height: calc(126px    * var(--kf-scale, 1)); }
+  .kf-flame.kind-spawner.stage-1 { width: calc(85.5px   * var(--kf-scale, 1)); height: calc(105.75px * var(--kf-scale, 1)); }
+  .kf-flame.kind-spawner.stage-2 { width: calc(65.25px  * var(--kf-scale, 1)); height: calc(81px     * var(--kf-scale, 1)); }
+  .kf-flame.kind-spawner.stage-3 { width: calc(45px     * var(--kf-scale, 1)); height: calc(56.25px  * var(--kf-scale, 1)); }
+  .kf-flame.kind-baby            { width: calc(67.5px * 0.85 * var(--kf-scale, 1)); height: calc(84px   * 0.85 * var(--kf-scale, 1)); }
+  .kf-flame.kind-baby.stage-1    { width: calc(57px   * 0.85 * var(--kf-scale, 1)); height: calc(70.5px * 0.85 * var(--kf-scale, 1)); }
+  .kf-flame.kind-baby.stage-2    { width: calc(43.5px * 0.85 * var(--kf-scale, 1)); height: calc(54px   * 0.85 * var(--kf-scale, 1)); }
+  .kf-flame.kind-baby.stage-3    { width: calc(30px   * 0.85 * var(--kf-scale, 1)); height: calc(37.5px * 0.85 * var(--kf-scale, 1)); }
+  /* Inner wrapper: the birth pop-out / telegraph scale the ART here while
+     the positioning transform stays on .kf-flame itself (the Session 16
+     filter-vs-clip rule stays honored: no filter+clip on one element). */
+  .kf-flame-inner { width: 100%; height: 100%; transform-origin: 50% 92%; }
+  /* Telegraph pulse: a spawner bulges/brightens just before each birth.
+     Duration MUST match KF_SPAWN_CONFIG.teleSec (0.45s). Explicit z-index
+     so the bulge rides over neighbouring flames (Session 22 rule). */
+  .kf-flame.telegraph { z-index: 1; }
+  .kf-flame.telegraph .kf-flame-inner { animation: kfTelegraphPulse 0.45s ease-in-out 1; }
+  @keyframes kfTelegraphPulse {
+    0%, 100% { transform: scale(1); }
+    40%      { transform: scale(1.28); filter: brightness(1.4) saturate(1.25); }
+    72%      { transform: scale(1.08); filter: brightness(1.15); }
+  }
   .kf-flame-tag {
     position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
     /* Sized to match the on-board zone labels (GRILL, PANTRY, etc.) at
@@ -1348,10 +1373,7 @@
        native (0,0) origin, not a centered anchor. */
     position: absolute; pointer-events: none; z-index: 4;
   }
-  .kf-blueprint-footer {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 16px 14px; font-size: 11.5px; color: var(--text-2);
-  }
+  /* .kf-blueprint-footer removed 260821.1 with its markup (readouts dropped). */
   .kf-success-banner {
     position: absolute; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center;
     flex-direction: column; gap: 8px; background: rgba(220,230,198,0.96); text-align: center; padding: 20px;
@@ -2160,7 +2182,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260820.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2508,10 +2530,11 @@
         </div>
       </div>
     </div>
-    <div class="kf-blueprint-footer">
-      <span id="kf-flame-count-readout">— fires remaining</span>
-      <span id="kf-budget-readout"></span>
-    </div>
+    <!-- 260821.1 (Session 24): the two-line readout ("N fires still burning" /
+         "N more may still spawn") was removed with the spawn model. The
+         second line was the dead budget count; the owner dropped the first
+         as obvious. kfUpdateReadouts and the budgetRemaining wire field and
+         listener went with it. -->
   </div>
 </div>
 
@@ -8255,7 +8278,12 @@ function pickChallengeType() {
 function kfResolveChallenge(challengeId, challengeData, outcome) {
   if (!gameState || gameState.status !== "playing") return false;
   if (challengeData.roundInstanceId !== currentRoundInstanceId) return false;
-  update(ref(db, `games/${gameCode}/challenges/${challengeId}`), { status: "resolved", outcome, endedAt: Date.now() }).catch(()=>{});
+  const upd = { status: "resolved", outcome, endedAt: Date.now() };
+  // 260821.1: a clear carries its stats on the resolve doc so EVERY banner
+  // renders the same detail line (clear time + first spawner down — the
+  // debrief hook). The watchdog's timeout resolve never sets this.
+  if (challengeData.clearedStats) upd.clearedStats = challengeData.clearedStats;
+  update(ref(db, `games/${gameCode}/challenges/${challengeId}`), upd).catch(()=>{});
   return true;
 }
 
@@ -8317,6 +8345,17 @@ let kfChallengeDocUnsubId = null;
 // status "resolved" and last outcome wins — either message is true
 // enough.
 const KF_CHALLENGE_TIMEOUT_MS = 90000; // owner spec, Session 22: healthy teams clear in well under a minute
+/* Wind-down (260821.1, Session 24): in the final KF_SPAWN_CONFIG.windDownSec
+   before the 90s timeout, births stop and every flame self-drains to out,
+   so the board gutters down instead of cutting from raging fire straight to
+   the banner. Authority-side simulation behavior; the host watchdog below
+   stays the authoritative hard backstop (both writing "resolved" within
+   sync latency of each other is the Session 22 accepted benign race). A
+   board emptied BY the drain resolves as "timeout", never "cleared". */
+function kfWindDownActive() {
+  if (!kf.challengeStartedAt) return false;
+  return (Date.now() - kf.challengeStartedAt) >= (KF_CHALLENGE_TIMEOUT_MS - KF_SPAWN_CONFIG.windDownSec * 1000);
+}
 function kfCheckChallengeTimeout() {
   if (!amHost) return;
   const d = kfTrackedChallengeData;
@@ -8416,7 +8455,7 @@ function kfHandleChallengeUpdate(id, data) {
     if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
     if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
     document.getElementById('kf-banner-big').textContent = "The fire burned out.";
-    document.getElementById('kf-success-detail').textContent = "Back to cooking.";
+    document.getElementById('kf-success-detail').textContent = ""; // 260821.1: header only on a burn-out (owner)
     document.getElementById('kf-success-banner').classList.add('show');
     kfCloseLobby();
     setTimeout(() => { if (kfActiveChallengeId === id) kfTeardownChallengeUI(); }, 1800);
@@ -8437,7 +8476,15 @@ function kfHandleChallengeUpdate(id, data) {
     if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
     if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
     document.getElementById('kf-banner-big').textContent = "Fire's out!";
-    document.getElementById('kf-success-detail').textContent = "Nice work — back to cooking.";
+    // 260821.1: the resolve doc carries the clear stats (see
+    // kfAuthorityFinish), so every client shows the same line. Copy is
+    // first-pass — owner flagged a wording cleanup for later. Fallback
+    // keeps the 260820.7 line if the stats are ever absent.
+    const kfCs = data.clearedStats;
+    document.getElementById('kf-success-detail').textContent =
+      (kfCs && kfCs.clearSec != null && kfCs.firstSpawnerSec != null)
+        ? `Cleared in ${kfCs.clearSec}s — first spawner down at ${kfCs.firstSpawnerSec}s.`
+        : "Nice work — back to cooking.";
     document.getElementById('kf-success-banner').classList.add('show');
     kfCloseLobby();
     setTimeout(() => { if (kfActiveChallengeId === id) kfTeardownChallengeUI(); }, 1800);
@@ -8590,6 +8637,11 @@ function kfStartLobbyTimeoutSubset(id, data) {
 }
 
 /* ---- layer 2: field-of-targets engine (generic; unchanged from Step 1) --- */
+/* 260821.1 (Session 24): the spawn model retired the budget/spawn-check
+   path. flamesPerPlayer, budgetSlack, spawnCheckIntervalSec,
+   maxSimultaneousMultiplier and maxTargetsPerZone are no longer read
+   anywhere — left defined per this project's dead-code convention. The
+   live knobs for the spawn model are in KF_SPAWN_CONFIG below. */
 const KF_CONFIG = {
   flamesPerPlayer: 4, budgetSlack: 0.15, baseRequiredSec: 3,
   rateTable: { 1: 1.0, 2: 1.5, 3: 1.75 }, rateTableCap: 2.0, sprayRadius: 46,
@@ -8610,56 +8662,102 @@ const KF_MOVE_CONFIG = {
     level3: { mix: { stationary: 0.10, slow: 0.20, fast: 0.70 }, slowSpeed: 10, fastSpeed: 28, waypointCount: 5, sprayedSpeedMult: 0.30 },
   },
   speedJitter: 0.20,   // each flame's own pace varies ±20% so no two match
-  waypointJitter: 12,  // the same ±12 wiggle kfPickSafeSpawnPoint uses
+  waypointJitter: 12,  // ±12 wiggle on every route stop (spawn-era kfPickSafeSpawnPoint used the same)
   hopMax: 190,         // a route never jumps further than this between stops
   sprayPins: true,     // being sprayed slows a flame's wandering (eased)
   pinEaseSec: 0.35,    // how quickly a flame slows down / speeds back up
 };
-const kfEngine = {
-  targets: [], budgetRemaining: 0, budgetTotal: 0, lastSpawnCheck: 0, moveProfile: null,
-  reset(playerCount, moveProfile) {
-    this.targets = [];
-    // Session 23: level-keyed movement profile; null = stationary fire
-    // (identical to pre-Session-23 behavior).
-    this.moveProfile = moveProfile || null;
-    this.budgetTotal = Math.ceil(playerCount * KF_CONFIG.flamesPerPlayer * (1 + KF_CONFIG.budgetSlack));
-    this.budgetRemaining = this.budgetTotal;
-    this.lastSpawnCheck = 0;
+/* Spawn model (260821.1, Session 24) — every number owner-tuned in the
+   spawn testbed (kitchen-fire-spawn-testbed_v3, branch handoff 260821).
+   Spawners: stationary, 1.5x-size flames that periodically birth wandering
+   "baby" flames until put out. Cleared = all spawners AND babies out.
+   Keyed by levelType like KF_MOVE_CONFIG; unlisted levels fall back to
+   level2's numbers (level1 never triggers a fire at all). */
+const KF_SPAWN_CONFIG = {
+  levels: {
+    level2: { ratio: 1.0, minSpawners: 3, maxSpawners: 6, toughSec: 10, birthIntervalSec: 3.0, birthJitterSec: 0.75, perSpawnerCap: 5, boardCap: 15, babySlow: 12, babyFast: 28 },
+    level3: { ratio: 1.2, minSpawners: 4, maxSpawners: 7, toughSec: 14, birthIntervalSec: 3.5, birthJitterSec: 0.75, perSpawnerCap: 5, boardCap: 15, babySlow: 14, babyFast: 32 },
   },
-  maxSimultaneous(playerCount) { return playerCount * KF_CONFIG.maxSimultaneousMultiplier; },
-  spawnBurst(count, zonePicker) { for (let i = 0; i < count && this.budgetRemaining > 0; i++) this.spawnOne(zonePicker); },
-  spawnOne(zonePicker) {
-    if (this.budgetRemaining <= 0) return null;
-    const zoneId = zonePicker(this.targets);
-    if (!zoneId) return null;
-    const [bx, by] = kfPickSafeSpawnPoint(zoneId);
-    const t = { id: "f_" + Math.random().toString(36).slice(2, 8), zoneId, bx, by, spentSec: 0,
-      requiredSec: KF_CONFIG.baseRequiredSec, bornAt: performance.now(), stage: 0, status: "burning",
-      engagedBy: [], foamBubbles: [] };
-    if (this.moveProfile) kfAssignMovement(t, this.moveProfile); // Session 23: deal a tier + route
-    this.targets.push(t); this.budgetRemaining--; return t;
+  // Team-up Mode B (owner): ONE sprayer on a spawner halts its births but
+  // barely dents it (soloRate); 2+ sprayers use the normal team rate table
+  // and genuinely drain it. Babies always use the rate table.
+  soloRate: 0.15, haltBirths: true,
+  babyMercy: true, spawnerMercy: false,   // babies soften with age; spawners never do
+  teleSec: 0.45,        // telegraph pulse before each birth — MUST match the kfTelegraphPulse CSS duration
+  popDistUnits: 50,     // how far (board units) the newborn hops from its spawner
+  popDurSec: 0.5,       // pop-out hop duration; the wander starts after landing
+  birthOriginPct: 25,   // pop-out starts this far up the spawner art (its "belly")
+  windDownSec: 10,      // final seconds before the 90s timeout: births stop, flames self-drain
+  allMovers: true,      // babies redistribute the stationary share across slow/fast
+  firstBirthBaseMs: 1500, firstBirthStepMs: 1300, firstBirthJitterMs: 800, // staggered first births — never lockstep
+};
+/* 260821.1 (Session 24): spawnBurst/spawnOne, the budget fields and the
+   periodic spawn-check were removed with the budget model — spawners are
+   placed by kfPlaceSpawners() and babies are born inside tick(). The
+   engine's moveProfile is now specifically the BABY movement profile
+   (spawners never move). */
+const kfEngine = {
+  targets: [], moveProfile: null, spawnProfile: null, spawnRng: null, firstSpawnerOutWall: null,
+  reset(spawnProfile, babyMoveProfile, rng) {
+    this.targets = [];
+    this.spawnProfile = spawnProfile || null;     // the KF_SPAWN_CONFIG.levels entry for this round's level
+    this.moveProfile = babyMoveProfile || null;   // null = babies stationary (unlisted level; defensive)
+    this.spawnRng = rng || Math.random;           // seeded per challenge by the caller
+    this.firstSpawnerOutWall = null;              // Date.now() when the first spawner died (cleared-banner stat)
   },
   rateFor(engagedCount) {
     if (engagedCount <= 0) return 0;
     if (KF_CONFIG.rateTable[engagedCount] !== undefined) return KF_CONFIG.rateTable[engagedCount];
     return KF_CONFIG.rateTableCap;
   },
-  tick(dtSec, nowMs) {
-    // Session 23: movement steps first, so a flame's engagedBy list (set by
-    // the authority loop just before tick) decides whether it is pinned.
+  /* Spawn-model tick (260821.1) — ported from the owner-tuned testbed's
+     tbTick. Same burn/stage/foam math as before, with: (a) per-kind mercy
+     (spawners: none), (b) Mode B spawner rates + birth halt while engaged,
+     (c) births with per-spawner/board caps replacing the budget spawn
+     check, (d) the wind-down self-drain in its OWN bucket. */
+  tick(dtSec, nowMs, windDown) {
+    // Session 23 rule: movement steps first, so a flame's engagedBy list
+    // (set by the authority loop just before tick) decides pinning.
     if (this.moveProfile) kfMoveBurningFlames(this.targets, this.moveProfile, dtSec);
+    const cfg = this.spawnProfile;
     for (const t of this.targets) {
       if (t.status === "out") continue;
-      const ageSec = (nowMs - t.bornAt) / 1000;
-      if (ageSec > KF_CONFIG.mercyThresholdSec) {
-        const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
-        t.requiredSec = KF_CONFIG.baseRequiredSec - mercyProgress * (KF_CONFIG.baseRequiredSec - KF_CONFIG.mercyFloorSec);
+      // a newborn's wander is held until its pop-out hop has landed
+      if (t._heldMove && t._birth && (nowMs - t._birth.at) >= KF_SPAWN_CONFIG.popDurSec * 1000) {
+        t._movePath = t._heldMove.path; t._heldMove = null;
       }
-      const rate = this.rateFor(t.engagedBy.length);
+      const isSpawner = t.kind === "spawner";
+      const baseReq = isSpawner ? t._baseRequiredSec : KF_CONFIG.baseRequiredSec;
+      const mercyOn = isSpawner ? KF_SPAWN_CONFIG.spawnerMercy : KF_SPAWN_CONFIG.babyMercy;
+      if (mercyOn) {
+        const ageSec = (nowMs - t.bornAt) / 1000;
+        if (ageSec > KF_CONFIG.mercyThresholdSec) {
+          const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
+          const floor = isSpawner
+            ? baseReq * (KF_CONFIG.mercyFloorSec / KF_CONFIG.baseRequiredSec) // same curve, scaled to spawner toughness
+            : KF_CONFIG.mercyFloorSec;
+          t.requiredSec = baseReq - mercyProgress * (baseReq - floor);
+        }
+      } else {
+        t.requiredSec = baseReq;
+      }
+      const n = t.engagedBy.length;
+      // Mode B (owner, spawn testbed 260821): a solo sprayer HOLDS a
+      // spawner — halts its births (below) but barely dents it; 2+
+      // sprayers use the normal team rate table and genuinely drain it.
+      // Babies always use the table.
+      let rate;
+      if (isSpawner) rate = n <= 0 ? 0 : (n === 1 ? KF_SPAWN_CONFIG.soloRate : this.rateFor(n));
+      else rate = this.rateFor(n);
       if (rate > 0) t.spentSec += dtSec * rate;
-      const frac = t.spentSec / t.requiredSec;
+      /* Wind-down drain lives in its OWN bucket: it shrinks the flame and
+         finishes it off, but only player spraying (spentSec) builds foam —
+         otherwise foam self-accumulates with nobody spraying (testbed v1
+         bug, owner-rejected). */
+      if (windDown) t.windSpentSec = (t.windSpentSec || 0) + dtSec * (t.requiredSec / Math.max(1, KF_SPAWN_CONFIG.windDownSec));
+      const frac = (t.spentSec + (t.windSpentSec || 0)) / t.requiredSec;
       t.stage = frac >= 0.9 ? 3 : frac >= 0.66 ? 2 : frac >= 0.33 ? 1 : 0;
-      const desiredBubbles = Math.round(Math.min(1, frac) * KF_CONFIG.maxFoamBubbles);
+      const desiredBubbles = Math.round(Math.min(1, t.spentSec / t.requiredSec) * KF_CONFIG.maxFoamBubbles);
       while (t.foamBubbles.length < desiredBubbles) {
         const heightFrac = Math.pow(Math.random(), 1.3);
         const dy = -heightFrac * KF_CONFIG.foamPileHeight;
@@ -8667,22 +8765,48 @@ const kfEngine = {
         const dx = (Math.random() - 0.5) * 2 * widthAtHeight;
         t.foamBubbles.push({ dx, dy, r: 2.5 + Math.random() * 3 });
       }
-      if (frac >= 1 && t.status === "burning") { t.status = "out"; t.outAt = nowMs; }
+      if (frac >= 1 && t.status === "burning") {
+        t.status = "out"; t.outAt = nowMs;
+        if (isSpawner && this.firstSpawnerOutWall === null) this.firstSpawnerOutWall = Date.now();
+      }
+    }
+    /* births — capped per spawner and board-wide so a struggling team is
+       never drowned; a solo sprayer halts them (Mode B). Stops entirely
+       during the wind-down. */
+    if (cfg && !windDown) {
+      const babiesAll = this.targets.filter(b => b.kind === "baby" && b.status === "burning");
+      for (const s of this.targets) {
+        if (s.kind !== "spawner" || s.status !== "burning") continue;
+        const halted = KF_SPAWN_CONFIG.haltBirths && s.engagedBy.length > 0;
+        if (halted) {
+          s._tele = false;
+          s._nextBirthAt = Math.max(s._nextBirthAt, nowMs + KF_SPAWN_CONFIG.teleSec * 1000 + 200);
+          continue;
+        }
+        const mine = babiesAll.filter(b => b._parent === s.id).length;
+        if (mine >= cfg.perSpawnerCap || babiesAll.length >= cfg.boardCap) {
+          s._tele = false;
+          s._nextBirthAt = Math.max(s._nextBirthAt, nowMs + 700);
+          continue;
+        }
+        s._tele = nowMs >= (s._nextBirthAt - KF_SPAWN_CONFIG.teleSec * 1000);
+        if (nowMs >= s._nextBirthAt) {
+          const baby = kfBirthBaby(s, this.spawnRng, nowMs);
+          if (baby) this.targets.push(baby);
+          s._tele = false;
+          s._nextBirthAt = nowMs + kfBirthIntervalMs(this.spawnRng, cfg);
+        }
+      }
+    } else {
+      this.targets.forEach(s => { if (s.kind === "spawner") s._tele = false; });
     }
     this.targets = this.targets.filter(t => t.status !== "out" || (nowMs - t.outAt) < 500);
-    this.lastSpawnCheck += dtSec;
-    if (this.lastSpawnCheck >= KF_CONFIG.spawnCheckIntervalSec) {
-      this.lastSpawnCheck = 0;
-      const activeCount = this.targets.filter(t => t.status === "burning").length;
-      if (this.budgetRemaining > 0 && activeCount < kf.maxSimultaneous) this.spawnOne(kfZonePicker);
-    }
   },
-  allCleared() { return this.budgetRemaining <= 0 && this.targets.filter(t => t.status === "burning").length === 0; },
 };
 
 /* ---- layer 3: Kitchen Fire skin (zones, flame asset, extinguisher) --- */
 const KF_ZONES = ['prep', 'pantry', 'grill', 'stovetop', 'dessert', 'fryer'];
-const kfZoneLastActivity = {};
+/* kfZoneLastActivity removed 260821.1 with kfZonePicker (see above). */
 const KF_ZONE_PATHS = {
   prep:     'M0,0 L400,0 L400,100 L200,100 L200,200 L100,200 L100,100 L0,100 Z',
   pantry:   'M0,100 L100,100 L100,400 L0,400 Z',
@@ -8761,12 +8885,9 @@ const KF_ZONE_SAFE_POINTS = {
   dessert:  [[350,250],[350,350]],
   fryer:    [[250,350]],
 };
-function kfPickSafeSpawnPoint(zoneId) {
-  const points = KF_ZONE_SAFE_POINTS[zoneId] || [[200, 200]];
-  const [x, y] = points[Math.floor(Math.random() * points.length)];
-  const jitter = () => (Math.random() - 0.5) * 24;
-  return [x + jitter(), y + jitter()];
-}
+/* kfPickSafeSpawnPoint removed 260821.1 (Session 24): its only caller was
+   the budget model's spawnOne. Spawners are placed exactly ON safe points
+   by kfPlaceSpawners; babies land via kfBirthBaby. */
 
 /* ---- fire movement (Session 23) — tiers and winding routes ----
    Ported from the Session 23 movement testbed after owner tuning; the
@@ -8904,21 +9025,86 @@ function kfMoveBurningFlames(targets, profile, dtSec) {
   }
 }
 
-function kfZonePicker(existingTargets) {
-  const counts = {};
-  existingTargets.forEach(t => { if (t.status === 'burning') counts[t.zoneId] = (counts[t.zoneId] || 0) + 1; });
-  const now = performance.now();
-  const eligible = KF_ZONES.filter(z => (counts[z] || 0) < KF_CONFIG.maxTargetsPerZone);
-  if (eligible.length === 0) return null;
-  const weights = eligible.map(z => 1 + (now - (kfZoneLastActivity[z] || 0)) / 1000);
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < eligible.length; i++) {
-    r -= weights[i];
-    if (r <= 0) { kfZoneLastActivity[eligible[i]] = now; return eligible[i]; }
+/* kfZonePicker and kfZoneLastActivity removed 260821.1 (Session 24): the
+   zone-crowding spawn picker belonged to the budget model. Its accepted
+   approximate-counting quirk (movers keeping their spawn zoneId) goes with
+   it. Spawner placement below spreads across distinct zones directly. */
+
+/* ---- spawn model (260821.1, Session 24): placement + births ----
+   Ported from the owner-tuned spawn testbed (kitchen-fire-spawn-testbed_v3,
+   branch handoff 260821). Spawners sit exactly ON KF_ZONE_SAFE_POINTS in
+   distinct (shuffled) zones; a birth pops the baby toward a known-safe
+   point in the spawner's own or neighboring zone, so the landing stays
+   inside the room, then the baby wanders on the Session 23 route machinery
+   FROM its landing point. All randomness comes from the per-challenge
+   seeded rng, so a challenge's layout is reproducible from its id. */
+function kfBabyMoveProfile(levelType) {
+  const base = KF_MOVE_CONFIG.levels[levelType];
+  const cfg  = KF_SPAWN_CONFIG.levels[levelType];
+  if (!base || !cfg) return null;
+  let mix = base.mix;
+  if (KF_SPAWN_CONFIG.allMovers) {
+    // babies all move: redistribute the stationary share across slow/fast
+    const movers = base.mix.slow + base.mix.fast || 1;
+    mix = { stationary: 0, slow: base.mix.slow / movers, fast: base.mix.fast / movers };
   }
-  kfZoneLastActivity[eligible[0]] = now;
-  return eligible[0];
+  return { mix, slowSpeed: cfg.babySlow, fastSpeed: cfg.babyFast,
+           waypointCount: base.waypointCount, sprayedSpeedMult: base.sprayedSpeedMult };
+}
+function kfSpawnerCount(cooks, cfg) {
+  return Math.max(cfg.minSpawners, Math.min(cfg.maxSpawners, Math.ceil(cooks * cfg.ratio)));
+}
+function kfBirthIntervalMs(rng, cfg) {
+  const jitter = (rng() - 0.5) * 2 * cfg.birthJitterSec;
+  return Math.max(1.2, cfg.birthIntervalSec + jitter) * 1000;
+}
+function kfPlaceSpawners(count, cfg, rng) {
+  const zones = KF_ZONES.slice();
+  for (let i = zones.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [zones[i], zones[j]] = [zones[j], zones[i]]; }
+  const used = new Set();
+  for (let i = 0; i < count; i++) {
+    const zoneId = zones[i % zones.length];
+    const pts = KF_ZONE_SAFE_POINTS[zoneId];
+    let pick = null;
+    for (let a = 0; a < 8 && !pick; a++) {
+      const cand = pts[Math.floor(rng() * pts.length)];
+      if (!used.has(cand[0] + ',' + cand[1])) pick = cand;
+    }
+    if (!pick) pick = pts[Math.floor(rng() * pts.length)];
+    used.add(pick[0] + ',' + pick[1]);
+    kfEngine.targets.push({
+      id: 's_' + Math.random().toString(36).slice(2, 8), zoneId, bx: pick[0], by: pick[1],
+      spentSec: 0, windSpentSec: 0, requiredSec: cfg.toughSec, bornAt: performance.now(),
+      stage: 0, status: 'burning', engagedBy: [], foamBubbles: [],
+      kind: 'spawner', _baseRequiredSec: cfg.toughSec, _tele: false,
+      // staggered first births so spawners never fire in lockstep
+      _nextBirthAt: performance.now() + KF_SPAWN_CONFIG.firstBirthBaseMs
+        + i * KF_SPAWN_CONFIG.firstBirthStepMs + rng() * KF_SPAWN_CONFIG.firstBirthJitterMs,
+    });
+  }
+}
+function kfBirthBaby(s, rng, nowMs) {
+  const pool = [];
+  [s.zoneId].concat(KF_ZONE_NEIGHBORS[s.zoneId] || []).forEach(z =>
+    (KF_ZONE_SAFE_POINTS[z] || []).forEach(pt => pool.push(pt)));
+  const options = pool.filter(pt => {
+    const d = Math.hypot(pt[0] - s.bx, pt[1] - s.by);
+    return d > 34 && d <= KF_MOVE_CONFIG.hopMax;
+  });
+  const aim = options.length ? options[Math.floor(rng() * options.length)] : [200, 200];
+  const dx = aim[0] - s.bx, dy = aim[1] - s.by;
+  const dist = Math.hypot(dx, dy) || 1;
+  const d = Math.min(KF_SPAWN_CONFIG.popDistUnits, dist);
+  const land = [s.bx + (dx / dist) * d, s.by + (dy / dist) * d];
+  const t = {
+    id: 'b_' + Math.random().toString(36).slice(2, 8), zoneId: s.zoneId,
+    bx: land[0], by: land[1], spentSec: 0, windSpentSec: 0, requiredSec: KF_CONFIG.baseRequiredSec,
+    bornAt: nowMs, stage: 0, status: 'burning', engagedBy: [], foamBubbles: [],
+    kind: 'baby', _parent: s.id, _birth: { fx: s.bx, fy: s.by, at: nowMs },
+  };
+  if (kfEngine.moveProfile) kfAssignMovement(t, kfEngine.moveProfile); // deals tier + winding route from the landing point
+  if (t._movePath) { t._heldMove = { path: t._movePath }; t._movePath = null; } // wander waits for the pop-out to land
+  return t;
 }
 
 // Real uploaded flame asset — internal ids rewritten per-instance in
@@ -9047,7 +9233,8 @@ let kfFoamLandingOffset = { x: 0, y: 0 };
 const kf = {
   you: { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null },
   particlesOver: [], hoseWobble: { x: 0, y: 0 }, hoseWobbleVel: { x: 0, y: 0 }, _prevNozzle: null,
-  lastFrameMs: 0, loopHandle: null, maxSimultaneous: 5, _lastEngagementHeartbeat: 0,
+  lastFrameMs: 0, loopHandle: null, _lastEngagementHeartbeat: 0,
+  challengeStartedAt: null, // 260821.1: the active challenge's startedAt (drives the wind-down; cleared on teardown)
 };
 let kfActiveChallengeId = null;
 let kfIsAuthority = false;
@@ -9056,9 +9243,9 @@ let kfSyncedTargets = {};
 // Session 23 (smooth-follow): the last two target snapshots, so
 // non-authority screens can glide between them instead of stepping.
 let kfSnapPrev = null, kfSnapLatest = null;
-let kfSyncedBudgetRemaining = 0;
+/* kfSyncedBudgetRemaining + its listener removed 260821.1 (wire delta). */
 let kfRemoteEngagement = {};
-let kfTargetsUnsub = null, kfBudgetUnsub = null, kfEngagementUnsub = null;
+let kfTargetsUnsub = null, kfEngagementUnsub = null;
 let kfSyncListenersChallengeId = null;
 let kfLastWrittenEngagementTargetId = undefined;
 // 260820.4 (Session 22): true while this client is the Observer
@@ -9178,43 +9365,108 @@ function kfResizeCanvases() {
 }
 
 const kfFlameEls = new Map();
+/* 260821.1 (Session 24): per-client first-seen times for the viewer-side
+   birth entrance. Keyed by flame id; entries die with their flame element
+   and the whole map clears on challenge entry and every teardown path (the
+   branch handoff's stale-guard lesson — nothing per-challenge survives
+   into the next challenge). */
+const kfBirthSeen = new Map();
+function kfEaseOutBack(k) { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); }
+/* Shared by both render paths: the two-part birth entrance's position and
+   art scale at progress k (0..1). Board anchors are a flame's FLOOR, so
+   the pop-out starts birthOriginPct up the stage-0 spawner sprite (126px
+   from the .kind-spawner CSS ladder) — its "belly" — then hops on a sine
+   arc to the landing point with an easeOutBack grow-and-bounce. */
+function kfBirthEntrance(fx, fy, px, py, k) {
+  const from = kfBoardToPx(fx, fy);
+  const fromY = from.y - (KF_SPAWN_CONFIG.birthOriginPct / 100) * 126 * kfScale;
+  return {
+    x: from.x + (px - from.x) * k,
+    y: fromY + (py - fromY) * k - Math.sin(Math.PI * k) * 22 * kfScale,
+    scale: 0.2 + 0.8 * kfEaseOutBack(k),
+  };
+}
+/* 260821.1 (Session 24): both render paths now build each flame as
+   .kf-flame > .kf-flame-inner (SVG inside the inner), so the birth
+   pop-out / telegraph scale the ART on the inner while the positioning
+   transform stays on the outer. Kind classes size spawners/babies;
+   positioning stays per-frame left/top (the transform alternative was
+   A/B'd in the spawn testbed and deferred — branch handoff §6.3). */
 function kfRenderTargets() {
   const flamesLayer = document.getElementById('kf-flames-layer');
   const seen = new Set();
+  const nowP = performance.now();
   kfEngine.targets.forEach(t => {
-    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    let { x: px, y: py } = kfBoardToPx(t.bx, t.by);
     seen.add(t.id);
     let flameEl = kfFlameEls.get(t.id);
     if (!flameEl) {
       flameEl = document.createElement('div');
       flameEl.className = 'kf-flame';
-      flameEl.innerHTML = kfBuildFlameSVG(t.id);
+      const inner = document.createElement('div');
+      inner.className = 'kf-flame-inner';
+      inner.innerHTML = kfBuildFlameSVG(t.id);
+      flameEl.appendChild(inner);
       flamesLayer.appendChild(flameEl);
       kfFlameEls.set(t.id, flameEl);
     }
+    // birth entrance (authority side): driven straight off _birth.at
+    let entranceScale = null;
+    if (t.kind === 'baby' && t._birth) {
+      const k = (nowP - t._birth.at) / (KF_SPAWN_CONFIG.popDurSec * 1000);
+      if (k >= 0 && k < 1) {
+        const e = kfBirthEntrance(t._birth.fx, t._birth.fy, px, py, k);
+        px = e.x; py = e.y; entranceScale = e.scale;
+      }
+    }
+    flameEl.firstChild.style.transform = entranceScale !== null ? 'scale(' + entranceScale.toFixed(3) + ')' : '';
+    flameEl.className = 'kf-flame stage-' + t.stage
+      + (t.kind === 'spawner' ? ' kind-spawner' : t.kind === 'baby' ? ' kind-baby' : '')
+      + (t.kind === 'spawner' && t._tele ? ' telegraph' : '')
+      + (t.status === 'out' ? ' puffing' : '');
     flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
-    flameEl.className = 'kf-flame stage-' + t.stage + (t.status === 'out' ? ' puffing' : '');
   });
-  for (const [id, flameEl] of kfFlameEls) { if (!seen.has(id)) { flameEl.remove(); kfFlameEls.delete(id); } }
+  for (const [id, flameEl] of kfFlameEls) { if (!seen.has(id)) { flameEl.remove(); kfFlameEls.delete(id); kfBirthSeen.delete(id); } }
 }
 function kfRenderTargetsFromSync() {
   const flamesLayer = document.getElementById('kf-flames-layer');
   const seen = new Set();
+  const nowP = performance.now();
   Object.entries(kfSyncedTargets).forEach(([tid, t]) => {
-    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    let { x: px, y: py } = kfBoardToPx(t.bx, t.by);
     seen.add(tid);
     let flameEl = kfFlameEls.get(tid);
     if (!flameEl) {
       flameEl = document.createElement('div');
       flameEl.className = 'kf-flame';
-      flameEl.innerHTML = kfBuildFlameSVG(tid);
+      const inner = document.createElement('div');
+      inner.className = 'kf-flame-inner';
+      inner.innerHTML = kfBuildFlameSVG(tid);
+      flameEl.appendChild(inner);
       flamesLayer.appendChild(flameEl);
       kfFlameEls.set(tid, flameEl);
+      // viewer-side entrance: keyed off FIRST SIGHT while the transient
+      // birth field is still on the wire. A slow join sees the flame
+      // appear plainly — fail-open, per the branch handoff §3.
+      if (t.kind === 'baby' && t.birth) kfBirthSeen.set(tid, nowP);
     }
+    let entranceScale = null;
+    const seenAt = kfBirthSeen.get(tid);
+    if (t.kind === 'baby' && t.birth && seenAt !== undefined) {
+      const k = (nowP - seenAt) / (KF_SPAWN_CONFIG.popDurSec * 1000);
+      if (k < 1) {
+        const e = kfBirthEntrance(t.birth.fx, t.birth.fy, px, py, k);
+        px = e.x; py = e.y; entranceScale = e.scale;
+      } else kfBirthSeen.delete(tid);
+    }
+    flameEl.firstChild.style.transform = entranceScale !== null ? 'scale(' + entranceScale.toFixed(3) + ')' : '';
+    flameEl.className = 'kf-flame stage-' + t.stage
+      + (t.kind === 'spawner' ? ' kind-spawner' : t.kind === 'baby' ? ' kind-baby' : '')
+      + (t.kind === 'spawner' && t.tele ? ' telegraph' : '')
+      + (t.status === 'out' ? ' puffing' : '');
     flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
-    flameEl.className = 'kf-flame stage-' + t.stage + (t.status === 'out' ? ' puffing' : '');
   });
-  for (const [id, el] of kfFlameEls) { if (!seen.has(id)) { el.remove(); kfFlameEls.delete(id); } }
+  for (const [id, el] of kfFlameEls) { if (!seen.has(id)) { el.remove(); kfFlameEls.delete(id); kfBirthSeen.delete(id); } }
 }
 
 function kfRenderFoam() {
@@ -9410,10 +9662,9 @@ function kfRenderSpray(dtSec) {
   }
 }
 
-function kfUpdateReadouts(remaining, budgetRemaining) {
-  document.getElementById('kf-flame-count-readout').textContent = `${remaining} fire${remaining !== 1 ? 's' : ''} still burning`;
-  document.getElementById('kf-budget-readout').textContent = `${budgetRemaining} more may still spawn`;
-}
+/* kfUpdateReadouts removed 260821.1 (owner): both footer lines dropped —
+   the budget count is dead under the spawn model and the burning count was
+   judged obvious from the board itself. */
 
 /* ---- authority loop: runs the real simulation, flushes to Firebase ---- */
 function kfAuthorityLoop(ts) {
@@ -9429,40 +9680,61 @@ function kfAuthorityLoop(ts) {
     if (t) t.engagedBy.push(myPlayerId);
   }
   kfMergeRemoteEngagementIntoTargets();
-  kfEngine.tick(dtSec, ts);
+  kfEngine.tick(dtSec, ts, kfWindDownActive());
 
   kfRenderTargets();
   kfRenderFoam();
   kfRenderSpray(dtSec);
   kfRenderPlayerTags();
   kfMaybeWriteEngagement();
-  kfUpdateReadouts(kfEngine.targets.filter(t => t.status === 'burning').length, kfEngine.budgetRemaining);
 
-  if (kfEngine.allCleared()) { kfAuthorityFinish('cleared'); return; }
+  /* 260821.1 end condition: cleared ⇔ zero burning flames of either kind
+     (all spawners AND all babies out). A board emptied by the wind-down
+     drain is the fire dying on its own — that resolves as the existing
+     "timeout" outcome, not "cleared", and rides the same banner branch. */
+  const kfBurningNow = kfEngine.targets.filter(t => t.status === 'burning').length;
+  if (kfBurningNow === 0) { kfAuthorityFinish(kfWindDownActive() ? 'timeout' : 'cleared'); return; }
   kf.loopHandle = requestAnimationFrame(kfAuthorityLoop);
 }
 
 function kfFlushTargetsToFirebase() {
   if (!kfIsAuthority || !kfActiveChallengeId) return;
+  /* 260821.1 wire delta (branch handoff §3 — ALL devices on the same
+     build): per target ADD kind (always), transient tele (spawner mid-
+     telegraph) and transient birth (baby's parent coords, first ~1.2s);
+     budgetRemaining REMOVED — nothing reads it in the spawn model. The
+     _move / _birth / _tele internals still never reach the wire: this
+     flush picks explicit fields. */
   const targetsOut = {};
-  kfEngine.targets.forEach(t => { targetsOut[t.id] = { bx: t.bx, by: t.by, stage: t.stage, status: t.status, foamBubbles: t.foamBubbles }; });
+  const nowP = performance.now();
+  kfEngine.targets.forEach(t => {
+    const o = { bx: t.bx, by: t.by, stage: t.stage, status: t.status, foamBubbles: t.foamBubbles, kind: t.kind };
+    if (t.kind === 'spawner' && t._tele) o.tele = 1;
+    if (t.kind === 'baby' && t._birth && (nowP - t._birth.at) < 1200) o.birth = { fx: t._birth.fx, fy: t._birth.fy };
+    targetsOut[t.id] = o;
+  });
   update(ref(db, `games/${gameCode}/challenges/${kfActiveChallengeId}`), {
-    targets: targetsOut, budgetRemaining: kfEngine.budgetRemaining,
+    targets: targetsOut,
   }).catch(()=>{});
 }
 
 function kfAuthorityFinish(outcome) {
   const challengeId = kfActiveChallengeId;
-  const challengeData = kfTrackedChallenge();
   kfFlushTargetsToFirebase(); // one last flush so everyone sees the cleared board
-  kfResolveChallenge(challengeId, { roundInstanceId: currentRoundInstanceId }, outcome);
-  // 260820.7: the resolve call above echoes SYNCHRONOUSLY into
-  // kfHandleChallengeUpdate's cleared branch, which now shows the banner
-  // and owns its ~1.8s lifetime + teardown for every client, this one
-  // included. All that's left here is enriching the authority's detail
-  // line (only the authority knows budgetTotal). The old private 1.5s
-  // overlay-hide raced that shared teardown and is gone.
-  document.getElementById('kf-success-detail').textContent = `Cleared ${kfEngine.budgetTotal} fires across the kitchen.`;
+  // 260821.1: on a clear, the stats ride the resolve write itself, so every
+  // client's banner (this one included, via the synchronous local echo —
+  // the 260820.7 lesson) renders the same detail line from the same doc.
+  // The authority-only budgetTotal enrichment is gone with the budget model.
+  const extras = { roundInstanceId: currentRoundInstanceId };
+  if (outcome === 'cleared' && kf.challengeStartedAt) {
+    extras.clearedStats = {
+      clearSec: Math.round((Date.now() - kf.challengeStartedAt) / 1000),
+      firstSpawnerSec: kfEngine.firstSpawnerOutWall
+        ? Math.round((kfEngine.firstSpawnerOutWall - kf.challengeStartedAt) / 1000)
+        : null,
+    };
+  }
+  kfResolveChallenge(challengeId, extras, outcome);
 }
 // Small helper so kfAuthorityFinish doesn't need the whole challenge doc
 // threaded through the RAF loop just for its roundInstanceId.
@@ -9525,9 +9797,6 @@ function kfParticipantRenderLoop(ts) {
   kfRenderSpray(dtSec);
   kfRenderPlayerTags();
   kfMaybeWriteEngagement();
-  const remaining = Object.values(kfSyncedTargets).filter(t => t.status === 'burning').length;
-  kfUpdateReadouts(remaining, kfSyncedBudgetRemaining);
-
   kf.loopHandle = requestAnimationFrame(kfParticipantRenderLoop);
 }
 
@@ -9543,17 +9812,15 @@ function kfSetupParticipantSync(id) {
     kfSnapLatest = { targets: t, at: performance.now() };
     kfSyncedTargets = t;
   });
-  kfBudgetUnsub   = onValue(ref(db, `games/${gameCode}/challenges/${id}/budgetRemaining`), snap => { kfSyncedBudgetRemaining = snap.val() || 0; });
   kfEngagementUnsub = onValue(ref(db, `games/${gameCode}/challenges/${id}/engagement`), snap => { kfRemoteEngagement = snap.val() || {}; });
 }
 function kfDetachParticipantSync() {
   if (kfSyncListenersChallengeId) {
     if (kfTargetsUnsub)    off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/targets`), 'value', kfTargetsUnsub);
-    if (kfBudgetUnsub)     off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/budgetRemaining`), 'value', kfBudgetUnsub);
     if (kfEngagementUnsub) off(ref(db, `games/${gameCode}/challenges/${kfSyncListenersChallengeId}/engagement`), 'value', kfEngagementUnsub);
   }
-  kfTargetsUnsub = null; kfBudgetUnsub = null; kfEngagementUnsub = null; kfSyncListenersChallengeId = null;
-  kfSyncedTargets = {}; kfSyncedBudgetRemaining = 0; kfRemoteEngagement = {};
+  kfTargetsUnsub = null; kfEngagementUnsub = null; kfSyncListenersChallengeId = null;
+  kfSyncedTargets = {}; kfRemoteEngagement = {};
   kfSnapPrev = null; kfSnapLatest = null; // Session 23
 }
 
@@ -9578,19 +9845,24 @@ function kfEnsureActiveChallengeRunning(id, data) {
   kf.particlesOver = []; kf.hoseWobble = { x: 0, y: 0 }; kf.hoseWobbleVel = { x: 0, y: 0 }; kf._prevNozzle = null;
   kfLastWrittenEngagementTargetId = undefined;
   document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
-  kfFlameEls.clear(); kfPlayerTagEls.clear();
+  kfFlameEls.clear(); kfPlayerTagEls.clear(); kfBirthSeen.clear(); // 260821.1: nothing per-challenge survives
 
   kfSetupParticipantSync(id);
 
+  // 260821.1: the wind-down keys off the challenge doc's startedAt — set
+  // for every client (harmless off-authority), cleared on teardown.
+  kf.challengeStartedAt = data.startedAt || Date.now();
   if (kfIsAuthority) {
     const participantCount = (data.participants || []).length || 1;
-    kf.maxSimultaneous = kfEngine.maxSimultaneous(participantCount);
-    Object.keys(kfZoneLastActivity).forEach(k => delete kfZoneLastActivity[k]);
-    // Session 23: level-keyed movement — same levelType resolution shape as
-    // elsewhere in the file. Unlisted levels get a stationary fire.
-    const kfMoveProfile = KF_MOVE_CONFIG.levels[(gameState && gameState.levelType) || currentLevel] || null;
-    kfEngine.reset(participantCount, kfMoveProfile);
-    kfEngine.spawnBurst(participantCount * KF_CONFIG.flamesPerPlayer, kfZonePicker);
+    // Spawn model (260821.1): level-keyed spawn + baby-movement profiles —
+    // same levelType resolution shape as elsewhere in the file. The rng is
+    // seeded from the challenge id (route-machinery pattern), so a
+    // challenge's spawner layout is reproducible from its doc.
+    const kfLevelKey = (gameState && gameState.levelType) || currentLevel;
+    const kfSpawnCfg = KF_SPAWN_CONFIG.levels[kfLevelKey] || KF_SPAWN_CONFIG.levels.level2;
+    const kfSpawnRng = kfMoveRng(kfMoveHash(id));
+    kfEngine.reset(kfSpawnCfg, kfBabyMoveProfile(kfLevelKey), kfSpawnRng);
+    kfPlaceSpawners(kfSpawnerCount(participantCount, kfSpawnCfg), kfSpawnCfg, kfSpawnRng);
     kf.lastFrameMs = 0;
     kf.loopHandle = requestAnimationFrame(kfAuthorityLoop);
     if (kfFlushInterval) clearInterval(kfFlushInterval);
@@ -9611,8 +9883,9 @@ function kfTeardownChallengeUI() {
   kfIsAuthority = false;
   kfSpectating = false; // 260820.4: spectator state dies on every teardown path
   document.getElementById('kf-overlay').classList.remove('kf-spectating');
+  kf.challengeStartedAt = null; // 260821.1: wind-down state dies with the challenge
   document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
-  kfFlameEls.clear(); kfPlayerTagEls.clear();
+  kfFlameEls.clear(); kfPlayerTagEls.clear(); kfBirthSeen.clear(); // 260821.1
 }
 
 /* ---- boot ---- */
