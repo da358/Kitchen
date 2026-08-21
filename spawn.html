@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kitchen Fire — Spawn-Fire Testbed v1</title>
+<style>
+/* ════════════════════════════════════════════════════════════════
+   SLICED VERBATIM from the-kitchen-game_260820_7.html — DO NOT EDIT.
+   Byte-identity of every block below is asserted by build_testbed.py.
+   ════════════════════════════════════════════════════════════════ */
+  :root {
+    /* ── Visual overhaul palette (260706) — copper & cream ─────
+       See kitchen-visual-overhaul-brief.md §1. --danger, --surface-2,
+       --border, --text-3 are flagged there as proposed/unconfirmed —
+       revisit after a visual pass. */
+    --bg:          #FBF3E7;       /* page background */
+    --surface:     #F3E4CC;       /* ticket + teammate card surface */
+    --surface-2:   #D2B78D;       /* secondary surface / dividers — CONFIRMED Session 8 */
+    --border:      #B8935C;       /* CONFIRMED Session 8 — darkened to stay visible against new surface-2 */
+    --text:        #2B241C;
+    --text-2:      #6B6252;
+    --text-3:      #7A6F5A;       /* darkened from the original #9E9384 proposal — that measured 2.74:1 on --bg, well under WCAG AA. This measures ~4.5:1 on --bg / ~4.0:1 on --surface. */
+    --accent:      #B23A2E;       /* copper — brand emphasis, CTAs, "now prepping" */
+    --accent-2:    #8B4A2B;       /* station gradient top stop / secondary emphasis */
+    --accept:      #2F6B4A;       /* universal "allowed move" / success green — rings & glows only, never dashed */
+    --danger:      #E23A2A;       /* CONFIRMED Session 8 — Scarlet, hue-shifted from --accent's copper-brick */
+    --active-bg:   #F6E4D5;       /* pale copper-rose — current task zone (legacy Level 3 slot; retinted, likely retired in §3 rework) */
+    --active-bd:   #C1613C;
+    --active-hd:   #B23A2E;
+    --ready:       #2F6B4A;       /* alias to --accept — "ready" is a success signal, not brand color */
+    --spice-bg:    #F5E7C8;       /* retinted to sit within the warm palette — category tile coloring is likely retired per mockups, revisit in §3/step 2 */
+    --spice-bd:    #C9A24A;
+    --protein-bg:  #E7DCC7;
+    --protein-bd:  #8B7355;
+    --grain-bg:    #EADFC2;
+    --grain-bd:    #A98C4A;
+    --dairy-bg:    #EFE1CB;
+    --dairy-bd:    #B89468;
+    --tool-bg:     #E3D7BE;
+    --tool-bd:     #7A6A50;
+    --shaper-bg:   #E7DAC0;
+    --shaper-bd:   #8B6F47;
+    --station-a:   #8B4A2B;       /* station panel gradient top */
+    --station-b:   #5C2F1A;       /* station panel gradient bottom */
+    --station-text:#FBF3E7;       /* light text for use on the station gradient — don't leave station headers at --text-2 */
+    --clip-a:      #4a4136;       /* superseded 260713 — old clip-shape gradient, no longer
+                                      referenced now that the clip is real artwork (see .clip-art).
+                                      Left defined, unused, per this project's dead-code convention. */
+    --clip-b:      #221d16;
+    --radius:      8px;
+    --btn-pause:   #2B241C;       /* RETIRED 260816.2 — pause is now a bare icon (see #btn-pause); token kept for history, unused */
+    --radius-lg:   14px;
+    --shadow:      0 1px 4px rgba(43,36,28,0.08);
+    --shadow-lg:   0 4px 20px rgba(43,36,28,0.12);
+    --font:        -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    --font-display:'Georgia', 'Times New Roman', serif;   /* wordmark + section headers — unchanged */
+    --font-hero:   'Cambria', 'Georgia', serif;            /* NEW — dish/recipe hero name only */
+  }
+
+  .kf-blueprint {
+    position: relative; width: 100%; aspect-ratio: 568 / 508; border-radius: 10px;
+    border: 2px solid var(--border); overflow: hidden;
+    background: var(--surface); touch-action: none; cursor: crosshair;
+  }
+  canvas.kf-fx-layer { position: absolute; inset: 0; pointer-events: none; }
+  /*
+    Flame sizing scales via --kf-scale (set in JS from the board's measured
+    render width — see kfComputeScale()) rather than fixed px, which is the
+    other half of the margin-clipping fix: the canister and the flames now
+    move together with the board's margin at any render size, instead of
+    the canister silently drifting out of proportion with it, as it did in
+    the testbed at any size other than the one it happened to be tuned at.
+  */
+  .kf-flame {
+    position: absolute; transform: translate(-50%, -100%);
+    width: calc(67.5px * var(--kf-scale, 1)); height: calc(84px * var(--kf-scale, 1));
+    pointer-events: none; will-change: transform, opacity;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.28));
+  }
+  .kf-flame.stage-1 { width: calc(57px * var(--kf-scale, 1)); height: calc(70.5px * var(--kf-scale, 1)); opacity: 0.94; }
+  .kf-flame.stage-2 { width: calc(43.5px * var(--kf-scale, 1)); height: calc(54px * var(--kf-scale, 1)); opacity: 0.72; filter: grayscale(35%) drop-shadow(0 2px 3px rgba(0,0,0,0.2)); }
+  .kf-flame.stage-3 { width: calc(30px * var(--kf-scale, 1)); height: calc(37.5px * var(--kf-scale, 1)); opacity: 0.46; filter: grayscale(70%); }
+  .kf-flame.puffing { animation: kfPuffOut 0.42s ease forwards; }
+  @keyframes kfPuffOut {
+    0%   { opacity: 0.8; }
+    100% { transform: translate(-50%, -100%) scale(1.7); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kf-flame * { animation: none !important; }
+  }
+  .kf-flame-tag {
+    position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
+    /* Sized to match the on-board zone labels (GRILL, PANTRY, etc.) at
+       whatever size the board is currently rendering — --kf-label-scale
+       is the SVG viewBox's px-per-unit ratio (see kfApplyScale()), same
+       basis the zone labels themselves render at. Color is intentionally
+       NOT matched to the zone labels (that read as gray/near-black against
+       the warm palette) — warm brown instead, same for self and teammates. */
+    background: var(--accent-2); color: var(--bg);
+    font-size: calc(10px * var(--kf-label-scale, 1));
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: calc(3px * var(--kf-label-scale, 1)) calc(7px * var(--kf-label-scale, 1));
+    border-radius: calc(4px * var(--kf-label-scale, 1));
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s ease, top 0.45s ease, left 0.45s ease;
+  }
+  .kf-flame-tag.pinned { transition: opacity 0.3s ease; }
+  .kf-flame-tag.visible { opacity: 0.85; }
+  .kf-extinguisher-icon {
+    /* width/height set in JS every resize from the same --kf-scale factor
+       driving the flames — see renderSpray/kfPositionExtinguisherIcon.
+       No transform: left/top placed every frame is the shape's own
+       native (0,0) origin, not a centered anchor. */
+    position: absolute; pointer-events: none; z-index: 4;
+  }
+  .kf-success-banner {
+    position: absolute; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; background: rgba(220,230,198,0.96); text-align: center; padding: 20px;
+  }
+  .kf-success-banner.show { display: flex; }
+  .kf-success-banner .big { font-family: var(--font-hero, var(--font-display)); font-size: 24px; color: var(--accept); font-weight: 700; }
+  .kf-success-banner .small { font-size: 12.5px; color: var(--text-2); }
+
+/* ── SLICED, one permitted transform applied (briefing §6.1): id selector
+      rewritten to a DERIVED [data-gid=…] alias; declaration blocks are
+      asserted byte-identical against the game file by the builder. ── */
+  [data-gid="kf-blueprint-svg"] { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+  [data-gid="kf-flames-layer"] { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  [data-gid="kf-fx-under"] { z-index: 3; }
+  [data-gid="kf-tags-layer"] { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+  [data-gid="kf-fx-over"] { z-index: 5; }
+
+/* ════════════════════════════════════════════════════════════════
+   NEW TESTBED CODE from here down (clearly marked new, per briefing).
+   ════════════════════════════════════════════════════════════════ */
+
+/* Board tones: values copied verbatim from the game's .kf-modal scope
+   (--board-floor / --board-object) so the board looks exactly like the
+   game — the .kf-modal chrome itself is intentionally not recreated. */
+.tb-board-host { --board-floor: #EAD9BC; --board-object: #FFF3E0; }
+
+/* NEW: spawner size axis — a KIND class, deliberately separate from the
+   stage axis (briefing §5: stage means progress-toward-out). Exactly the
+   sliced .kf-flame stage sizes × 1.5. */
+.kf-flame.kind-spawner         { width: calc(101.25px * var(--kf-scale, 1)); height: calc(126px   * var(--kf-scale, 1)); }
+.kf-flame.kind-spawner.stage-1 { width: calc(85.5px   * var(--kf-scale, 1)); height: calc(105.75px* var(--kf-scale, 1)); }
+.kf-flame.kind-spawner.stage-2 { width: calc(65.25px  * var(--kf-scale, 1)); height: calc(81px    * var(--kf-scale, 1)); }
+.kf-flame.kind-spawner.stage-3 { width: calc(45px     * var(--kf-scale, 1)); height: calc(56.25px * var(--kf-scale, 1)); }
+
+/* NEW: inner wrapper so the birth pop-out / telegraph can scale the art
+   without touching the positioning transform on .kf-flame itself. */
+.kf-flame-inner { width: 100%; height: 100%; transform-origin: 50% 92%; }
+
+/* NEW: telegraph pulse — the spawner bulges/brightens just before a birth.
+   filter lives on this inner element, clip stays inside the SVG asset
+   (briefing §6.5: never filter+clip on one element). Duration is driven
+   from the knob via --tb-tele. z-index bump so the bulge rides over
+   neighbouring flames while it plays (briefing §6.4). */
+.kf-flame.telegraph { z-index: 1; }
+.kf-flame.telegraph .kf-flame-inner {
+  animation: tbTelegraphPulse var(--tb-tele, 0.5s) ease-in-out 1;
+}
+@keyframes tbTelegraphPulse {
+  0%, 100% { transform: scale(1); }
+  40%      { transform: scale(1.28); filter: brightness(1.4) saturate(1.25); }
+  72%      { transform: scale(1.08); filter: brightness(1.15); }
+}
+
+/* NEW v2: baby vs spawner look — all knob-driven.
+   Baby size multiplies the sliced base stage dimensions via --tb-baby-size
+   (1 = the game's current flame sizes). Hue shifts sit on the SVG asset
+   INSIDE .kf-flame-inner so they never collide with the telegraph/entrance
+   filters+transforms on the inner wrapper itself. */
+.kf-flame.kind-baby         { width: calc(67.5px * var(--kf-scale, 1) * var(--tb-baby-size, 1)); height: calc(84px    * var(--kf-scale, 1) * var(--tb-baby-size, 1)); }
+.kf-flame.kind-baby.stage-1 { width: calc(57px   * var(--kf-scale, 1) * var(--tb-baby-size, 1)); height: calc(70.5px  * var(--kf-scale, 1) * var(--tb-baby-size, 1)); }
+.kf-flame.kind-baby.stage-2 { width: calc(43.5px * var(--kf-scale, 1) * var(--tb-baby-size, 1)); height: calc(54px    * var(--kf-scale, 1) * var(--tb-baby-size, 1)); }
+.kf-flame.kind-baby.stage-3 { width: calc(30px   * var(--kf-scale, 1) * var(--tb-baby-size, 1)); height: calc(37.5px  * var(--kf-scale, 1) * var(--tb-baby-size, 1)); }
+.kf-flame.kind-spawner .kf-flame-inner > svg { filter: hue-rotate(var(--tb-spawner-hue, 0deg)) saturate(1.05); }
+.kf-flame.kind-baby    .kf-flame-inner > svg { filter: hue-rotate(var(--tb-baby-hue, 0deg)); }
+
+/* NEW: testbed chrome — deliberately styled as an obvious control panel
+   (dark, utilitarian) so nothing here reads as proposed game UI. */
+html, body { height: auto; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+       background: #2b241c; color: #efe6d8; margin: 0; padding: 12px 12px 60px;
+       -webkit-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+* { box-sizing: border-box; }
+.tb-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-bottom: 10px; }
+.tb-header h1 { font-size: 17px; margin: 0; letter-spacing: 0.02em; }
+.tb-version { font-size: 12px; background: #B23A2E; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
+.tb-note { font-size: 11.5px; color: #bfae95; }
+.tb-hud { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline;
+          background: #3a3128; border: 1px solid #5a4c3a; border-radius: 8px;
+          padding: 8px 14px; margin-bottom: 10px; font-size: 13px; }
+.tb-hud .tb-timer { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffd9a0; }
+.tb-hud .tb-state { font-weight: 700; color: #9fd6ae; }
+.tb-hud .tb-state.winddown { color: #ffb37a; }
+.tb-panes { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.tb-pane { flex: 1 1 460px; min-width: 340px; max-width: 660px; }
+.tb-pane h2 { font-size: 12.5px; margin: 0 0 6px; font-weight: 700; color: #d8c6a8;
+              text-transform: uppercase; letter-spacing: 0.06em; }
+.tb-pane h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: #a08e73; }
+.tb-pane.tb-active-pane h2 { color: #ffd9a0; }
+.tb-board-host { background: var(--bg); border-radius: 12px; padding: 10px; }
+.tb-pane-foot { font-size: 11px; color: #a08e73; margin-top: 5px; }
+.tb-controls { margin-top: 16px; background: #3a3128; border: 1px solid #5a4c3a;
+               border-radius: 8px; padding: 12px 14px; }
+.tb-controls h3 { margin: 0 0 8px; font-size: 13px; color: #ffd9a0; }
+.tb-groups { display: flex; flex-wrap: wrap; gap: 14px; }
+.tb-group { flex: 1 1 240px; min-width: 220px; background: #332b23; border: 1px solid #4c4133;
+            border-radius: 6px; padding: 8px 10px; }
+.tb-group h4 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase;
+               letter-spacing: 0.05em; color: #d8c6a8; }
+.tb-knob { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 12px; }
+.tb-knob label { flex: 1 1 auto; color: #e8dcc8; }
+.tb-knob input[type=range] { width: 110px; }
+.tb-knob .tb-val { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; color: #ffd9a0; }
+.tb-knob select, .tb-knob input[type=text] { background: #241f19; color: #efe6d8;
+    border: 1px solid #5a4c3a; border-radius: 4px; padding: 2px 6px; font-size: 12px; }
+.tb-btn { background: #B23A2E; border: none; color: #fff; font-weight: 700; font-size: 13px;
+          padding: 7px 14px; border-radius: 6px; cursor: pointer; }
+.tb-btn.secondary { background: #5a4c3a; }
+.tb-btn:disabled { opacity: 0.45; cursor: default; }
+.tb-seg { display: inline-flex; border: 1px solid #5a4c3a; border-radius: 6px; overflow: hidden; }
+.tb-seg button { background: #241f19; color: #d8c6a8; border: none; padding: 5px 10px;
+                 font-size: 12px; cursor: pointer; }
+.tb-seg button.on { background: #B23A2E; color: #fff; font-weight: 700; }
+.tb-results { margin-top: 10px; font-size: 12.5px; }
+.tb-results .headline { font-size: 14px; font-weight: 700; color: #9fd6ae; }
+.tb-log { margin-top: 6px; max-height: 130px; overflow: auto; background: #241f19;
+          border: 1px solid #4c4133; border-radius: 6px; padding: 6px 8px;
+          font: 11px/1.5 ui-monospace, Menlo, monospace; color: #cbbfa8; white-space: pre-wrap; }
+.tb-settings-dump { width: 100%; height: 70px; margin-top: 6px; background: #241f19;
+          color: #cbbfa8; border: 1px solid #4c4133; border-radius: 6px;
+          font: 11px ui-monospace, Menlo, monospace; }
+/* extinguisher icon hidden on the pane you're NOT playing (class-toggled
+   opacity per briefing §6.3 — never style.display=""). */
+.kf-extinguisher-icon.tb-idle { opacity: 0; }
+</style>
+</head>
+<body>
+<div class="tb-header">
+  <h1>🔥 Kitchen Fire — Spawn-Fire Testbed</h1>
+  <span class="tb-version">v2 · built from 260820.7</span>
+  <span class="tb-note">Board, flames, movement, spray &amp; smoothing are sliced verbatim from the game file. The dark panels are testbed chrome, not game UI.</span>
+</div>
+
+<div class="tb-hud">
+  <span class="tb-timer" data-tb="timer">0.0s</span>
+  <span class="tb-state" data-tb="state">ready</span>
+  <span>Spawners burning: <b data-tb="spawnersAlive">–</b></span>
+  <span>Babies burning: <b data-tb="babiesAlive">–</b></span>
+  <span>Babies put out: <b data-tb="babiesOut">–</b></span>
+  <span>First spawner down: <b data-tb="firstKill">–</b></span>
+  <span class="tb-note">Targets — Easy: clear in 20–40s · Hard: 30–50s</span>
+</div>
+
+<div class="tb-panes">
+  <section class="tb-pane" data-pane="left">
+    <h2>Left — your screen (authority, no network) <span class="hint">· click/touch a board to play on it</span></h2>
+    <div class="tb-board-host">
+<div class="kf-blueprint" data-gid="kf-blueprint">
+        <svg data-gid="kf-blueprint-svg" preserveAspectRatio="none">
+          <!-- viewBox set from KF_BOARD_VIEW_W/H in JS at boot, not
+               hardcoded — a stale hardcoded viewBox was the actual cause
+               of a "no room on the right" bug in the testbed (see
+               handoff briefing); don't reintroduce it here. -->
+        </svg>
+        <canvas class="kf-fx-layer" data-gid="kf-fx-under"></canvas>
+        <div data-gid="kf-flames-layer"></div>
+        <div data-gid="kf-tags-layer"></div>
+        <canvas class="kf-fx-layer" data-gid="kf-fx-over"></canvas>
+        <div class="kf-success-banner" data-gid="kf-success-banner">
+          <div class="big" data-gid="kf-banner-big">Fire's out!</div>
+          <div class="small" data-gid="kf-success-detail">Nice work.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tb-pane-foot">Truth. Robot markers (dots + spray lines) are testbed stand-ins — real teammates render as name tags only.</div>
+  </section>
+  <section class="tb-pane" data-pane="right">
+    <h2>Right — teammate's screen (through the fake network) <span class="hint">· judge all feel HERE</span></h2>
+    <div class="tb-board-host">
+<div class="kf-blueprint" data-gid="kf-blueprint">
+        <svg data-gid="kf-blueprint-svg" preserveAspectRatio="none">
+          <!-- viewBox set from KF_BOARD_VIEW_W/H in JS at boot, not
+               hardcoded — a stale hardcoded viewBox was the actual cause
+               of a "no room on the right" bug in the testbed (see
+               handoff briefing); don't reintroduce it here. -->
+        </svg>
+        <canvas class="kf-fx-layer" data-gid="kf-fx-under"></canvas>
+        <div data-gid="kf-flames-layer"></div>
+        <div data-gid="kf-tags-layer"></div>
+        <canvas class="kf-fx-layer" data-gid="kf-fx-over"></canvas>
+        <div class="kf-success-banner" data-gid="kf-success-banner">
+          <div class="big" data-gid="kf-banner-big">Fire's out!</div>
+          <div class="small" data-gid="kf-success-detail">Nice work.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tb-pane-foot">Fed by 180&nbsp;ms snapshots + your delay/unevenness/burst knobs, rendered through the game's real smooth-follow glide.</div>
+  </section>
+</div>
+
+<div class="tb-controls">
+  <h3>Testbed controls <span class="tb-note">— plain-language knobs; difficulty presets load the whole per-tier set, then adjust anything on top. Settings marked ↻ take effect on the next run.</span></h3>
+  <div class="tb-groups">
+    <div class="tb-group" data-group="Run"></div>
+    <div class="tb-group" data-group="Spawners"></div>
+    <div class="tb-group" data-group="Babies"></div>
+    <div class="tb-group" data-group="Team-up reward"></div>
+    <div class="tb-group" data-group="Mercy + ending"></div>
+    <div class="tb-group" data-group="Birth visual"></div>
+      <div class="tb-group" data-group="Baby vs spawner look"></div>
+    <div class="tb-group" data-group="Fake network (right pane)"></div>
+    <div class="tb-group" data-group="Rendering A/B (iPad jitter)"></div>
+  </div>
+  <div class="tb-results">
+    <div class="headline" data-tb="resultHeadline"></div>
+    <div class="tb-log" data-tb="runLog">Run log — every finished run lands here with its numbers.</div>
+    <button class="tb-btn secondary" data-tb="dumpBtn" style="margin-top:8px">Copy-ready settings snapshot</button>
+    <textarea class="tb-settings-dump" data-tb="dumpBox" readonly placeholder="Press the button above after tuning — paste this back into the chat so every number gets recorded."></textarea>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   SLICED VERBATIM from the-kitchen-game_260820_7.html — DO NOT EDIT.
+   Byte-identity of every block is asserted by build_testbed.py.
+   Blocks are declaration-order-safe: everything cross-references at
+   call time only.
+   ════════════════════════════════════════════════════════════════ */
+const KF_CONFIG = {
+  flamesPerPlayer: 4, budgetSlack: 0.15, baseRequiredSec: 3,
+  rateTable: { 1: 1.0, 2: 1.5, 3: 1.75 }, rateTableCap: 2.0, sprayRadius: 46,
+  mercyThresholdSec: 14, mercyFloorSec: 1.6, mercyWindowSec: 10,
+  spawnCheckIntervalSec: 2.2, maxSimultaneousMultiplier: 5, maxTargetsPerZone: 5,
+  maxFoamBubbles: 85, foamPileHeight: 30, foamPileWidth: 22.5,
+};
+/* Fire movement (Session 23) — owner-tuned in the movement testbed, adopted
+   as-is. Keyed by levelType; a level with no entry here gets a stationary
+   fire, byte-for-byte the pre-Session-23 behavior (level1, and any future
+   level until it opts in). mix fractions are per-flame probabilities
+   (owner: probabilities, not a guaranteed deal). Speeds are board units
+   (of 400) per second. sprayedSpeedMult is how fast a flame still creeps
+   while being sprayed (0.20 = a fifth of its pace). */
+const KF_MOVE_CONFIG = {
+  levels: {
+    level2: { mix: { stationary: 0.20, slow: 0.60, fast: 0.20 }, slowSpeed: 7,  fastSpeed: 22, waypointCount: 3, sprayedSpeedMult: 0.20 },
+    level3: { mix: { stationary: 0.10, slow: 0.20, fast: 0.70 }, slowSpeed: 10, fastSpeed: 28, waypointCount: 5, sprayedSpeedMult: 0.30 },
+  },
+  speedJitter: 0.20,   // each flame's own pace varies ±20% so no two match
+  waypointJitter: 12,  // the same ±12 wiggle kfPickSafeSpawnPoint uses
+  hopMax: 190,         // a route never jumps further than this between stops
+  sprayPins: true,     // being sprayed slows a flame's wandering (eased)
+  pinEaseSec: 0.35,    // how quickly a flame slows down / speeds back up
+};
+/* ---- layer 3: Kitchen Fire skin (zones, flame asset, extinguisher) --- */
+const KF_ZONES = ['prep', 'pantry', 'grill', 'stovetop', 'dessert', 'fryer'];
+const kfZoneLastActivity = {};
+const KF_ZONE_PATHS = {
+  prep:     'M0,0 L400,0 L400,100 L200,100 L200,200 L100,200 L100,100 L0,100 Z',
+  pantry:   'M0,100 L100,100 L100,400 L0,400 Z',
+  grill:    'M200,100 L400,100 L400,200 L200,200 Z',
+  stovetop: 'M100,200 L300,200 L300,300 L200,300 L200,400 L100,400 Z',
+  dessert:  'M300,200 L400,200 L400,400 L300,400 Z',
+  fryer:    'M200,300 L300,300 L300,400 L200,400 Z',
+};
+const KF_DIAGRAM_OBJECTS_INNER = `<rect x="10.834" width="523.645" height="51.7626" fill="var(--board-object)"/>
+<rect x="155" y="36.1135" width="119.174" height="168.529" fill="var(--board-object)"/>
+<rect x="573" y="186" width="71" height="200" transform="rotate(90 573 186)" fill="var(--board-object)"/>
+<rect x="397.248" y="335" width="52.9664" height="234.737" transform="rotate(90 397.248 335)" fill="var(--board-object)"/>
+<rect x="573" y="538" width="53" height="209" transform="rotate(-180 573 538)" fill="var(--board-object)"/>
+<path d="M313 572L313 481L392 481L392 572L313 572Z" fill="var(--board-object)"/>
+<rect x="162.51" y="361" width="51.7626" height="210.662" fill="var(--board-object)"/>
+<rect y="196" width="52" height="365" fill="var(--board-object)"/>`;
+const KF_ZONE_LABEL_BOXES = {
+  prep:     { x: 10,  y: 8,   label: 'PREP COUNTER' },
+  pantry:   { x: 10,  y: 108, label: 'PANTRY' },
+  grill:    { x: 210, y: 108, label: 'GRILL' },
+  stovetop: { x: 110, y: 208, label: 'STOVETOP' },
+  dessert:  { x: 310, y: 208, label: 'DESSERT' },
+  fryer:    { x: 210, y: 308, label: 'FRYER' },
+};
+const KF_ZONE_LABEL_FONT = "700 10px -apple-system, BlinkMacSystemFont, sans-serif";
+const KF_ZONE_LABEL_LETTER_SPACING = 0.5;
+const KF_ZONE_LABEL_MARGIN = 7;
+function kfMeasureLabelWidth(text) {
+  if (!kfMeasureLabelWidth._ctx) kfMeasureLabelWidth._ctx = document.createElement('canvas').getContext('2d');
+  const ctx = kfMeasureLabelWidth._ctx;
+  ctx.font = KF_ZONE_LABEL_FONT;
+  return ctx.measureText(text).width + KF_ZONE_LABEL_LETTER_SPACING * Math.max(0, text.length - 1);
+}
+const KF_BOARD_W = 400, KF_BOARD_H = 400;
+const KF_BOARD_MARGIN_LEFT = 84, KF_BOARD_MARGIN_TOP = 30, KF_BOARD_MARGIN_BOTTOM = 78, KF_BOARD_MARGIN_RIGHT = 84;
+const KF_BOARD_VIEW_W = KF_BOARD_MARGIN_LEFT + KF_BOARD_W + KF_BOARD_MARGIN_RIGHT;
+const KF_BOARD_VIEW_H = KF_BOARD_MARGIN_TOP + KF_BOARD_H + KF_BOARD_MARGIN_BOTTOM;
+let kfBoardRect = { w: 0, h: 0 };
+function kfMeasureBoardRect() {
+  const r = document.getElementById('kf-blueprint').getBoundingClientRect();
+  kfBoardRect = { w: r.width, h: r.height };
+}
+function kfBoardToPx(bx, by) {
+  return {
+    x: ((bx + KF_BOARD_MARGIN_LEFT) / KF_BOARD_VIEW_W) * kfBoardRect.w,
+    y: ((by + KF_BOARD_MARGIN_TOP) / KF_BOARD_VIEW_H) * kfBoardRect.h,
+  };
+}
+function kfBuildBoardSVGInner() {
+  let out = `<rect x="0" y="0" width="${KF_BOARD_VIEW_W}" height="${KF_BOARD_VIEW_H}" fill="var(--surface)"/>`;
+  out += `<g transform="translate(${KF_BOARD_MARGIN_LEFT}, ${KF_BOARD_MARGIN_TOP})">`;
+  KF_ZONES.forEach(z => { out += `<path d="${KF_ZONE_PATHS[z]}" fill="var(--board-floor)" stroke="var(--border)" stroke-width="2.4"/>`; });
+  out += `<svg x="0" y="0" width="${KF_BOARD_W}" height="${KF_BOARD_H}" viewBox="0 0 573 572" preserveAspectRatio="none">${KF_DIAGRAM_OBJECTS_INNER}</svg>`;
+  KF_ZONES.forEach(z => { out += `<path d="${KF_ZONE_PATHS[z]}" fill="none" stroke="var(--border)" stroke-width="2.4"/>`; });
+  out += `<g font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="10" letter-spacing="0.5">`;
+  KF_ZONES.forEach(z => {
+    const b = KF_ZONE_LABEL_BOXES[z];
+    const boxW = kfMeasureLabelWidth(b.label) + KF_ZONE_LABEL_MARGIN * 2;
+    out += `<rect x="${b.x}" y="${b.y}" width="${boxW}" height="17" rx="4" fill="var(--text)"/><text x="${b.x + KF_ZONE_LABEL_MARGIN}" y="${b.y + 12}" fill="var(--bg)">${b.label}</text>`;
+  });
+  out += `</g></g>`;
+  const midX = KF_BOARD_VIEW_W / 2;
+  const textTop = KF_BOARD_MARGIN_TOP + KF_BOARD_H + 22;
+  out += `<text class="kf-board-instructions" x="${midX}" y="${textTop}" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="15" fill="var(--text)">
+    <tspan x="${midX}" dy="0">Aim your extinguisher at the flames.</tspan>
+    <tspan x="${midX}" dy="20">Coordinate as a team to put them all out.</tspan>
+    <tspan x="${midX}" dy="20">Your clock is still ticking.</tspan>
+  </text>`;
+  return out;
+}
+const KF_ZONE_SAFE_POINTS = {
+  prep:     [[50,50],[150,50],[250,50],[350,50],[150,150]],
+  pantry:   [[50,150],[50,250],[50,350]],
+  grill:    [[250,150],[350,150]],
+  stovetop: [[150,250],[250,250],[150,350]],
+  dessert:  [[350,250],[350,350]],
+  fryer:    [[250,350]],
+};
+function kfPickSafeSpawnPoint(zoneId) {
+  const points = KF_ZONE_SAFE_POINTS[zoneId] || [[200, 200]];
+  const [x, y] = points[Math.floor(Math.random() * points.length)];
+  const jitter = () => (Math.random() - 0.5) * 24;
+  return [x + jitter(), y + jitter()];
+}
+/* ---- fire movement (Session 23) — tiers and winding routes ----
+   Ported from the Session 23 movement testbed after owner tuning; the
+   stepping/assignment logic is the tested testbed code with tb→kf names
+   and the level profile threaded through. Route safety is by
+   construction: every stop is one of the SAME known-safe points used for
+   spawning (own zone + one adjoining zone, per KF_ZONE_NEIGHBORS, with
+   the same ±12 jitter), and the corner-cutting smoothing below can only
+   pull the curve INSIDE its dot-to-dot outline — so no route can leave
+   the safe margin. Flames walk their route end to end and back. The
+   _move* fields live only on the authority's target objects; the flush
+   (kfFlushTargetsToFirebase) picks explicit fields, so nothing here ever
+   touches the wire or the sync schema. */
+const KF_ZONE_NEIGHBORS = {
+  prep:     ['pantry', 'grill', 'stovetop'],
+  pantry:   ['prep', 'stovetop'],
+  grill:    ['prep', 'stovetop', 'dessert'],
+  stovetop: ['prep', 'pantry', 'grill', 'dessert', 'fryer'],
+  dessert:  ['grill', 'stovetop', 'fryer'],
+  fryer:    ['stovetop', 'dessert'],
+};
+/* Tiny seeded random helper: seeding by flame id keeps each flame's route
+   choices self-consistent and cheap to reason about; no cross-client
+   determinism is needed (only the authority ever simulates). */
+function kfMoveHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function kfMoveRng(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/* Deal a freshly spawned flame its movement tier and, if it moves, its own
+   route. Probabilities, not a guaranteed mix (owner, Session 23). */
+function kfAssignMovement(t, profile) {
+  const rng = kfMoveRng(kfMoveHash(t.id));
+  const mix = profile.mix;
+  const r = rng();
+  let tier;
+  if (r < mix.stationary) tier = 'stationary';
+  else if (r < mix.stationary + mix.slow) tier = 'slow';
+  else tier = 'fast';
+  t._moveTier = tier;
+  if (tier === 'stationary') return;
+  const path = kfBuildMovePath(t, profile, rng);
+  if (!path) { t._moveTier = 'stationary'; return; } // nowhere sensible to go
+  const base = tier === 'slow' ? profile.slowSpeed : profile.fastSpeed;
+  t._moveSpeed = base * (1 + (rng() - 0.5) * 2 * KF_MOVE_CONFIG.speedJitter);
+  t._movePath = path;
+  t._moveDist = 0;   // how far along its route this flame has traveled
+  t._moveDir = 1;    // walked back and forth, end to end
+  t._moveMul = 1;    // eases toward sprayedSpeedMult while being sprayed
+}
+function kfBuildMovePath(t, profile, rng) {
+  const pool = [];
+  const zones = [t.zoneId].concat(KF_ZONE_NEIGHBORS[t.zoneId] || []);
+  zones.forEach(z => (KF_ZONE_SAFE_POINTS[z] || []).forEach(p => pool.push(p)));
+  const jit = () => (rng() - 0.5) * 2 * KF_MOVE_CONFIG.waypointJitter;
+  const pts = [[t.bx, t.by]];
+  let prev = [t.bx, t.by];
+  let lastPicked = null;
+  for (let i = 0; i < profile.waypointCount; i++) {
+    const options = pool.filter(p => {
+      if (p === lastPicked) return false;
+      const d = Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+      return d > 30 && d <= KF_MOVE_CONFIG.hopMax;
+    });
+    if (!options.length) break;
+    const pick = options[Math.floor(rng() * options.length)];
+    lastPicked = pick;
+    const wp = [pick[0] + jit(), pick[1] + jit()];
+    pts.push(wp);
+    prev = wp;
+  }
+  if (pts.length < 2) return null;
+  return kfFinishMovePath(kfSmoothPolyline(pts, 2));
+}
+/* Chaikin corner-cutting: every produced point is a blend of two existing
+   ones, so the smoothed curve stays strictly inside the original
+   dot-to-dot route — the property the safety argument rests on. */
+function kfSmoothPolyline(pts, iterations) {
+  let p = pts;
+  for (let k = 0; k < iterations; k++) {
+    const q = [p[0]];
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i], b = p[i + 1];
+      q.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+      q.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    q.push(p[p.length - 1]);
+    p = q;
+  }
+  return p;
+}
+function kfFinishMovePath(smooth) {
+  const cum = [0];
+  for (let i = 1; i < smooth.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(smooth[i][0] - smooth[i - 1][0], smooth[i][1] - smooth[i - 1][1]));
+  }
+  return { pts: smooth, cum, total: cum[cum.length - 1] };
+}
+function kfMovePathPointAt(path, dist) {
+  const d = Math.max(0, Math.min(path.total, dist));
+  let i = 1;
+  while (i < path.cum.length && path.cum[i] < d) i++;
+  if (i >= path.cum.length) return path.pts[path.pts.length - 1];
+  const seg = (path.cum[i] - path.cum[i - 1]) || 1;
+  const f = (d - path.cum[i - 1]) / seg;
+  return [
+    path.pts[i - 1][0] + (path.pts[i][0] - path.pts[i - 1][0]) * f,
+    path.pts[i - 1][1] + (path.pts[i][1] - path.pts[i - 1][1]) * f,
+  ];
+}
+/* Move every wandering flame one small step. Runs at the top of
+   kfEngine.tick, when engagedBy is fresh from the authority loop — being
+   sprayed eases a flame down to the level's sprayedSpeedMult. */
+function kfMoveBurningFlames(targets, profile, dtSec) {
+  for (const t of targets) {
+    if (t.status !== 'burning') continue;
+    if (!t._movePath || t._moveTier === 'stationary') continue;
+    const wanted = (KF_MOVE_CONFIG.sprayPins && t.engagedBy.length > 0)
+      ? profile.sprayedSpeedMult : 1;
+    const ease = Math.min(1, dtSec / Math.max(KF_MOVE_CONFIG.pinEaseSec, 0.01));
+    t._moveMul += (wanted - t._moveMul) * ease;
+    t._moveDist += t._moveSpeed * t._moveMul * dtSec * t._moveDir;
+    if (t._moveDist >= t._movePath.total) { t._moveDist = t._movePath.total; t._moveDir = -1; }
+    if (t._moveDist <= 0) { t._moveDist = 0; t._moveDir = 1; }
+    const p = kfMovePathPointAt(t._movePath, t._moveDist);
+    t.bx = p[0]; t.by = p[1];
+  }
+}
+function kfZonePicker(existingTargets) {
+  const counts = {};
+  existingTargets.forEach(t => { if (t.status === 'burning') counts[t.zoneId] = (counts[t.zoneId] || 0) + 1; });
+  const now = performance.now();
+  const eligible = KF_ZONES.filter(z => (counts[z] || 0) < KF_CONFIG.maxTargetsPerZone);
+  if (eligible.length === 0) return null;
+  const weights = eligible.map(z => 1 + (now - (kfZoneLastActivity[z] || 0)) / 1000);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < eligible.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { kfZoneLastActivity[eligible[i]] = now; return eligible[i]; }
+  }
+  kfZoneLastActivity[eligible[0]] = now;
+  return eligible[0];
+}
+const kfEngine = {
+  targets: [], budgetRemaining: 0, budgetTotal: 0, lastSpawnCheck: 0, moveProfile: null,
+  reset(playerCount, moveProfile) {
+    this.targets = [];
+    // Session 23: level-keyed movement profile; null = stationary fire
+    // (identical to pre-Session-23 behavior).
+    this.moveProfile = moveProfile || null;
+    this.budgetTotal = Math.ceil(playerCount * KF_CONFIG.flamesPerPlayer * (1 + KF_CONFIG.budgetSlack));
+    this.budgetRemaining = this.budgetTotal;
+    this.lastSpawnCheck = 0;
+  },
+  maxSimultaneous(playerCount) { return playerCount * KF_CONFIG.maxSimultaneousMultiplier; },
+  spawnBurst(count, zonePicker) { for (let i = 0; i < count && this.budgetRemaining > 0; i++) this.spawnOne(zonePicker); },
+  spawnOne(zonePicker) {
+    if (this.budgetRemaining <= 0) return null;
+    const zoneId = zonePicker(this.targets);
+    if (!zoneId) return null;
+    const [bx, by] = kfPickSafeSpawnPoint(zoneId);
+    const t = { id: "f_" + Math.random().toString(36).slice(2, 8), zoneId, bx, by, spentSec: 0,
+      requiredSec: KF_CONFIG.baseRequiredSec, bornAt: performance.now(), stage: 0, status: "burning",
+      engagedBy: [], foamBubbles: [] };
+    if (this.moveProfile) kfAssignMovement(t, this.moveProfile); // Session 23: deal a tier + route
+    this.targets.push(t); this.budgetRemaining--; return t;
+  },
+  rateFor(engagedCount) {
+    if (engagedCount <= 0) return 0;
+    if (KF_CONFIG.rateTable[engagedCount] !== undefined) return KF_CONFIG.rateTable[engagedCount];
+    return KF_CONFIG.rateTableCap;
+  },
+  tick(dtSec, nowMs) {
+    // Session 23: movement steps first, so a flame's engagedBy list (set by
+    // the authority loop just before tick) decides whether it is pinned.
+    if (this.moveProfile) kfMoveBurningFlames(this.targets, this.moveProfile, dtSec);
+    for (const t of this.targets) {
+      if (t.status === "out") continue;
+      const ageSec = (nowMs - t.bornAt) / 1000;
+      if (ageSec > KF_CONFIG.mercyThresholdSec) {
+        const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
+        t.requiredSec = KF_CONFIG.baseRequiredSec - mercyProgress * (KF_CONFIG.baseRequiredSec - KF_CONFIG.mercyFloorSec);
+      }
+      const rate = this.rateFor(t.engagedBy.length);
+      if (rate > 0) t.spentSec += dtSec * rate;
+      const frac = t.spentSec / t.requiredSec;
+      t.stage = frac >= 0.9 ? 3 : frac >= 0.66 ? 2 : frac >= 0.33 ? 1 : 0;
+      const desiredBubbles = Math.round(Math.min(1, frac) * KF_CONFIG.maxFoamBubbles);
+      while (t.foamBubbles.length < desiredBubbles) {
+        const heightFrac = Math.pow(Math.random(), 1.3);
+        const dy = -heightFrac * KF_CONFIG.foamPileHeight;
+        const widthAtHeight = KF_CONFIG.foamPileWidth * (1 - heightFrac * 0.6);
+        const dx = (Math.random() - 0.5) * 2 * widthAtHeight;
+        t.foamBubbles.push({ dx, dy, r: 2.5 + Math.random() * 3 });
+      }
+      if (frac >= 1 && t.status === "burning") { t.status = "out"; t.outAt = nowMs; }
+    }
+    this.targets = this.targets.filter(t => t.status !== "out" || (nowMs - t.outAt) < 500);
+    this.lastSpawnCheck += dtSec;
+    if (this.lastSpawnCheck >= KF_CONFIG.spawnCheckIntervalSec) {
+      this.lastSpawnCheck = 0;
+      const activeCount = this.targets.filter(t => t.status === "burning").length;
+      if (this.budgetRemaining > 0 && activeCount < kf.maxSimultaneous) this.spawnOne(kfZonePicker);
+    }
+  },
+  allCleared() { return this.budgetRemaining <= 0 && this.targets.filter(t => t.status === "burning").length === 0; },
+};
+// Real uploaded flame asset — internal ids rewritten per-instance in
+// kfBuildFlameSVG() to avoid the id-collision bug documented in the
+// handoff briefing (many flames exist simultaneously).
+const KF_FLAME_ASSET_RAW = `<style>
+@keyframes kf_Frame_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } 20% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.061rad) translate(-42.152px, -160px); } 42% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.031rad) translate(-42.152px, -160px); } 60% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(-0.038rad) translate(-42.152px, -160px); } 80% { animation-timing-function: ease-in-out; transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0.044rad) translate(-42.152px, -160px); } 100% { transform: translateX(37.848px) translateY(22px) translate(42.152px, 160px) rotate(0rad) translate(-42.152px, -160px); } }
+#Frame { transform-origin: 0 0; animation: kf_Frame_transform_0 2.4s linear infinite; }
+@keyframes kf_Frame_2_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 1; } 7.5% { animation-timing-function: ease-in-out; opacity: 0.95; } 16.88% { animation-timing-function: ease-in-out; opacity: 1; } 27.5% { animation-timing-function: ease-in-out; opacity: 0.9; } 38.13% { animation-timing-function: ease-in-out; opacity: 0.97; } 48.75% { animation-timing-function: ease-in-out; opacity: 0.93; } 62.5% { animation-timing-function: linear; opacity: 1; } 100% { opacity: 1; } }
+#Frame_2 { animation: kf_Frame_2_opacity_0 2.4s linear infinite; }
+@keyframes kf_Frame_3_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } 14.63% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0.052rad) translate(-30.191px, -142px); } 30.88% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(-0.026rad) translate(-30.191px, -142px); } 47.13% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0.049rad) translate(-30.191px, -142px); } 63.38% { animation-timing-function: ease-in-out; transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(-0.035rad) translate(-30.191px, -142px); } 81.25% { transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } 100% { transform: translateX(49.809px) translateY(34px) translate(30.191px, 142px) rotate(0rad) translate(-30.191px, -142px); } }
+#Frame_3 { transform-origin: 0 0; animation: kf_Frame_3_transform_0 2.4s linear infinite; }
+@keyframes kf_Frame_4_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(0px); } 8.62% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-5px); } 16.77% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(2px); } 26.35% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-7px); } 34.5% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(1px); } 42.17% { animation-timing-function: ease-in-out; transform: translateX(0px) translateY(-3px); } 47.92% { transform: translateX(0px) translateY(0px); } 100% { transform: translateX(0px) translateY(0px); } }
+@keyframes kf_Frame_4_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 0.92; } 8.62% { animation-timing-function: ease-in-out; opacity: 1; } 16.77% { animation-timing-function: ease-in-out; opacity: 0.85; } 26.35% { animation-timing-function: ease-in-out; opacity: 0.97; } 34.5% { animation-timing-function: ease-in-out; opacity: 0.88; } 42.17% { animation-timing-function: ease-in-out; opacity: 0.94; } 47.92% { animation-timing-function: linear; opacity: 0.92; } 100% { opacity: 0.92; } }
+#Frame_4 { transform-origin: 0 0; animation: kf_Frame_4_transform_0 2.4s linear infinite, kf_Frame_4_opacity_0 2.4s linear infinite; }
+@keyframes kf_Frame_5_transform_0 { 0% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } 8.71% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-9px); } 16.63% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-2px); } 25.33% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-11px); } 32.46% { animation-timing-function: ease-in-out; transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(-1px); } 39.58% { transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } 100% { transform: translateX(62.915px) translateY(75px) translateX(0px) translateY(0px); } }
+@keyframes kf_Frame_5_opacity_0 { 0% { animation-timing-function: ease-in-out; opacity: 1; } 8.71% { animation-timing-function: ease-in-out; opacity: 0.88; } 16.63% { animation-timing-function: ease-in-out; opacity: 0.95; } 25.33% { animation-timing-function: ease-in-out; opacity: 1; } 32.46% { animation-timing-function: ease-in-out; opacity: 0.9; } 39.58% { animation-timing-function: linear; opacity: 1; } 100% { opacity: 1; } }
+#Frame_5 { transform-origin: 0 0; animation: kf_Frame_5_transform_0 2.4s linear infinite, kf_Frame_5_opacity_0 2.4s linear infinite; }
+</style>
+<g id="Icon_-_Flickering_flame" clip-path="url(#clip0_23_174)">
+<g id="Frame" filter="url(#filter0_f_23_174)" transform="translate(37.8485 22)">
+<g id="Frame_2">
+<path id="Vector" d="M42.1515 160C16.1515 160 -1.84847 138 0.151535 114C2.15153 92 14.1515 78 20.1515 60C25.1515 45 24.1515 28 19.1515 10C29.1515 26 36.1515 44 34.1515 62C38.1515 42 42.1515 20 40.1515 0C44.1515 20 48.1515 42 52.1515 62C50.1515 44 55.1515 26 66.1515 10C61.1515 28 60.1515 45 65.1515 60C71.1515 78 82.1515 92 84.1515 114C86.1515 138 68.1515 160 42.1515 160Z" fill="url(#paint0_radial_23_174)"/>
+</g>
+</g>
+<g id="Frame_3" transform="translate(49.8095 34)">
+<g id="Frame_4" opacity="0.92">
+<path id="Vector_2" opacity="0.95" d="M30.1905 142C12.1905 142 -1.80946 126 0.190538 107C2.19054 90 12.1905 78 17.1905 62C21.1905 48 21.1905 33 18.1905 16C26.1905 30 30.1905 46 29.1905 62C31.1905 42 33.1905 20 30.1905 0C27.1905 20 29.1905 42 31.1905 62C30.1905 46 34.1905 30 42.1905 16C39.1905 33 39.1905 48 43.1905 62C48.1905 78 58.1905 90 60.1905 107C62.1905 126 48.1905 142 30.1905 142Z" fill="url(#paint1_radial_23_174)"/>
+</g>
+</g>
+<g id="Frame_5" transform="translate(62.9154 75)">
+<path id="Vector_3" d="M17.0846 95C7.08457 95 -0.915426 85 0.0845743 72C1.08457 60 9.08457 50 12.0846 37C14.0846 26 14.0846 14 11.0846 0C16.0846 12 17.0846 25 17.0846 37C17.0846 25 18.0846 12 23.0846 0C20.0846 14 20.0846 26 22.0846 37C25.0846 50 33.0846 60 34.0846 72C35.0846 85 27.0846 95 17.0846 95Z" fill="url(#paint2_radial_23_174)"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_f_23_174" x="-12" y="-12" width="108.303" height="184" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="6" result="effect1_foregroundBlur_23_174"/>
+</filter>
+<radialGradient id="paint0_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(42.1515 115.2) scale(46.3667 88)">
+<stop stop-color="#FF6520"/>
+<stop offset="0.55" stop-color="#E83000"/>
+<stop offset="1" stop-color="#8B1200" stop-opacity="0.6"/>
+</radialGradient>
+<radialGradient id="paint1_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(30.1905 92.3) scale(30.1905 71)">
+<stop stop-color="#FFD040"/>
+<stop offset="0.5" stop-color="#FF9000"/>
+<stop offset="1" stop-color="#FF4000" stop-opacity="0.4"/>
+</radialGradient>
+<radialGradient id="paint2_radial_23_174" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(17.0846 55.1) scale(14.351 39.9)">
+<stop stop-color="#FFFCF0"/>
+<stop offset="0.35" stop-color="#FFEC80"/>
+<stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_23_174">
+<rect width="160" height="200" fill="white"/>
+</clipPath>
+</defs>`;
+const KF_FLAME_ASSET_IDS = [
+  'Frame', 'Frame_2', 'Frame_3', 'Frame_4', 'Frame_5',
+  'filter0_f_23_174', 'paint0_radial_23_174', 'paint1_radial_23_174', 'paint2_radial_23_174', 'clip0_23_174',
+  'kf_Frame_transform_0', 'kf_Frame_2_opacity_0', 'kf_Frame_3_transform_0',
+  'kf_Frame_4_transform_0', 'kf_Frame_4_opacity_0', 'kf_Frame_5_transform_0', 'kf_Frame_5_opacity_0',
+];
+function kfBuildFlameSVG(uid) {
+  let svg = KF_FLAME_ASSET_RAW;
+  KF_FLAME_ASSET_IDS.forEach(id => { svg = svg.replace(new RegExp('\\b' + id + '\\b', 'g'), id + '_' + uid); });
+  return `<svg viewBox="0 0 160 200" width="100%" height="100%">${svg}</svg>`;
+}
+const KF_REFERENCE_BOARD_W = 700;
+let kfScale = 1;
+const KF_EXT_SCALE_BASE = 105 / 375;
+const KF_EXT_CANISTER_ORIGIN = { x: 242.602, y: 12.605 };
+const KF_EXT_CANISTER_SIZE = { w: 144, h: 375 };
+const KF_EXT_NOZZLE_POINTS_RAW = [[0, 55.8907], [87.4451, 64.0661], [93.8761, 43.8503], [17.78, 0]];
+const KF_EXT_NOZZLE_EXIT_RAW = { x: (0 + 17.78) / 2, y: (55.8907 + 0) / 2 };
+const KF_EXT_HOSE_RAW = {
+  P0: { x: 289.744, y: 37.4958 }, P1: { x: 237.102, y: 69.105 },
+  Pmid: { x: 177.102, y: 302.605 }, P3: { x: 122.602, y: 95.105 }, P4: { x: 80.1022, y: 48.6052 },
+  cp2s1_offP1: { x: 5, y: -34.5 }, cp1s2_offP1: { x: -11.305, y: 78 },
+  cp2s2_offPmid: { x: 44.001, y: 0 }, cp1s3_offPmid: { x: -44.001, y: 0 },
+  cp2s3_offP3: { x: 6, y: 64.5 }, cp1s4_offP3: { x: -2.93, y: -31.5 },
+};
+function kfExtScaleVal() { return KF_EXT_SCALE_BASE * kfScale; }
+function kfExtScale(pt) { const s = kfExtScaleVal(); return { x: pt.x * s, y: pt.y * s }; }
+
+const KF_FOAM_VX_AVG = -360, KF_FOAM_VX_JITTER = 54;
+const KF_FOAM_VY0_AVG = -70, KF_FOAM_VY0_JITTER = 14;
+const KF_GRAVITY = 480;
+const KF_VX_DRAG = 4.5;
+const KF_FOAM_SETTLE_TIME = 0.42;
+function kfComputeFoamLandingOffset() {
+  const exit = kfExtScale(KF_EXT_NOZZLE_EXIT_RAW);
+  let x = exit.x, y = exit.y, vx = KF_FOAM_VX_AVG, vy = KF_FOAM_VY0_AVG;
+  const dt = 1 / 120, steps = Math.round(KF_FOAM_SETTLE_TIME / dt);
+  for (let i = 0; i < steps; i++) {
+    x += vx * dt; y += vy * dt;
+    vx *= Math.max(0, 1 - KF_VX_DRAG * dt);
+    vy += KF_GRAVITY * dt;
+  }
+  return { x, y };
+}
+let kfFoamLandingOffset = { x: 0, y: 0 };
+/* ---- runtime state ---- */
+const kf = {
+  you: { x: 0, y: 0, spraying: false, _stickyTargetId: null, _stickySince: 0, _engagedTargetId: null },
+  particlesOver: [], hoseWobble: { x: 0, y: 0 }, hoseWobbleVel: { x: 0, y: 0 }, _prevNozzle: null,
+  lastFrameMs: 0, loopHandle: null, maxSimultaneous: 5, _lastEngagementHeartbeat: 0,
+};
+let kfIsAuthority = false;
+let kfSyncedTargets = {};
+let kfSnapPrev = null, kfSnapLatest = null;
+let kfRemoteEngagement = {};
+const KF_ENGAGE_MIN_DWELL_MS = 1300;
+const KF_ENGAGE_SWITCH_MARGIN = 0.42;
+
+// Returns a normalized target list regardless of whether this client is
+// the authority (own live kfEngine.targets) or a synced participant
+// (kfSyncedTargets from Firebase) — the one seam that lets engagement,
+// rendering, and tag placement stay ignorant of which role they're in.
+function kfCurrentTargetsForEngagement() {
+  if (kfIsAuthority) return kfEngine.targets.map(t => ({ id: t.id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
+  return Object.entries(kfSyncedTargets).map(([id, t]) => ({ id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
+}
+
+function kfRecomputeMyEngagement() {
+  const nowMs = performance.now();
+  const p = kf.you;
+  if (!p.spraying) { p._stickyTargetId = null; p._engagedTargetId = null; return; }
+  const landX = p.x + kfFoamLandingOffset.x, landY = p.y + kfFoamLandingOffset.y;
+  const list = kfCurrentTargetsForEngagement();
+  let best = null, bestD = Infinity;
+  list.forEach(t => {
+    if (t.status !== 'burning') return;
+    const { x: tx, y: ty } = kfBoardToPx(t.bx, t.by);
+    const d = Math.hypot(tx - landX, ty - landY);
+    if (d <= KF_CONFIG.sprayRadius && d < bestD) { bestD = d; best = t; }
+  });
+  const stickyTarget = p._stickyTargetId ? list.find(t => t.id === p._stickyTargetId && t.status === 'burning') : null;
+  let chosen = null;
+  if (stickyTarget) {
+    const { x: stx, y: sty } = kfBoardToPx(stickyTarget.bx, stickyTarget.by);
+    const stickyDist = Math.hypot(stx - landX, sty - landY);
+    const stillInRange = stickyDist <= KF_CONFIG.sprayRadius;
+    const dwellElapsed = (nowMs - (p._stickySince || 0)) > KF_ENGAGE_MIN_DWELL_MS;
+    const meaningfullyCloser = best && best.id !== stickyTarget.id && bestD < stickyDist * KF_ENGAGE_SWITCH_MARGIN;
+    if (stillInRange && !(dwellElapsed && meaningfullyCloser)) chosen = stickyTarget;
+  }
+  if (!chosen) { chosen = best; if (chosen && chosen.id !== p._stickyTargetId) { p._stickyTargetId = chosen.id; p._stickySince = nowMs; } }
+  if (!chosen) p._stickyTargetId = null;
+  p._engagedTargetId = chosen ? chosen.id : null;
+}
+
+function kfMergeRemoteEngagementIntoTargets() {
+  const now = Date.now();
+  Object.entries(kfRemoteEngagement).forEach(([pid, e]) => {
+    if (pid === myPlayerId) return; // your own contribution is added separately, from local state directly
+    if (!e || !e.targetId) return;
+    if (now - e.ts > 2000) return; // stale — that participant likely stopped spraying without a final write landing
+    const t = kfEngine.targets.find(x => x.id === e.targetId && x.status === 'burning');
+    if (t) t.engagedBy.push(pid);
+  });
+}
+function kfRenderFoam() {
+  const { width, height } = kfFxUnderCtx.canvas;
+  kfFxUnderCtx.clearRect(0, 0, width, height);
+  kfEngine.targets.forEach(t => {
+    if (!t.foamBubbles.length) return;
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    t.foamBubbles.forEach(b => {
+      kfFxUnderCtx.beginPath();
+      kfFxUnderCtx.arc(px + b.dx * kfScale, py + b.dy * kfScale, b.r * kfScale, 0, Math.PI * 2);
+      kfFxUnderCtx.fillStyle = 'rgba(255,253,246,0.92)';
+      kfFxUnderCtx.fill();
+      kfFxUnderCtx.lineWidth = 1;
+      kfFxUnderCtx.strokeStyle = 'rgba(184,147,92,0.45)';
+      kfFxUnderCtx.stroke();
+    });
+  });
+}
+function kfRenderFoamFromSync() {
+  const { width, height } = kfFxUnderCtx.canvas;
+  kfFxUnderCtx.clearRect(0, 0, width, height);
+  Object.values(kfSyncedTargets).forEach(t => {
+    if (!t.foamBubbles || !t.foamBubbles.length) return;
+    const { x: px, y: py } = kfBoardToPx(t.bx, t.by);
+    t.foamBubbles.forEach(b => {
+      kfFxUnderCtx.beginPath();
+      kfFxUnderCtx.arc(px + b.dx * kfScale, py + b.dy * kfScale, b.r * kfScale, 0, Math.PI * 2);
+      kfFxUnderCtx.fillStyle = 'rgba(255,253,246,0.92)';
+      kfFxUnderCtx.fill();
+      kfFxUnderCtx.lineWidth = 1;
+      kfFxUnderCtx.strokeStyle = 'rgba(184,147,92,0.45)';
+      kfFxUnderCtx.stroke();
+    });
+  });
+}
+
+
+function kfRenderSpray(dtSec) {
+  const { width, height } = kfFxOverCtx.canvas;
+  kfFxOverCtx.clearRect(0, 0, width, height);
+  if (kfSpectating) return; // 260820.4: no own hose/nozzle/spray for the Observer
+  const p = kf.you;
+  const cursorX = p.x, cursorY = p.y;
+  const extScaleVal = kfExtScaleVal();
+
+  if (!kf._prevNozzle) kf._prevNozzle = { x: cursorX, y: cursorY };
+  const velX = (cursorX - kf._prevNozzle.x) / Math.max(dtSec, 0.001);
+  const velY = (cursorY - kf._prevNozzle.y) / Math.max(dtSec, 0.001);
+  const KICK = 5.5, springK = 48, damping = 3.6;
+  kf.hoseWobbleVel.x += -velX * KICK * dtSec;
+  kf.hoseWobbleVel.y += -velY * KICK * dtSec;
+  kf.hoseWobbleVel.x += (-springK * kf.hoseWobble.x - damping * kf.hoseWobbleVel.x) * dtSec;
+  kf.hoseWobbleVel.y += (-springK * kf.hoseWobble.y - damping * kf.hoseWobbleVel.y) * dtSec;
+  kf.hoseWobble.x += kf.hoseWobbleVel.x * dtSec;
+  kf.hoseWobble.y += kf.hoseWobbleVel.y * dtSec;
+  const wobbleMag = Math.hypot(kf.hoseWobble.x, kf.hoseWobble.y);
+  const wobbleCap = 80 * kfScale;
+  if (wobbleMag > wobbleCap) { kf.hoseWobble.x *= wobbleCap / wobbleMag; kf.hoseWobble.y *= wobbleCap / wobbleMag; }
+  kf._prevNozzle = { x: cursorX, y: cursorY };
+
+  const H = KF_EXT_HOSE_RAW;
+  const P0 = { x: cursorX + H.P0.x * extScaleVal, y: cursorY + H.P0.y * extScaleVal };
+  const P1 = { x: cursorX + H.P1.x * extScaleVal, y: cursorY + H.P1.y * extScaleVal };
+  const P3 = { x: cursorX + H.P3.x * extScaleVal, y: cursorY + H.P3.y * extScaleVal };
+  const P4 = { x: cursorX + H.P4.x * extScaleVal, y: cursorY + H.P4.y * extScaleVal };
+  const Pmid = { x: cursorX + H.Pmid.x * extScaleVal + kf.hoseWobble.x, y: cursorY + H.Pmid.y * extScaleVal + kf.hoseWobble.y };
+  const cp1s1 = P0;
+  const cp2s1 = { x: P1.x + H.cp2s1_offP1.x * extScaleVal, y: P1.y + H.cp2s1_offP1.y * extScaleVal };
+  const cp1s2 = { x: P1.x + H.cp1s2_offP1.x * extScaleVal, y: P1.y + H.cp1s2_offP1.y * extScaleVal };
+  const cp2s2 = { x: Pmid.x + H.cp2s2_offPmid.x * extScaleVal, y: Pmid.y + H.cp2s2_offPmid.y * extScaleVal };
+  const cp1s3 = { x: Pmid.x + H.cp1s3_offPmid.x * extScaleVal, y: Pmid.y + H.cp1s3_offPmid.y * extScaleVal };
+  const cp2s3 = { x: P3.x + H.cp2s3_offP3.x * extScaleVal, y: P3.y + H.cp2s3_offP3.y * extScaleVal };
+  const cp1s4 = { x: P3.x + H.cp1s4_offP3.x * extScaleVal, y: P3.y + H.cp1s4_offP3.y * extScaleVal };
+  const cp2s4 = P4;
+
+  kfFxOverCtx.beginPath();
+  kfFxOverCtx.moveTo(P0.x, P0.y);
+  kfFxOverCtx.bezierCurveTo(cp1s1.x, cp1s1.y, cp2s1.x, cp2s1.y, P1.x, P1.y);
+  kfFxOverCtx.bezierCurveTo(cp1s2.x, cp1s2.y, cp2s2.x, cp2s2.y, Pmid.x, Pmid.y);
+  kfFxOverCtx.bezierCurveTo(cp1s3.x, cp1s3.y, cp2s3.x, cp2s3.y, P3.x, P3.y);
+  kfFxOverCtx.bezierCurveTo(cp1s4.x, cp1s4.y, cp2s4.x, cp2s4.y, P4.x, P4.y);
+  kfFxOverCtx.strokeStyle = 'rgba(20,18,15,0.88)';
+  kfFxOverCtx.lineWidth = 6 * kfScale;
+  kfFxOverCtx.lineCap = 'round';
+  kfFxOverCtx.stroke();
+
+  if (p.spraying) {
+    const exit = kfExtScale(KF_EXT_NOZZLE_EXIT_RAW);
+    const exitX = cursorX + exit.x, exitY = cursorY + exit.y;
+    for (let i = 0; i < 3; i++) {
+      kf.particlesOver.push({
+        x: exitX, y: exitY + (Math.random() - 0.5) * 6 * kfScale,
+        vx: (KF_FOAM_VX_AVG + (Math.random() - 0.5) * 2 * KF_FOAM_VX_JITTER) * kfScale,
+        vy: (KF_FOAM_VY0_AVG + (Math.random() - 0.5) * 2 * KF_FOAM_VY0_JITTER) * kfScale,
+        life: 0.5, maxLife: 0.5, r: (3 + Math.random() * 4.5) * 0.7 * kfScale,
+      });
+    }
+  }
+
+  kf.particlesOver.forEach(pt => {
+    pt.x += pt.vx * dtSec; pt.y += pt.vy * dtSec; pt.life -= dtSec;
+    pt.vx *= Math.max(0, 1 - KF_VX_DRAG * dtSec);
+    pt.vy += KF_GRAVITY * kfScale * dtSec;
+  });
+  kf.particlesOver = kf.particlesOver.filter(pt => pt.life > 0);
+  kf.particlesOver.forEach(pt => {
+    const ageFrac = 1 - pt.life / pt.maxLife;
+    const rad = pt.r * (0.5 + ageFrac * 1.15);
+    kfFxOverCtx.globalAlpha = Math.max(0, pt.life / pt.maxLife) * 0.92;
+    kfFxOverCtx.beginPath(); kfFxOverCtx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+    kfFxOverCtx.fillStyle = '#FFFDF8';
+    kfFxOverCtx.fill();
+    kfFxOverCtx.lineWidth = 1;
+    kfFxOverCtx.strokeStyle = 'rgba(184,147,92,0.5)';
+    kfFxOverCtx.stroke();
+  });
+  kfFxOverCtx.globalAlpha = 1;
+
+  kfFxOverCtx.beginPath();
+  KF_EXT_NOZZLE_POINTS_RAW.forEach((pt, i) => {
+    const s = kfExtScale({ x: pt[0], y: pt[1] });
+    const x = cursorX + s.x, y = cursorY + s.y;
+    if (i === 0) kfFxOverCtx.moveTo(x, y); else kfFxOverCtx.lineTo(x, y);
+  });
+  kfFxOverCtx.closePath();
+  kfFxOverCtx.fillStyle = 'black';
+  kfFxOverCtx.fill();
+
+  const youEl = document.getElementById('kf-extinguisher-icon');
+  if (youEl) {
+    youEl.style.width = (KF_EXT_CANISTER_SIZE.w * extScaleVal) + 'px';
+    youEl.style.height = (KF_EXT_CANISTER_SIZE.h * extScaleVal) + 'px';
+    youEl.style.left = (cursorX + KF_EXT_CANISTER_ORIGIN.x * extScaleVal) + 'px';
+    youEl.style.top = (cursorY + KF_EXT_CANISTER_ORIGIN.y * extScaleVal) + 'px';
+  }
+}
+/* ---- smooth-follow (Session 23): glide between the last two snapshots ----
+   Non-authority screens (participants AND the Observer — both run
+   kfParticipantRenderLoop) deliberately show the fire ONE snapshot
+   interval (~180ms) behind the authority's truth. In exchange, motion is
+   continuous, and the flames, foam piles, name tags and the aim check all
+   read the same glided positions — the loop swaps kfSyncedTargets before
+   kfRecomputeMyEngagement runs, and every consumer downstream reads that
+   one store. Chosen over the CSS-transition alternative in the Session 23
+   testbed (owner: foam/tags stepping under gliding flames was visible).
+   FAIL-OPEN by design: any error inside the glide falls back to the raw
+   latest snapshot — byte-for-byte the pre-Session-23 shipped behavior —
+   and warns once. A stalled network freezes flames in place (no guessing
+   ahead); they resume when snapshots resume. */
+let kfSmoothingWarned = false;
+function kfInterpolatedTargets() {
+  if (!kfSnapLatest) return kfSyncedTargets;
+  if (!kfSnapPrev) return kfSnapLatest.targets;
+  const span = Math.max(kfSnapLatest.at - kfSnapPrev.at, 1);
+  const a = Math.min(1, (performance.now() - kfSnapLatest.at) / span);
+  const out = {};
+  Object.keys(kfSnapLatest.targets).forEach(id => {
+    const t = kfSnapLatest.targets[id];
+    const p = kfSnapPrev.targets[id];
+    if (!p || t.status !== 'burning') { out[id] = t; return; }
+    out[id] = Object.assign({}, t, {
+      bx: p.bx + (t.bx - p.bx) * a,
+      by: p.by + (t.by - p.by) * a,
+    });
+  });
+  return out;
+}
+function kfApplySnapshotSmoothing() {
+  try {
+    kfSyncedTargets = kfInterpolatedTargets();
+  } catch (err) {
+    if (kfSnapLatest) kfSyncedTargets = kfSnapLatest.targets;
+    if (!kfSmoothingWarned) {
+      kfSmoothingWarned = true;
+      console.warn('Kitchen Fire smoothing fell back to raw snapshots:', err);
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   NEW TESTBED CODE from here down.
+   Everything below is spawn-model / harness code written for this
+   branch. Where a routine is DERIVED from a game function that could
+   not be reused verbatim (because it was hard-bound to single-board
+   element ids), the source function is named in a comment.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Globals the sliced code expects that lived elsewhere in the game file: */
+let kfFxUnderCtx, kfFxOverCtx;              // set per-pane before sliced renderers run
+let kfSpectating = false;                   // read by sliced kfRenderSpray; never true here
+const myPlayerId = 'you-local';             // sliced kfMergeRemoteEngagementIntoTargets skips this id;
+                                            // the owner's *networked* engagement arrives as 'you-net'.
+/* Extinguisher canister artwork — sliced verbatim from kfAddExtinguisherIcon. */
+const TB_EXT_ICON_SVG = `<svg viewBox="0 0 144 375" width="100%" height="100%">
+    <path d="M144 12H85.3584C85.3598 12.0022 85.3609 12.0046 85.3623 12.0068C87.9009 11.9724 90.446 12.1415 92.9727 12.5205C100.35 13.6273 107.36 16.474 113.419 20.8262C119.478 25.1783 124.414 30.9109 127.819 37.5488C130.357 42.4952 131.989 47.8391 132.656 53.3281C133.035 56.4453 130.454 59 127.313 59C124.173 58.9998 121.674 56.4382 121.175 53.3379C120.582 49.656 119.413 46.0783 117.7 42.7393C115.119 37.7074 111.377 33.3616 106.784 30.0625C102.191 26.7636 96.8786 24.6056 91.2861 23.7666C90.5105 23.6502 89.7321 23.5609 88.9531 23.4961C88.9827 23.9937 89 24.495 89 25C89 31.7374 86.3335 37.851 82 42.3467V63.041C88.1595 63.5492 93 68.7093 93 75H35C35 68.7093 39.8405 63.5492 46 63.041V42.3467C41.6665 37.851 39 31.7374 39 25C39 11.1929 50.1929 0 64 0C64.6732 0 65.3402 0.0268754 66 0.0791016V0H134.662L144 12Z" fill="black"/>
+    <path d="M0 119C0 94.1472 20.1472 74 45 74H88C110.091 74 128 91.9086 128 114V360C128 368.284 121.284 375 113 375H15C6.71573 375 0 368.284 0 360V119Z" fill="var(--accent)"/>
+    <rect x="32" y="135" width="64" height="39" fill="black"/>
+    <rect x="32" y="186" width="64" height="62" fill="black"/>
+  </svg>`;
+
+/* ---------- per-tier config table (mirrors KF_MOVE_CONFIG.levels shape) ----------
+   These are the briefing §3 starting guesses — every one is a knob. */
+/* v2 defaults = the owner's tuned v1 snapshots (260821).
+   Spawner scaling intent: easy = one spawner per cook (ratio 1.0);
+   hard = one per cook PLUS one (ratio 1.2 + ceil lands on cooks+1 for
+   3-6 cooks, with the max=7 cap holding the 6-cook case at 7). */
+const TB_TIERS = {
+  easy: { label: 'Easy (Level 2)',
+    ratio: 1.0, minSpawners: 3, maxSpawners: 6, toughSec: 10,
+    birthInterval: 3, birthJitter: 0.75, perSpawnerCap: 5, boardCap: 15,
+    babyProfileKey: 'level2', babySlow: 12, babyFast: 28, rateScalePct: 0,
+    timeoutSec: 90, windDownSec: 10 },
+  hard: { label: 'Hard (Level 3)',
+    ratio: 1.2, minSpawners: 4, maxSpawners: 7, toughSec: 14,
+    birthInterval: 3.5, birthJitter: 0.75, perSpawnerCap: 5, boardCap: 15,
+    babyProfileKey: 'level3', babySlow: 14, babyFast: 32, rateScalePct: 0,
+    timeoutSec: 90, windDownSec: 10 },
+};
+
+/* ---------- live knob state (inputs write straight into this) ---------- */
+const K = {
+  tier: 'easy', cooks: 6, robotMode: 'mixed', seed: 'kitchen-1',
+  ratio: 1.0, minSpawners: 3, maxSpawners: 6, toughSec: 10,
+  birthInterval: 3, birthJitter: 0.75, perSpawnerCap: 5, boardCap: 15,
+  babyProfileKey: 'level2', babySlow: 12, babyFast: 28, rateScalePct: 0,
+  allMovers: true,
+  teamMode: 'A', soloRate: 0.15, haltBirths: true,
+  babyMercy: true, spawnerMercy: false,
+  timeoutSec: 90, windDownSec: 10,
+  teleSec: 0.45, popDist: 50, popDur: 0.5,
+  birthOriginPct: 40,             /* v2: babies emerge from 40% up the spawner art */
+  babySizePct: 90, spawnerRed: 8, babyYellow: 12,   /* v2: baby-vs-spawner look */
+  netDelay: 60, netJitter: 40, burst: false,
+  posMode: 'lefttop',
+};
+
+/* ---------- run state ---------- */
+const TB = {
+  running: false, startedAt: 0, outcome: null,
+  rng: null, robotRng: null, babySerial: 0, seedTag: '',
+  robots: [],
+  activePane: 'left',
+  flushAccum: 0, flushSeq: 0, burstQueue: [],
+  stats: { firstSpawnerKillSec: null, babiesOut: 0, spawnersTotal: 0, babiesBorn: 0 },
+  windDown: false,
+  lastFrameMs: 0,
+};
+
+function tbNow() { return performance.now(); }
+function tbClamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+/* Effective baby movement profile: the sliced Session 23 tiers with the
+   testbed's speed knobs threaded in; "all movers" redistributes the
+   stationary share across slow/fast (owner leaning, briefing §3). */
+function tbBabyProfile() {
+  const base = KF_MOVE_CONFIG.levels[K.babyProfileKey];
+  let mix = base.mix;
+  if (K.allMovers) {
+    const movers = base.mix.slow + base.mix.fast || 1;
+    mix = { stationary: 0, slow: base.mix.slow / movers, fast: base.mix.fast / movers };
+  }
+  return { mix, slowSpeed: K.babySlow, fastSpeed: K.babyFast,
+           waypointCount: base.waypointCount, sprayedSpeedMult: base.sprayedSpeedMult };
+}
+
+function tbSpawnerCount() {
+  return tbClamp(Math.ceil(K.cooks * K.ratio), K.minSpawners, K.maxSpawners);
+}
+function tbBirthIntervalMs(rng) {
+  const scale = 1 + (K.rateScalePct / 100) * Math.max(0, K.cooks - 3);
+  const jitter = (rng() - 0.5) * 2 * K.birthJitter;
+  return Math.max(1.2, (K.birthInterval + jitter) / scale) * 1000;
+}
+
+/* ---------- panes ---------- */
+function q(root, gid) { return root.querySelector('[data-gid="' + gid + '"]'); }
+function tbMakePane(sideName) {
+  const rootEl = document.querySelector('.tb-pane[data-pane="' + sideName + '"]');
+  const board = q(rootEl, 'kf-blueprint');
+  const p = {
+    side: sideName, rootEl, board,
+    svg: q(rootEl, 'kf-blueprint-svg'),
+    flamesLayer: q(rootEl, 'kf-flames-layer'),
+    tagsLayer: q(rootEl, 'kf-tags-layer'),
+    underCv: q(rootEl, 'kf-fx-under'), overCv: q(rootEl, 'kf-fx-over'),
+    banner: q(rootEl, 'kf-success-banner'),
+    bannerBig: q(rootEl, 'kf-banner-big'), bannerSmall: q(rootEl, 'kf-success-detail'),
+    underCtx: null, overCtx: null,
+    rect: { w: 0, h: 0 }, scale: 1,
+    flameEls: new Map(), tagEls: new Map(),
+    birthSeen: new Map(),      // id -> perf-ms this pane first saw the baby (entrance clock)
+    icon: null,
+  };
+  p.svg.setAttribute('viewBox', '0 0 ' + KF_BOARD_VIEW_W + ' ' + KF_BOARD_VIEW_H);
+  p.svg.innerHTML = kfBuildBoardSVGInner();
+  const icon = document.createElement('div');           // derived from kfAddExtinguisherIcon
+  icon.className = 'kf-extinguisher-icon tb-idle';
+  icon.innerHTML = TB_EXT_ICON_SVG;
+  p.board.appendChild(icon);
+  p.icon = icon;
+  return p;
+}
+/* Derived from kfMeasureBoardRect/kfComputeScale/kfApplyScale/kfResizeCanvases,
+   which are hard-bound to the single game board id — same math, per pane. */
+function tbMeasurePane(p) {
+  const r = p.board.getBoundingClientRect();
+  p.rect = { w: r.width, h: r.height };
+  p.scale = p.rect.w > 0 ? p.rect.w / KF_REFERENCE_BOARD_W : 1;
+  p.board.style.setProperty('--kf-scale', p.scale);
+  p.board.style.setProperty('--kf-label-scale', p.rect.w > 0 ? (p.rect.w / KF_BOARD_VIEW_W) : 1);
+  [p.underCv, p.overCv].forEach(cv => {
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = r.width * dpr; cv.height = r.height * dpr;
+    cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+    cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  });
+  p.underCtx = p.underCv.getContext('2d');
+  p.overCtx = p.overCv.getContext('2d');
+}
+/* The one seam: sliced functions read these globals (kfBoardRect, kfScale,
+   canvas ctxs). Enter a pane's context before calling any of them. */
+function tbEnterPane(p) {
+  kfBoardRect = p.rect; kfScale = p.scale;
+  kfFxUnderCtx = p.underCtx; kfFxOverCtx = p.overCtx;
+}
+
+let PANE_L, PANE_R;
+function tbPanes() { return [PANE_L, PANE_R]; }
+function tbActivePane() { return TB.activePane === 'left' ? PANE_L : PANE_R; }
+
+/* ---------- pointer input (derived from kfSetupPointerInput; same anchor
+   math, but per-pane and pane-switching on pointerdown) ---------- */
+function tbSetupPointer(p) {
+  function updatePos(e) {
+    const rect = p.board.getBoundingClientRect();
+    const s = KF_EXT_SCALE_BASE * p.scale;
+    const anchorOffsetX = (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * s;
+    const anchorOffsetY = (KF_EXT_CANISTER_ORIGIN.y + KF_EXT_CANISTER_SIZE.h * 0.8) * s;
+    kf.you.x = (e.clientX - rect.left) - anchorOffsetX;
+    kf.you.y = (e.clientY - rect.top) - anchorOffsetY;
+  }
+  p.board.addEventListener('pointerdown', e => {
+    tbSetActivePane(p.side);
+    p.board.setPointerCapture(e.pointerId);
+    updatePos(e); kf.you.spraying = true;
+  });
+  p.board.addEventListener('pointermove', e => { if (TB.activePane === p.side) updatePos(e); });
+  p.board.addEventListener('pointerup', () => { kf.you.spraying = false; });
+  p.board.addEventListener('pointercancel', () => { kf.you.spraying = false; });
+}
+function tbSetActivePane(side) {
+  if (TB.activePane === side) return;
+  TB.activePane = side;
+  kf.you.spraying = false; kf.you._stickyTargetId = null; kf.you._engagedTargetId = null;
+  kf._prevNozzle = null; kf.particlesOver = [];
+  tbPanes().forEach(p => {
+    p.icon.classList.toggle('tb-idle', p.side !== side);
+    p.rootEl.classList.toggle('tb-active-pane', p.side === side);
+  });
+  const ap = tbActivePane();
+  tbEnterPane(ap);
+  kfFoamLandingOffset = kfComputeFoamLandingOffset();
+}
+
+/* ---------- run setup ---------- */
+function tbHash32(s) { return kfMoveHash(String(s)); }
+function tbStartRun() {
+  tbReadKnobsIntoK();
+  TB.rng = kfMoveRng(tbHash32(K.seed + '|layout'));
+  TB.robotRng = kfMoveRng(tbHash32(K.seed + '|robots'));
+  TB.seedTag = (tbHash32(K.seed) % 46656).toString(36);
+  TB.babySerial = 0;
+  TB.stats = { firstSpawnerKillSec: null, babiesOut: 0, spawnersTotal: 0, babiesBorn: 0 };
+  TB.windDown = false; TB.outcome = null;
+  TB.flushAccum = 0; TB.flushSeq = 0; TB.burstQueue = [];
+  tbLastDeliveredSeq = 0;          /* v2 fix: without this, run 2+'s snapshots all
+                                      looked stale and the right pane stayed empty */
+  TB._lastNetEngagement = null;
+  kfEngine.reset(K.cooks, null);       // sliced reset; spawn model then zeroes the budget:
+  kfEngine.budgetRemaining = 0;        // the engine never self-spawns — births are ours.
+  kfRemoteEngagement = {};
+  kfSnapPrev = null; kfSnapLatest = null; kfSyncedTargets = {};
+  tbPanes().forEach(p => {
+    p.banner.classList.remove('show');
+    p.birthSeen.clear();
+    for (const [, el] of p.flameEls) el.remove();
+    p.flameEls.clear();
+    for (const [, el] of p.tagEls) el.remove();
+    p.tagEls.clear();
+  });
+  tbPlaceSpawners();
+  tbInitRobots();
+  TB.startedAt = tbNow();
+  TB._endShownAt = null;
+  TB.running = true;
+  tbLog('— run started: ' + K.tier + ', ' + K.cooks + ' cooks (' + (K.cooks - 1) + ' robots, ' + K.robotMode +
+        '), ' + TB.stats.spawnersTotal + ' spawners, seed "' + K.seed + '", team-up mode ' + K.teamMode);
+  tbSetResultHeadline('');
+  tbSetHudState('burning', false);
+}
+
+/* Spawners sit ON safe points (briefing §5), spread across distinct zones
+   first; placement is seeded so a seed replays the same layout. */
+function tbPlaceSpawners() {
+  const count = tbSpawnerCount();
+  TB.stats.spawnersTotal = count;
+  const rng = TB.rng;
+  const zones = KF_ZONES.slice();
+  for (let i = zones.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [zones[i], zones[j]] = [zones[j], zones[i]]; }
+  const used = new Set();
+  for (let i = 0; i < count; i++) {
+    const zoneId = zones[i % zones.length];
+    const pts = KF_ZONE_SAFE_POINTS[zoneId];
+    let pick = null;
+    for (let a = 0; a < 8 && !pick; a++) {
+      const cand = pts[Math.floor(rng() * pts.length)];
+      if (!used.has(cand[0] + ',' + cand[1])) pick = cand;
+    }
+    if (!pick) pick = pts[Math.floor(rng() * pts.length)];
+    used.add(pick[0] + ',' + pick[1]);
+    const t = { id: 's_' + TB.seedTag + '_' + i, zoneId, bx: pick[0], by: pick[1],
+      spentSec: 0, windSpentSec: 0, requiredSec: K.toughSec, bornAt: tbNow(), stage: 0, status: 'burning',
+      engagedBy: [], foamBubbles: [],
+      kind: 'spawner', _baseRequiredSec: K.toughSec, _tele: false,
+      _nextBirthAt: tbNow() + 1500 + i * 1300 + rng() * 800 };  // staggered so births never start in lockstep
+    kfEngine.targets.push(t);
+  }
+}
+
+/* A birth: baby lands popDist away from the spawner, in the direction of a
+   known-safe point (so the landing stays inside the room), then wanders on
+   the sliced Session 23 route machinery FROM its landing point. */
+function tbBirth(s) {
+  const rng = TB.rng;
+  const pool = [];
+  [s.zoneId].concat(KF_ZONE_NEIGHBORS[s.zoneId] || []).forEach(z =>
+    (KF_ZONE_SAFE_POINTS[z] || []).forEach(pt => pool.push(pt)));
+  const options = pool.filter(pt => {
+    const d = Math.hypot(pt[0] - s.bx, pt[1] - s.by);
+    return d > 34 && d <= KF_MOVE_CONFIG.hopMax;
+  });
+  const aim = options.length ? options[Math.floor(rng() * options.length)] : [200, 200];
+  const dx = aim[0] - s.bx, dy = aim[1] - s.by;
+  const dist = Math.hypot(dx, dy) || 1;
+  const d = Math.min(K.popDist, dist);
+  const land = [s.bx + (dx / dist) * d, s.by + (dy / dist) * d];
+  const t = { id: 'b_' + TB.seedTag + '_' + (TB.babySerial++), zoneId: s.zoneId,
+    bx: land[0], by: land[1], spentSec: 0, windSpentSec: 0, requiredSec: KF_CONFIG.baseRequiredSec,
+    bornAt: tbNow(), stage: 0, status: 'burning', engagedBy: [], foamBubbles: [],
+    kind: 'baby', _parent: s.id, _birth: { fx: s.bx, fy: s.by, at: tbNow() } };
+  kfAssignMovement(t, tbBabyProfile());   // sliced: deals tier + winding route from the landing point
+  if (t._movePath) {                      // hold the wander until the pop-out hop has landed
+    t._heldMove = { path: t._movePath }; t._movePath = null;
+  }
+  kfEngine.targets.push(t);
+  TB.stats.babiesBorn++;
+}
+
+/* ---------- the spawn-model tick ----------
+   DERIVED from the sliced kfEngine.tick: the burn/stage/foam math is the
+   same, but (a) mercy is per-kind and toggleable, (b) Mode B gives
+   spawners their own sprayer-count rates, (c) the budget/spawn-check is
+   replaced by spawner births with caps, (d) the end condition is
+   "all spawners AND all babies out", (e) the wind-down self-drains. */
+function tbTick(dtSec, nowMs) {
+  const elapsedSec = (nowMs - TB.startedAt) / 1000;
+  TB.windDown = TB.running && elapsedSec >= (K.timeoutSec - K.windDownSec);
+
+  kfMoveBurningFlames(kfEngine.targets, tbBabyProfile(), dtSec);   // sliced; spawners have no route
+
+  for (const t of kfEngine.targets) {
+    if (t.status === 'out') continue;
+    if (t._heldMove && (nowMs - t._birth.at) >= K.popDur * 1000) {
+      t._movePath = t._heldMove.path; t._heldMove = null;
+    }
+    const isSpawner = t.kind === 'spawner';
+    const baseReq = isSpawner ? t._baseRequiredSec : KF_CONFIG.baseRequiredSec;
+    const mercyOn = isSpawner ? K.spawnerMercy : K.babyMercy;
+    if (mercyOn) {
+      const ageSec = (nowMs - t.bornAt) / 1000;
+      if (ageSec > KF_CONFIG.mercyThresholdSec) {
+        const mercyProgress = Math.min(1, (ageSec - KF_CONFIG.mercyThresholdSec) / KF_CONFIG.mercyWindowSec);
+        const floor = isSpawner
+          ? baseReq * (KF_CONFIG.mercyFloorSec / KF_CONFIG.baseRequiredSec)  // same curve, scaled to spawner toughness
+          : KF_CONFIG.mercyFloorSec;
+        t.requiredSec = baseReq - mercyProgress * (baseReq - floor);
+      }
+    } else {
+      t.requiredSec = baseReq;
+    }
+    const n = t.engagedBy.length;
+    let rate;
+    if (isSpawner && K.teamMode === 'B') {
+      rate = n <= 0 ? 0 : (n === 1 ? K.soloRate : kfEngine.rateFor(n));  // solo holds, team kills
+    } else {
+      rate = kfEngine.rateFor(n);                                        // Mode A: sliced rate table rewards teaming
+    }
+    if (rate > 0) t.spentSec += dtSec * rate;
+    /* v2: wind-down drain lives in its own bucket — it shrinks the flame and
+       finishes it off, but ONLY player spraying (spentSec) builds foam, so
+       nothing foams up on its own while the fire dies down. */
+    if (TB.windDown) t.windSpentSec += dtSec * (t.requiredSec / Math.max(1, K.windDownSec));
+    const frac = (t.spentSec + t.windSpentSec) / t.requiredSec;
+    t.stage = frac >= 0.9 ? 3 : frac >= 0.66 ? 2 : frac >= 0.33 ? 1 : 0;
+    const desiredBubbles = Math.round(Math.min(1, t.spentSec / t.requiredSec) * KF_CONFIG.maxFoamBubbles);
+    while (t.foamBubbles.length < desiredBubbles) {
+      const heightFrac = Math.pow(Math.random(), 1.3);
+      const dy = -heightFrac * KF_CONFIG.foamPileHeight;
+      const widthAtHeight = KF_CONFIG.foamPileWidth * (1 - heightFrac * 0.6);
+      const dx = (Math.random() - 0.5) * 2 * widthAtHeight;
+      t.foamBubbles.push({ dx, dy, r: 2.5 + Math.random() * 3 });
+    }
+    if (frac >= 1 && t.status === 'burning') {
+      t.status = 'out'; t.outAt = nowMs;
+      if (isSpawner) {
+        if (TB.stats.firstSpawnerKillSec === null) TB.stats.firstSpawnerKillSec = elapsedSec;
+        tbLog(((nowMs - TB.startedAt) / 1000).toFixed(1) + 's  spawner out (' + t.id + ')');
+      } else {
+        TB.stats.babiesOut++;
+      }
+    }
+  }
+
+  /* births — capped per spawner and board-wide so a struggling team is
+     never drowned; a solo sprayer can halt them in Mode B. */
+  if (TB.running && !TB.windDown) {
+    const babiesAll = kfEngine.targets.filter(b => b.kind === 'baby' && b.status === 'burning');
+    for (const s of kfEngine.targets) {
+      if (s.kind !== 'spawner' || s.status !== 'burning') continue;
+      const halted = K.teamMode === 'B' && K.haltBirths && s.engagedBy.length > 0;
+      if (halted) {
+        s._tele = false;
+        s._nextBirthAt = Math.max(s._nextBirthAt, nowMs + K.teleSec * 1000 + 200);
+        continue;
+      }
+      const mine = babiesAll.filter(b => b._parent === s.id).length;
+      if (mine >= K.perSpawnerCap || babiesAll.length >= K.boardCap) {
+        s._tele = false;
+        s._nextBirthAt = Math.max(s._nextBirthAt, nowMs + 700);
+        continue;
+      }
+      s._tele = nowMs >= (s._nextBirthAt - K.teleSec * 1000);
+      if (nowMs >= s._nextBirthAt) {
+        tbBirth(s);
+        s._tele = false;
+        s._nextBirthAt = nowMs + tbBirthIntervalMs(TB.rng);
+      }
+    }
+  } else {
+    kfEngine.targets.forEach(s => { if (s.kind === 'spawner') s._tele = false; });
+  }
+
+  kfEngine.targets = kfEngine.targets.filter(t => t.status !== 'out' || (nowMs - t.outAt) < 500);
+
+  if (TB.running) {
+    const burning = kfEngine.targets.filter(t => t.status === 'burning');
+    /* v2: if the board only empties during the wind-down, the team didn't
+       beat the fire — the drain did. That's a burn-out, not a clear. */
+    if (burning.length === 0) { tbFinish(TB.windDown ? 'burned-out' : 'cleared', elapsedSec); return; }
+    if (elapsedSec >= K.timeoutSec) { tbFinish('burned-out', elapsedSec); return; }
+  }
+}
+
+function tbFinish(outcome, elapsedSec) {
+  TB.running = false; TB.outcome = outcome;
+  const s = TB.stats;
+  const fk = s.firstSpawnerKillSec === null ? '—' : s.firstSpawnerKillSec.toFixed(1) + 's';
+  if (outcome === 'cleared') {
+    const line = 'CLEARED in ' + elapsedSec.toFixed(1) + 's · first spawner down at ' + fk +
+      ' · ' + s.babiesOut + ' of ' + s.babiesBorn + ' babies put out';
+    tbLog(line);
+    tbSetResultHeadline('✔ ' + line);
+    tbPanes().forEach(p => {
+      p.bannerBig.textContent = "Fire's out!";
+      p.bannerSmall.textContent = 'Cleared in ' + elapsedSec.toFixed(1) + 's — first spawner down at ' + fk + '.';
+      p.banner.classList.add('show');
+    });
+  } else {
+    const line = 'BURNED OUT (timeout ' + K.timeoutSec + 's) · first spawner down at ' + fk +
+      ' · ' + s.babiesOut + ' babies put out before the wind-down';
+    tbLog(line);
+    tbSetResultHeadline('⏱ ' + line);
+    tbPanes().forEach(p => {
+      p.bannerBig.textContent = 'The fire burned out.';
+      p.bannerSmall.textContent = 'Timeout reached — the wind-down drained what was left.';
+      p.banner.classList.add('show');
+    });
+  }
+  tbSetHudState(outcome, false);
+}
+
+/* ---------- robots ---------- */
+const TB_ROBOT_NAMES = ['BOT A', 'BOT B', 'BOT C', 'BOT D', 'BOT E'];
+function tbInitRobots() {
+  TB.robots = [];
+  const n = Math.max(0, K.cooks - 1);
+  const rng = TB.robotRng;
+  const modes = [];
+  for (let i = 0; i < n; i++) {
+    modes.push(K.robotMode === 'mixed' ? (i % 2 === 0 ? 'coordinated' : 'naive') : K.robotMode);
+  }
+  for (let i = 0; i < n; i++) {
+    const zone = KF_ZONES[Math.floor(rng() * KF_ZONES.length)];
+    const pt = KF_ZONE_SAFE_POINTS[zone][0];
+    TB.robots.push({
+      id: 'robot-' + i, name: TB_ROBOT_NAMES[i] || ('BOT ' + i), mode: modes[i],
+      x: pt[0] + (rng() - 0.5) * 30, y: pt[1] + (rng() - 0.5) * 30,
+      speed: 105 + rng() * 40,          // board units/sec — travel time, not teleporting
+      targetId: null, wantId: null, switchAt: 0, nextThinkAt: 0, engaged: false,
+    });
+  }
+}
+function tbRobotsThink(nowMs) {
+  const burning = kfEngine.targets.filter(t => t.status === 'burning');
+  const spawners = burning.filter(t => t.kind === 'spawner').sort((a, b) => a.id < b.id ? -1 : 1);
+  const babies = burning.filter(t => t.kind === 'baby');
+  const coord = TB.robots.filter(r => r.mode === 'coordinated');
+  if (spawners.length) {
+    const per = Math.min(3, Math.max(2, Math.ceil(coord.length / spawners.length)));
+    coord.forEach((r, i) => { r.wantId = spawners[Math.min(Math.floor(i / per), spawners.length - 1)].id; });
+  } else {
+    coord.forEach((r, i) => {
+      const b = babies.slice().sort((p, q) =>
+        Math.hypot(p.bx - r.x, p.by - r.y) - Math.hypot(q.bx - r.x, q.by - r.y));
+      r.wantId = b.length ? b[Math.min(i, b.length - 1) % b.length].id : null;   // spread the mop-up
+    });
+  }
+  TB.robots.filter(r => r.mode === 'naive').forEach(r => {
+    let best = null, bestD = Infinity;                    // naive: nearest BABY only, never spawners
+    babies.forEach(b => {
+      const d = Math.hypot(b.bx - r.x, b.by - r.y);
+      if (d < bestD) { bestD = d; best = b; }
+    });
+    r.wantId = best ? best.id : null;
+  });
+  TB.robots.forEach(r => {
+    if (r.wantId !== r.targetId && nowMs >= r.switchAt) {
+      r.targetId = r.wantId;                              // human-ish reaction delay before re-aiming
+      r.switchAt = nowMs + 300 + TB.robotRng() * 500;
+    }
+  });
+}
+function tbRobotsUpdate(dtSec, nowMs) {
+  if (!TB.running) { TB.robots.forEach(r => { r.engaged = false; delete kfRemoteEngagement[r.id]; }); return; }
+  if (!TB._nextRobotThink || nowMs >= TB._nextRobotThink) {
+    tbRobotsThink(nowMs);
+    TB._nextRobotThink = nowMs + 350;
+  }
+  TB.robots.forEach(r => {
+    const t = r.targetId ? kfEngine.targets.find(x => x.id === r.targetId && x.status === 'burning') : null;
+    if (!t) { r.engaged = false; delete kfRemoteEngagement[r.id]; return; }
+    const dx = t.bx - r.x, dy = t.by - r.y;
+    const dist = Math.hypot(dx, dy);
+    const step = r.speed * dtSec;
+    if (dist > 28) {
+      r.x += (dx / dist) * Math.min(step, dist);
+      r.y += (dy / dist) * Math.min(step, dist);
+      r.engaged = false; delete kfRemoteEngagement[r.id];
+    } else {
+      r.engaged = true;
+      kfRemoteEngagement[r.id] = { targetId: t.id, ts: Date.now() };  // merged by the sliced merge fn
+    }
+  });
+}
+
+/* ---------- owner engagement (both panes) ----------
+   Left pane: the authority player's own engagement (direct, like
+   kfAuthorityLoop). Right pane: a non-authority participant — aim is
+   checked against the SMOOTHED synced snapshot (kfIsAuthority=false makes
+   the sliced kfCurrentTargetsForEngagement read kfSyncedTargets), and the
+   result travels back through the fake network before it counts. */
+function tbUpdateOwnerEngagement() {
+  const ap = tbActivePane();
+  tbEnterPane(ap);
+  kfIsAuthority = (ap.side === 'left');
+  kfRecomputeMyEngagement();            // sliced verbatim
+  if (ap.side === 'right') {
+    const targetId = kf.you._engagedTargetId || null;
+    if (targetId !== TB._lastNetEngagement) {
+      TB._lastNetEngagement = targetId;
+      const delay = Math.max(0, K.netDelay + (Math.random() - 0.5) * 2 * K.netJitter);
+      setTimeout(() => { kfRemoteEngagement['you-net'] = { targetId, ts: Date.now() }; }, delay);
+    } else if (targetId) {
+      kfRemoteEngagement['you-net'] = { targetId, ts: Date.now() };   // heartbeat keeps it fresh
+    }
+  }
+}
+
+/* ---------- fake network (briefing §4): real 180ms flush cadence, knobs
+   for extra delay + unevenness, and burst delivery (~80ms clusters,
+   Session 21 lesson). Wire shape mirrors kfFlushTargetsToFirebase plus the
+   PROPOSED spawn-model delta: per-target `kind`, transient `tele` on a
+   telegraphing spawner, transient `birth:{fx,fy}` on a fresh baby. ---------- */
+const TB_FLUSH_MS = 180;
+function tbFlushSnapshot(nowMs) {
+  const targetsOut = {};
+  kfEngine.targets.forEach(t => {
+    const o = { bx: t.bx, by: t.by, stage: t.stage, status: t.status, foamBubbles: t.foamBubbles, kind: t.kind };
+    if (t.kind === 'spawner' && t._tele) o.tele = 1;
+    if (t.kind === 'baby' && (nowMs - t._birth.at) < 1200) o.birth = { fx: t._birth.fx, fy: t._birth.fy };
+    targetsOut[t.id] = o;
+  });
+  const snap = { seq: ++TB.flushSeq, targets: JSON.parse(JSON.stringify(targetsOut)) };
+  if (K.burst) {
+    TB.burstQueue.push(snap);
+    if (TB.burstQueue.length >= 3) {
+      const batch = TB.burstQueue; TB.burstQueue = [];
+      const base = Math.max(0, K.netDelay + (Math.random() - 0.5) * 2 * K.netJitter);
+      batch.forEach((s, i) => setTimeout(() => tbDeliverSnapshot(s), base + i * 80));
+    }
+  } else {
+    const delay = Math.max(0, K.netDelay + (Math.random() - 0.5) * 2 * K.netJitter);
+    setTimeout(() => tbDeliverSnapshot(snap), delay);
+  }
+}
+let tbLastDeliveredSeq = 0;
+function tbDeliverSnapshot(snap) {
+  if (snap.seq <= tbLastDeliveredSeq) return;   // Firebase delivery is ordered; keep it that way
+  tbLastDeliveredSeq = snap.seq;
+  kfSnapPrev = kfSnapLatest;                    // exactly the sliced kfSetupParticipantSync bookkeeping
+  kfSnapLatest = { targets: snap.targets, at: performance.now() };
+  kfSyncedTargets = snap.targets;
+}
+
+/* ---------- flame rendering ----------
+   DERIVED from kfRenderTargets / kfRenderTargetsFromSync, which are
+   hard-bound to one board id and one shared element map. This version is
+   per-pane and adds: the spawner KIND class, the telegraph class, the
+   two-part birth entrance, and the left/top vs transform positioning A/B
+   (the iPad jitter test). Everything else — create/remove keyed by id,
+   stage classes, puff-out — matches the game functions. */
+function easeOutBack(k) { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); }
+
+function tbRenderPane(p, list) {
+  const seen = new Set();
+  const nowP = tbNow();
+  for (const t of list) {
+    const id = t.id;
+    seen.add(id);
+    let el = p.flameEls.get(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'kf-flame';
+      const inner = document.createElement('div');
+      inner.className = 'kf-flame-inner';
+      inner.innerHTML = kfBuildFlameSVG(p.side + '_' + id);  // pane-prefixed uid: keeps the sliced
+      el.appendChild(inner);                                 // id-collision guard airtight across two boards
+      p.flamesLayer.appendChild(el);
+      p.flameEls.set(id, el);
+      if (t.kind === 'baby' && t.birthInfo) p.birthSeen.set(id, nowP);
+    }
+    const inner = el.firstChild;
+    let { x: px, y: py } = kfBoardToPx(t.bx, t.by);   // sliced; pane context already entered
+    /* birth entrance: tiny at the spawner's center, grows while hopping
+       out along a small arc, lands with a bounce (briefing §2, locked). */
+    let entranceScale = null;
+    const seenAt = p.birthSeen.get(id);
+    if (t.kind === 'baby' && t.birthInfo && seenAt !== undefined) {
+      const k = (nowP - seenAt) / (K.popDur * 1000);
+      if (k < 1) {
+        const from = kfBoardToPx(t.birthInfo.fx, t.birthInfo.fy);
+        /* v2 (owner note 2): board anchors are the flame's FLOOR; start the
+           pop-out from the spawner's belly instead — birthOriginPct up the
+           stage-0 spawner sprite (126px * board scale, from the new CSS). */
+        from.y -= (K.birthOriginPct / 100) * 126 * p.scale;
+        const ek = k < 0 ? 0 : k;
+        px = from.x + (px - from.x) * ek;
+        py = from.y + (py - from.y) * ek - Math.sin(Math.PI * ek) * 22 * p.scale;
+        entranceScale = 0.2 + 0.8 * easeOutBack(ek);
+      } else {
+        p.birthSeen.delete(id);
+      }
+    }
+    inner.style.transform = entranceScale !== null ? ('scale(' + entranceScale.toFixed(3) + ')') : '';
+    const puffing = t.status === 'out';
+    el.className = 'kf-flame stage-' + t.stage
+      + (t.kind === 'spawner' ? ' kind-spawner' : ' kind-baby')
+      + (t.tele ? ' telegraph' : '')
+      + (puffing ? ' puffing' : '');
+    /* positioning A/B (iPad jitter, briefing §4): 'lefttop' is the game's
+       current per-frame style.left/top; 'transform' moves the flame on the
+       compositor. A puffing flame always falls back to left/top so the
+       sliced kfPuffOut transform animation keeps its anchor. */
+    if (K.posMode === 'transform' && !puffing) {
+      el.style.left = '0px'; el.style.top = '0px';
+      el.style.transform = 'translate3d(' + px + 'px, ' + py + 'px, 0) translate(-50%, -100%)';
+    } else {
+      el.style.transform = '';
+      el.style.left = px + 'px'; el.style.top = py + 'px';
+    }
+  }
+  for (const [id, el] of p.flameEls) {
+    if (!seen.has(id)) { el.remove(); p.flameEls.delete(id); p.birthSeen.delete(id); }
+  }
+}
+/* normalized render lists so one renderer serves both panes */
+function tbAuthorityList(nowP) {
+  return kfEngine.targets.map(t => ({
+    id: t.id, bx: t.bx, by: t.by, stage: t.stage, status: t.status, kind: t.kind,
+    tele: t.kind === 'spawner' && t._tele,
+    birthInfo: (t.kind === 'baby' && (nowP - t._birth.at) < 1200) ? t._birth : null,
+  }));
+}
+function tbSyncedList() {
+  return Object.entries(kfSyncedTargets).map(([id, t]) => ({
+    id, bx: t.bx, by: t.by, stage: t.stage, status: t.status, kind: t.kind,
+    tele: !!t.tele, birthInfo: t.birth || null,
+  }));
+}
+
+/* robot markers — TESTBED STAND-IN (labeled on-page): dot + spray line;
+   real teammates render as name tags only. Drawn on the over-canvas,
+   which already has its explicit z-index from the sliced CSS. */
+function tbDrawRobotMarkers(p) {
+  const ctx = p.overCtx;
+  TB.robots.forEach(r => {
+    const pos = kfBoardToPx(r.x, r.y);
+    const t = r.targetId ? kfEngine.targets.find(x => x.id === r.targetId && x.status === 'burning') : null;
+    if (r.engaged && t) {
+      const tp = kfBoardToPx(t.bx, t.by);
+      ctx.strokeStyle = 'rgba(255,253,246,0.55)';
+      ctx.lineWidth = 3 * p.scale;
+      ctx.setLineDash([4 * p.scale, 6 * p.scale]);
+      ctx.beginPath(); ctx.moveTo(pos.x, pos.y); ctx.lineTo(tp.x, tp.y - 8 * p.scale); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 9 * p.scale, 0, Math.PI * 2);
+    ctx.fillStyle = r.mode === 'naive' ? '#7A6F5A' : '#2F6B4A';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 ' + Math.max(8, 9 * p.scale) + 'px -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(r.name.slice(-1), pos.x, pos.y + 0.5);
+  });
+}
+
+/* name tags for engaged robots + YOU — simplified from kfRenderPlayerTags
+   (which is bound to the game's roster state); uses the sliced
+   .kf-flame-tag styling so the look is the game's. */
+function tbRenderTags(p) {
+  const seen = new Set();
+  function place(pid, label, px, py) {
+    seen.add(pid);
+    let el = p.tagEls.get(pid);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'kf-flame-tag';
+      p.tagsLayer.appendChild(el);
+      p.tagEls.set(pid, el);
+    }
+    el.textContent = label;
+    el.style.left = px + 'px'; el.style.top = py + 'px';
+    el.classList.add('visible');
+  }
+  TB.robots.forEach(r => {
+    if (!r.engaged || !r.targetId) return;
+    const t = kfEngine.targets.find(x => x.id === r.targetId && x.status === 'burning');
+    if (!t) return;
+    const pos = kfBoardToPx(t.bx, t.by);
+    place(r.id, r.name, pos.x + 14 * p.scale, pos.y - 46 * p.scale);
+  });
+  if (TB.activePane === p.side) {
+    const s = KF_EXT_SCALE_BASE * p.scale;
+    place('you', 'YOU',
+      kf.you.x + (KF_EXT_CANISTER_ORIGIN.x + KF_EXT_CANISTER_SIZE.w / 2) * s,
+      kf.you.y + (KF_EXT_CANISTER_ORIGIN.y - 26) * s);
+  }
+  for (const [pid, el] of p.tagEls) {
+    if (!seen.has(pid)) { el.remove(); p.tagEls.delete(pid); }
+  }
+}
+
+/* derived from kfRenderSpray's canister-icon block (the sliced function
+   looks the icon up by the game's element id, finds none here, and skips
+   it by its own null guard — so the testbed positions its per-pane copy
+   with the same math). */
+function tbPositionIcon(p) {
+  const extScaleVal = KF_EXT_SCALE_BASE * p.scale;
+  p.icon.style.width = (KF_EXT_CANISTER_SIZE.w * extScaleVal) + 'px';
+  p.icon.style.height = (KF_EXT_CANISTER_SIZE.h * extScaleVal) + 'px';
+  p.icon.style.left = (kf.you.x + KF_EXT_CANISTER_ORIGIN.x * extScaleVal) + 'px';
+  p.icon.style.top = (kf.you.y + KF_EXT_CANISTER_ORIGIN.y * extScaleVal) + 'px';
+}
+
+/* ---------- main loop: one RAF drives the sim and both panes ---------- */
+function tbLoop(ts) {
+  if (!TB.lastFrameMs) TB.lastFrameMs = ts;
+  const dtSec = Math.min((ts - TB.lastFrameMs) / 1000, 0.08);
+  TB.lastFrameMs = ts;
+
+  kfApplySnapshotSmoothing();          // sliced: glide right-pane positions FIRST (Session 23 order)
+
+  if (TB.running) {
+    tbUpdateOwnerEngagement();
+    kfEngine.targets.forEach(t => t.engagedBy = []);
+    if (TB.activePane === 'left' && kf.you._engagedTargetId) {
+      const t = kfEngine.targets.find(x => x.id === kf.you._engagedTargetId);
+      if (t) t.engagedBy.push(myPlayerId);
+    }
+    tbRobotsUpdate(dtSec, ts);
+    kfMergeRemoteEngagementIntoTargets();   // sliced: robots + your networked self ('you-net')
+    tbTick(dtSec, ts);
+    TB.flushAccum += dtSec * 1000;
+    if (TB.flushAccum >= TB_FLUSH_MS) { TB.flushAccum -= TB_FLUSH_MS; tbFlushSnapshot(ts); }
+  } else {
+    tbRobotsUpdate(dtSec, ts);
+  }
+
+  const nowP = tbNow();
+  /* left pane — the authority's own screen: truth, no network */
+  tbEnterPane(PANE_L);
+  tbRenderPane(PANE_L, tbAuthorityList(nowP));
+  kfRenderFoam();                                       // sliced (reads kfEngine.targets)
+  if (TB.activePane === 'left') { kfRenderSpray(dtSec); tbPositionIcon(PANE_L); }  // sliced spray
+  else { PANE_L.overCtx.clearRect(0, 0, PANE_L.overCv.width, PANE_L.overCv.height); }
+  tbDrawRobotMarkers(PANE_L);
+  tbRenderTags(PANE_L);
+
+  /* right pane — the teammate's screen: synced snapshots through the glide */
+  tbEnterPane(PANE_R);
+  tbRenderPane(PANE_R, tbSyncedList());
+  kfRenderFoamFromSync();                               // sliced (reads kfSyncedTargets)
+  if (TB.activePane === 'right') { kfRenderSpray(dtSec); tbPositionIcon(PANE_R); }
+  else { PANE_R.overCtx.clearRect(0, 0, PANE_R.overCv.width, PANE_R.overCv.height); }
+  tbDrawRobotMarkers(PANE_R);
+  tbRenderTags(PANE_R);
+
+  tbUpdateHud(ts);
+  requestAnimationFrame(tbLoop);
+}
+
+/* ---------- HUD / log ---------- */
+function el(tb) { return document.querySelector('[data-tb="' + tb + '"]'); }
+function tbUpdateHud(nowMs) {
+  if (TB.running || TB.outcome) {
+    const end = TB.running ? nowMs : TB._endShownAt || nowMs;
+    if (!TB.running && !TB._endShownAt) TB._endShownAt = nowMs;
+    el('timer').textContent = ((end - TB.startedAt) / 1000).toFixed(1) + 's';
+  }
+  const spa = kfEngine.targets.filter(t => t.kind === 'spawner' && t.status === 'burning').length;
+  const bab = kfEngine.targets.filter(t => t.kind === 'baby' && t.status === 'burning').length;
+  el('spawnersAlive').textContent = spa;
+  el('babiesAlive').textContent = bab;
+  el('babiesOut').textContent = TB.stats.babiesOut;
+  el('firstKill').textContent = TB.stats.firstSpawnerKillSec === null ? '–' : TB.stats.firstSpawnerKillSec.toFixed(1) + 's';
+  if (TB.running && TB.windDown) tbSetHudState('winddown', true);
+  else if (TB.running) tbSetHudState('burning', false);
+}
+function tbSetHudState(label, isWindDown) {
+  const s = el('state');
+  s.textContent = label === 'winddown' ? 'wind-down — the fire is guttering out' : label;
+  s.classList.toggle('winddown', !!isWindDown);
+}
+function tbLog(line) {
+  const box = el('runLog');
+  box.textContent = line + '\n' + box.textContent;
+}
+function tbSetResultHeadline(txt) { el('resultHeadline').textContent = txt; }
+
+/* ---------- controls ---------- */
+const TB_KNOB_SPEC = [
+  { g: 'Spawners', id: 'ratio', label: '↻ Spawners per cook (ratio)', type: 'range', min: 0.3, max: 1.5, step: 0.05 },
+  { g: 'Spawners', id: 'minSpawners', label: '↻ Fewest spawners', type: 'range', min: 1, max: 5, step: 1 },
+  { g: 'Spawners', id: 'maxSpawners', label: '↻ Most spawners', type: 'range', min: 2, max: 8, step: 1 },
+  { g: 'Spawners', id: 'toughSec', label: 'Spawner toughness — solo seconds to put out', type: 'range', min: 3, max: 20, step: 0.5 },
+  { g: 'Babies', id: 'birthInterval', label: 'Seconds between babies (per spawner)', type: 'range', min: 2, max: 12, step: 0.5 },
+  { g: 'Babies', id: 'birthJitter', label: '± random wobble on that (seconds)', type: 'range', min: 0, max: 3, step: 0.25 },
+  { g: 'Babies', id: 'perSpawnerCap', label: 'Babies alive at once — per spawner', type: 'range', min: 1, max: 8, step: 1 },
+  { g: 'Babies', id: 'boardCap', label: 'Babies alive at once — whole board', type: 'range', min: 2, max: 20, step: 1 },
+  { g: 'Babies', id: 'babySlow', label: 'Slow-baby speed (board units/sec)', type: 'range', min: 3, max: 20, step: 1 },
+  { g: 'Babies', id: 'babyFast', label: 'Fast-baby speed (board units/sec)', type: 'range', min: 10, max: 40, step: 1 },
+  { g: 'Babies', id: 'allMovers', label: 'All babies move (no stationary babies)', type: 'check' },
+  { g: 'Babies', id: 'rateScalePct', label: 'Birth speed-up per extra cook above 3 (%)', type: 'range', min: 0, max: 15, step: 1 },
+  { g: 'Team-up reward', id: 'teamMode', label: 'Mode', type: 'seg', options: [['A', 'A — just tough'], ['B', 'B — solo holds, team kills']] },
+  { g: 'Team-up reward', id: 'soloRate', label: 'Mode B: solo sprayer damage (share of normal)', type: 'range', min: 0, max: 0.5, step: 0.01 },
+  { g: 'Team-up reward', id: 'haltBirths', label: 'Mode B: one sprayer halts new births', type: 'check' },
+  { g: 'Mercy + ending', id: 'babyMercy', label: 'Babies soften over time (mercy)', type: 'check' },
+  { g: 'Mercy + ending', id: 'spawnerMercy', label: 'Spawners soften over time (mercy)', type: 'check' },
+  { g: 'Mercy + ending', id: 'timeoutSec', label: 'Timeout escape valve', type: 'seg', options: [[90, '90s'], [120, '120s']] },
+  { g: 'Mercy + ending', id: 'windDownSec', label: 'Wind-down length before the timeout (seconds)', type: 'range', min: 4, max: 20, step: 1 },
+  { g: 'Birth visual', id: 'teleSec', label: 'Telegraph pulse length (seconds before birth)', type: 'range', min: 0.2, max: 1.2, step: 0.05 },
+  { g: 'Birth visual', id: 'popDist', label: 'Pop-out landing distance (board units)', type: 'range', min: 20, max: 120, step: 5 },
+  { g: 'Birth visual', id: 'popDur', label: 'Pop-out hop length (seconds)', type: 'range', min: 0.15, max: 0.8, step: 0.05 },
+  { g: 'Birth visual', id: 'birthOriginPct', label: 'Babies emerge this far up the spawner (%)', type: 'range', min: 0, max: 70, step: 5 },
+  { g: 'Baby vs spawner look', id: 'babySizePct', label: 'Baby size (% of normal flame size)', type: 'range', min: 60, max: 110, step: 5 },
+  { g: 'Baby vs spawner look', id: 'spawnerRed', label: 'Spawners shifted toward red (0 = game art as-is)', type: 'range', min: 0, max: 25, step: 1 },
+  { g: 'Baby vs spawner look', id: 'babyYellow', label: 'Babies shifted toward yellow (0 = game art as-is)', type: 'range', min: 0, max: 25, step: 1 },
+  { g: 'Fake network (right pane)', id: 'netDelay', label: 'Extra delivery delay (ms, on top of the real 180ms cadence)', type: 'range', min: 0, max: 400, step: 10 },
+  { g: 'Fake network (right pane)', id: 'netJitter', label: 'Delivery unevenness (± ms)', type: 'range', min: 0, max: 200, step: 10 },
+  { g: 'Fake network (right pane)', id: 'burst', label: 'Burst delivery (snapshots arrive in ~80ms clusters)', type: 'check' },
+  { g: 'Rendering A/B (iPad jitter)', id: 'posMode', label: 'Flame positioning', type: 'seg', options: [['lefttop', 'left/top (current game)'], ['transform', 'transform (compositor)']] },
+];
+const tbKnobEls = {};
+function tbBuildControls() {
+  const groupEl = name => document.querySelector('.tb-group[data-group="' + name + '"]');
+  Object.entries({ Run: 1 }).forEach(() => {});
+  /* Run group is hand-built */
+  const run = groupEl('Run');
+  run.innerHTML = '<h4>Run</h4>'
+    + '<div class="tb-knob"><label>Difficulty preset ↻</label><span class="tb-seg" data-k="tier">'
+    + '<button data-v="easy">Easy (L2)</button><button data-v="hard">Hard (L3)</button></span></div>'
+    + '<div class="tb-knob"><label>Cooks on the team (you + robots) ↻</label><input type="range" data-k="cooks" min="3" max="6" step="1"><span class="tb-val" data-kv="cooks"></span></div>'
+    + '<div class="tb-knob"><label>Robot behavior ↻</label><select data-k="robotMode">'
+    + '<option value="naive">Naive — chase nearest baby, never spawners</option>'
+    + '<option value="coordinated">Coordinated — gang up on spawners, then mop up</option>'
+    + '<option value="mixed">Mixed — half and half</option></select></div>'
+    + '<div class="tb-knob"><label>Seed (same seed = same layout) ↻</label><input type="text" data-k="seed" size="9"><button class="tb-btn secondary" data-tb="randSeed" style="padding:3px 8px;font-size:11px">🎲</button></div>'
+    + '<div class="tb-knob" style="margin-top:8px"><button class="tb-btn" data-tb="startBtn">▶ Start run</button>'
+    + '<button class="tb-btn secondary" data-tb="stopBtn">■ Stop</button>'
+    + '<span data-tb="spawnerPreview" class="tb-note"></span></div>';
+  TB_KNOB_SPEC.forEach(spec => {
+    const g = groupEl(spec.g);
+    if (!g.querySelector('h4')) g.innerHTML = '<h4>' + spec.g + '</h4>';
+    const row = document.createElement('div');
+    row.className = 'tb-knob';
+    if (spec.type === 'range') {
+      row.innerHTML = '<label>' + spec.label + '</label><input type="range" min="' + spec.min + '" max="' + spec.max + '" step="' + spec.step + '"><span class="tb-val"></span>';
+      const inp = row.querySelector('input'), val = row.querySelector('.tb-val');
+      inp.value = K[spec.id]; val.textContent = K[spec.id];
+      inp.addEventListener('input', () => { K[spec.id] = parseFloat(inp.value); val.textContent = inp.value; tbAfterKnobChange(spec.id); });
+      tbKnobEls[spec.id] = { set: v => { inp.value = v; val.textContent = v; } };
+    } else if (spec.type === 'check') {
+      row.innerHTML = '<label>' + spec.label + '</label><input type="checkbox">';
+      const inp = row.querySelector('input');
+      inp.checked = !!K[spec.id];
+      inp.addEventListener('change', () => { K[spec.id] = inp.checked; tbAfterKnobChange(spec.id); });
+      tbKnobEls[spec.id] = { set: v => { inp.checked = !!v; } };
+    } else if (spec.type === 'seg') {
+      const seg = document.createElement('span'); seg.className = 'tb-seg';
+      spec.options.forEach(([v, lab]) => {
+        const b = document.createElement('button');
+        b.textContent = lab;
+        b.classList.toggle('on', String(K[spec.id]) === String(v));
+        b.addEventListener('click', () => {
+          K[spec.id] = (typeof spec.options[0][0] === 'number') ? Number(v) : v;
+          seg.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+          b.classList.add('on');
+          tbAfterKnobChange(spec.id);
+        });
+        seg.appendChild(b);
+      });
+      row.innerHTML = '<label>' + spec.label + '</label>';
+      row.appendChild(seg);
+      tbKnobEls[spec.id] = { set: v => {
+        seg.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', String(spec.options[i][0]) === String(v)));
+      } };
+    }
+    g.appendChild(row);
+  });
+  /* run controls wiring */
+  const tierSeg = run.querySelector('[data-k="tier"]');
+  tierSeg.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === K.tier);
+    b.addEventListener('click', () => {
+      K.tier = b.dataset.v;
+      tierSeg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      tbLoadTierPreset(K.tier);
+    });
+  });
+  const cooks = run.querySelector('[data-k="cooks"]'), cooksVal = run.querySelector('[data-kv="cooks"]');
+  cooks.value = K.cooks; cooksVal.textContent = K.cooks;
+  cooks.addEventListener('input', () => { K.cooks = parseInt(cooks.value, 10); cooksVal.textContent = cooks.value; tbUpdateSpawnerPreview(); });
+  const mode = run.querySelector('[data-k="robotMode"]');
+  mode.value = K.robotMode;
+  mode.addEventListener('change', () => { K.robotMode = mode.value; });
+  const seed = run.querySelector('[data-k="seed"]');
+  seed.value = K.seed;
+  seed.addEventListener('change', () => { K.seed = seed.value || 'kitchen-1'; });
+  el('randSeed').addEventListener('click', () => {
+    K.seed = 'k-' + Math.random().toString(36).slice(2, 7);
+    seed.value = K.seed;
+  });
+  el('startBtn').addEventListener('click', () => tbStartRun());
+  el('stopBtn').addEventListener('click', () => {
+    if (!TB.running) return;
+    TB.running = false; TB.outcome = 'stopped'; TB._endShownAt = null;
+    tbSetHudState('stopped', false);
+    tbLog('— run stopped by hand');
+  });
+  el('dumpBtn').addEventListener('click', () => {
+    el('dumpBox').value = JSON.stringify(Object.assign({ testbed: 'spawn-fire v2' }, K), null, 1);
+  });
+  tbUpdateSpawnerPreview();
+}
+function tbLoadTierPreset(tier) {
+  const t = TB_TIERS[tier];
+  ['ratio', 'minSpawners', 'maxSpawners', 'toughSec', 'birthInterval', 'birthJitter',
+   'perSpawnerCap', 'boardCap', 'babySlow', 'babyFast', 'rateScalePct', 'timeoutSec', 'windDownSec']
+    .forEach(k => { K[k] = t[k]; if (tbKnobEls[k]) tbKnobEls[k].set(t[k]); });
+  K.babyProfileKey = t.babyProfileKey;
+  tbUpdateSpawnerPreview();
+  tbLog('— loaded ' + t.label + ' preset (baby movement: ' + t.babyProfileKey + ' tier)');
+}
+function tbUpdateSpawnerPreview() {
+  el('spawnerPreview').textContent = '→ next run: ' + tbSpawnerCount() + ' spawners';
+}
+function tbAfterKnobChange(id) {
+  if (['ratio', 'minSpawners', 'maxSpawners'].includes(id)) tbUpdateSpawnerPreview();
+  if (id === 'teleSec') tbApplyTeleVar();
+  if (['babySizePct', 'spawnerRed', 'babyYellow'].includes(id)) tbApplyLookVars();
+}
+function tbApplyTeleVar() {
+  document.documentElement.style.setProperty('--tb-tele', K.teleSec + 's');
+}
+function tbApplyLookVars() {   /* v2: baby-vs-spawner look knobs -> CSS vars */
+  const r = document.documentElement.style;
+  r.setProperty('--tb-baby-size', K.babySizePct / 100);
+  r.setProperty('--tb-spawner-hue', (-K.spawnerRed) + 'deg');   /* negative rotation = redder */
+  r.setProperty('--tb-baby-hue', K.babyYellow + 'deg');         /* positive = yellower */
+}
+function tbReadKnobsIntoK() { /* inputs already write straight into K */ }
+
+/* helpers for the screenshot harness */
+function tbAnyEntranceActive() {
+  return tbPanes().some(p => p.birthSeen.size > 0);
+}
+window.TB = TB; window.K = K; window.tbAnyEntranceActive = tbAnyEntranceActive;
+window.tbStartRun = tbStartRun;
+
+/* ---------- boot ---------- */
+PANE_L = tbMakePane('left');
+PANE_R = tbMakePane('right');
+tbPanes().forEach(p => { tbMeasurePane(p); tbSetupPointer(p); });
+tbBuildControls();
+tbApplyTeleVar();
+tbApplyLookVars();
+tbSetActivePane('right');   // feel-tuning judgments happen on the RIGHT pane — start the owner there
+window.addEventListener('resize', () => {
+  tbPanes().forEach(tbMeasurePane);
+  const ap = tbActivePane();
+  tbEnterPane(ap);
+  kfFoamLandingOffset = kfComputeFoamLandingOffset();
+});
+tbEnterPane(tbActivePane());
+kfFoamLandingOffset = kfComputeFoamLandingOffset();
+kf.you.x = PANE_R.rect.w * 0.55; kf.you.y = PANE_R.rect.h * 0.6;
+requestAnimationFrame(tbLoop);
+</script>
+</body>
+</html>
