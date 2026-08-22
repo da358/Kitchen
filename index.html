@@ -2197,7 +2197,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.2 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -6241,7 +6241,7 @@ async function startRoundInFirebase(players, levelType) {
   updates[`games/${gameCode}/naturalChallengeFired`] = isLevel1 ? null : false;
   updates[`games/${gameCode}/challengeTriggerAt`]    = isLevel1
     ? null
-    : Date.now() + (90_000 + Math.random() * 90_000); // 1.5–3 min into the round
+    : Date.now() + (120_000 + Math.random() * 30_000); // 260821.3 (owner): 2–2.5 min into the round — tightened from 1.5–3 for session management
 
   playerIds.forEach(pid => {
     if (pid === observerId) {
