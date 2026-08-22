@@ -1348,6 +1348,21 @@
     40%      { transform: scale(1.28); filter: brightness(1.4) saturate(1.25); }
     72%      { transform: scale(1.08); filter: brightness(1.15); }
   }
+  /* Team-assault (260821.2): a spawner with 2+ sprayers visibly BUCKLES —
+     shuddering, squashing, draining color — the "we're crushing it" cue
+     that recruits pile-ons. Derived client-side from engagement data
+     already on the wire; no schema change. Never co-occurs with the
+     telegraph: an engaged spawner stops telegraphing (Mode B halt). */
+  .kf-flame.team-assault .kf-flame-inner {
+    animation: kfTeamAssault 0.5s ease-in-out infinite;
+    filter: saturate(0.7) brightness(0.9);
+  }
+  @keyframes kfTeamAssault {
+    0%, 100% { transform: translateX(0) scale(1, 1); }
+    22%      { transform: translateX(calc(-3px * var(--kf-scale, 1))) scale(1.05, 0.93); }
+    48%      { transform: translateX(calc(3px  * var(--kf-scale, 1))) scale(0.94, 1.04); }
+    74%      { transform: translateX(calc(-2px * var(--kf-scale, 1))) scale(1.03, 0.95); }
+  }
   .kf-flame-tag {
     position: absolute; transform: translate(0, calc(-50% + var(--stack, 0px)));
     /* Sized to match the on-board zone labels (GRILL, PANTRY, etc.) at
@@ -2182,7 +2197,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -8690,6 +8705,13 @@ const KF_SPAWN_CONFIG = {
   windDownSec: 10,      // final seconds before the 90s timeout: births stop, flames self-drain
   allMovers: true,      // babies redistribute the stationary share across slow/fast
   firstBirthBaseMs: 1500, firstBirthStepMs: 1300, firstBirthJitterMs: 800, // staggered first births — never lockstep
+  // 260821.2 aim + team-feedback knobs (owner live-feel round 1). The hit
+  // test measures babies to their FLOOR point (unchanged original feel);
+  // spawners to a LIFTED center so aiming anywhere on the big art counts.
+  spawnerHitRadius: 70,   // px × board scale — the spawner's generous hit circle
+  spawnerHitLiftPct: 45,  // hit center sits this % of the stage-0 spawner height above its floor point
+  babyOverrideRadius: 26, // aim within this of a baby (screen px, like sprayRadius) beats spawner priority
+  assaultMinSprayers: 2,  // sprayers needed for the spawner "buckling" cue
 };
 /* 260821.1 (Session 24): spawnBurst/spawnOne, the budget fields and the
    periodic spawn-check were removed with the budget model — spawners are
@@ -9292,8 +9314,42 @@ const KF_ENGAGE_SWITCH_MARGIN = 0.42;
 // (kfSyncedTargets from Firebase) — the one seam that lets engagement,
 // rendering, and tag placement stay ignorant of which role they're in.
 function kfCurrentTargetsForEngagement() {
-  if (kfIsAuthority) return kfEngine.targets.map(t => ({ id: t.id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
-  return Object.entries(kfSyncedTargets).map(([id, t]) => ({ id, bx: t.bx, by: t.by, status: t.status, stage: t.stage }));
+  // 260821.2: kind rides along — the aim metric is kind-aware now.
+  if (kfIsAuthority) return kfEngine.targets.map(t => ({ id: t.id, bx: t.bx, by: t.by, status: t.status, stage: t.stage, kind: t.kind }));
+  return Object.entries(kfSyncedTargets).map(([id, t]) => ({ id, bx: t.bx, by: t.by, status: t.status, stage: t.stage, kind: t.kind }));
+}
+
+/* 260821.2: kind-aware aim. The hit test used to measure every flame to
+   its FLOOR point with one radius; a spawner's art is ~126px tall, so
+   aiming at its fat middle could land OUTSIDE the radius entirely — the
+   owner's live-felt "exact but unknown spot". Spawners are now measured
+   to a lifted center with a generous board-scaled radius. Babies keep the
+   original floor-anchor metric untouched (a flame with no kind counts as
+   a baby — byte-for-byte the pre-spawn-model behavior, fail-open). */
+function kfAimMetric(t, landX, landY) {
+  const { x: tx, y: ty } = kfBoardToPx(t.bx, t.by);
+  if (t.kind === 'spawner') {
+    const lift = (KF_SPAWN_CONFIG.spawnerHitLiftPct / 100) * 126 * kfScale;
+    const d = Math.hypot(tx - landX, (ty - lift) - landY);
+    return { d, inRange: d <= KF_SPAWN_CONFIG.spawnerHitRadius * kfScale };
+  }
+  const d = Math.hypot(tx - landX, ty - landY);
+  return { d, inRange: d <= KF_CONFIG.sprayRadius };
+}
+
+/* 260821.2: how many sprayers are on a target, derived client-side from
+   the engagement wire every participant already receives (the name tags
+   read the same data — no schema change). Powers the team-assault cue on
+   non-authority screens; the authority reads its own merged engagedBy. */
+function kfEngagedCountFor(targetId) {
+  let n = kf.you._engagedTargetId === targetId ? 1 : 0;
+  const now = Date.now();
+  Object.entries(kfRemoteEngagement).forEach(([pid, e]) => {
+    if (pid === myPlayerId || !e || e.targetId !== targetId) return;
+    if (now - e.ts > 2000) return; // same staleness rule as the authority-side merge
+    n++;
+  });
+  return n;
 }
 
 function kfRecomputeMyEngagement() {
@@ -9302,21 +9358,34 @@ function kfRecomputeMyEngagement() {
   if (!p.spraying) { p._stickyTargetId = null; p._engagedTargetId = null; return; }
   const landX = p.x + kfFoamLandingOffset.x, landY = p.y + kfFoamLandingOffset.y;
   const list = kfCurrentTargetsForEngagement();
-  let best = null, bestD = Infinity;
+  let bestSpawner = null, bestSpawnerD = Infinity, bestBaby = null, bestBabyD = Infinity;
   list.forEach(t => {
     if (t.status !== 'burning') return;
-    const { x: tx, y: ty } = kfBoardToPx(t.bx, t.by);
-    const d = Math.hypot(tx - landX, ty - landY);
-    if (d <= KF_CONFIG.sprayRadius && d < bestD) { bestD = d; best = t; }
+    const m = kfAimMetric(t, landX, landY);
+    if (!m.inRange) return;
+    if (t.kind === 'spawner') { if (m.d < bestSpawnerD) { bestSpawnerD = m.d; bestSpawner = t; } }
+    else if (m.d < bestBabyD) { bestBabyD = m.d; bestBaby = t; }
   });
+  /* 260821.2 spawner priority ("the hitbox is in front"): an in-range
+     spawner wins unless the aim is squarely ON a baby — wandering babies
+     no longer steal spray meant for the big one, while deliberate mopping
+     right beside a spawner still works. Paint order is untouched. */
+  let best = null, bestD = Infinity;
+  if (bestSpawner && bestBaby) {
+    if (bestBabyD <= KF_SPAWN_CONFIG.babyOverrideRadius) { best = bestBaby; bestD = bestBabyD; }
+    else { best = bestSpawner; bestD = bestSpawnerD; }
+  } else if (bestSpawner) { best = bestSpawner; bestD = bestSpawnerD; }
+  else if (bestBaby) { best = bestBaby; bestD = bestBabyD; }
   const stickyTarget = p._stickyTargetId ? list.find(t => t.id === p._stickyTargetId && t.status === 'burning') : null;
   let chosen = null;
   if (stickyTarget) {
-    const { x: stx, y: sty } = kfBoardToPx(stickyTarget.bx, stickyTarget.by);
-    const stickyDist = Math.hypot(stx - landX, sty - landY);
-    const stillInRange = stickyDist <= KF_CONFIG.sprayRadius;
+    // 260821.2: the sticky lock judges range/distance with the SAME
+    // kind-aware metric, or a lock on a spawner would drop the moment the
+    // aim drifted onto its (previously hitbox-less) upper body.
+    const sm = kfAimMetric(stickyTarget, landX, landY);
+    const stillInRange = sm.inRange;
     const dwellElapsed = (nowMs - (p._stickySince || 0)) > KF_ENGAGE_MIN_DWELL_MS;
-    const meaningfullyCloser = best && best.id !== stickyTarget.id && bestD < stickyDist * KF_ENGAGE_SWITCH_MARGIN;
+    const meaningfullyCloser = best && best.id !== stickyTarget.id && bestD < sm.d * KF_ENGAGE_SWITCH_MARGIN;
     if (stillInRange && !(dwellElapsed && meaningfullyCloser)) chosen = stickyTarget;
   }
   if (!chosen) { chosen = best; if (chosen && chosen.id !== p._stickyTargetId) { p._stickyTargetId = chosen.id; p._stickySince = nowMs; } }
@@ -9423,6 +9492,7 @@ function kfRenderTargets() {
     flameEl.className = 'kf-flame stage-' + t.stage
       + (t.kind === 'spawner' ? ' kind-spawner' : t.kind === 'baby' ? ' kind-baby' : '')
       + (t.kind === 'spawner' && t._tele ? ' telegraph' : '')
+      + (t.kind === 'spawner' && t.status === 'burning' && t.engagedBy.length >= KF_SPAWN_CONFIG.assaultMinSprayers ? ' team-assault' : '') // 260821.2
       + (t.status === 'out' ? ' puffing' : '');
     flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
   });
@@ -9463,6 +9533,7 @@ function kfRenderTargetsFromSync() {
     flameEl.className = 'kf-flame stage-' + t.stage
       + (t.kind === 'spawner' ? ' kind-spawner' : t.kind === 'baby' ? ' kind-baby' : '')
       + (t.kind === 'spawner' && t.tele ? ' telegraph' : '')
+      + (t.kind === 'spawner' && t.status === 'burning' && kfEngagedCountFor(tid) >= KF_SPAWN_CONFIG.assaultMinSprayers ? ' team-assault' : '') // 260821.2
       + (t.status === 'out' ? ' puffing' : '');
     flameEl.style.left = px + 'px'; flameEl.style.top = py + 'px';
   });
