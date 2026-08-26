@@ -1874,6 +1874,157 @@
     .ticket-wrap, .station-header-block, .station-panel { margin-left: 20px; }
   }
 
+  /* ══ OBSERVER SESSION PANEL (260826.2, dev session 26) ═════════
+     Facilitator discussion notes for the Observer. NOT a modal, and the
+     distinction is load-bearing: it began as one in 260826.1 and the
+     owner's use case broke that framing. This is a reference document
+     the Observer reads WHILE running a huddle, so it must not block the
+     dashboard, must not block the Pause button, and must not be
+     dismissable by accident.
+
+     Consequences of that, each deliberate:
+     · NO backdrop and NO full-screen overlay. A dimming overlay with
+       pointer-events would have made the Pause button unclickable —
+       which is exactly what the first message tells them to press.
+     · Minimize, never close. The only control condenses the panel into
+       a draggable chip that can be tapped to bring it back.
+     · Both panel and chip are drag-positioned by the Observer, so
+       whatever else is on screen can be worked around.
+
+     z-index 9660: above the fire overlay (9600) and the fire lobby
+     (9650), below the pause modal (9700). Pause still wins over
+     everything, which is right — a paused round is the host stopping
+     play. See also the default top offset below, which keeps the
+     expanded panel clear of a pause modal.
+
+     Positioning is left/top in pixels, set by script and clamped to the
+     viewport. Deliberately NOT transform-based: the Session 24 branch
+     finding left this file on left/top, and a dragged panel wants the
+     same treatment as everything else here. The one transform is the
+     minimize flight, which is a transition on a static element. */
+  #obs-panel {
+    display: none;
+    position: fixed;
+    z-index: 9660;
+    width: min(520px, calc(100vw - 32px));
+    max-height: min(70vh, 620px);
+    flex-direction: column;
+    background: var(--bg);
+    border-radius: 10px;
+    border-top: 3px solid var(--accent);
+    box-shadow: 0 10px 44px rgba(0,0,0,0.42);
+    font-family: var(--font);
+    overflow: hidden;                 /* the body scrolls, not the panel */
+    transform-origin: top left;
+  }
+  #obs-panel.open { display: flex; }
+  /* The minimize flight. Panel and chip both animate; the panel scales
+     toward the chip's position so the shrink reads as "that became this."
+     260ms matches the tip transitions' pace (TIP_ANIM_MS). */
+  #obs-panel.flying {
+    transition: transform 260ms ease-in, opacity 260ms ease-in;
+    pointer-events: none;
+  }
+  #obs-panel-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 20px 22px 12px;
+    cursor: move;
+    touch-action: none;               /* the drag owns the gesture, not the scroller */
+    flex: 0 0 auto;
+  }
+  #obs-panel-head .obs-head-text { flex: 1 1 auto; min-width: 0; }
+  .obs-eyebrow {
+    font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 5px; font-weight: 700;
+  }
+  #obs-panel-title { font: normal 21px var(--font-display); margin: 0; color: var(--text); }
+  #obs-panel-grip {
+    flex: 0 0 auto; margin-top: 4px;
+    font-size: 15px; letter-spacing: 2px; line-height: 1;
+    color: var(--text-3); user-select: none;
+  }
+  #obs-panel-body {
+    padding: 4px 22px 4px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Structured content blocks — see LOCAL_SESSION_SETTINGS for the data
+     shape. Steps are numbered by the renderer, not by the author, so an
+     admin reordering them cannot produce "1. 2. 2. 4.". */
+  .obs-step { display: flex; gap: 11px; margin: 0 0 11px; }
+  .obs-step-n {
+    flex: 0 0 auto; width: 21px; height: 21px; margin-top: 1px;
+    border-radius: 50%; background: var(--accent); color: #FFFFFF;
+    font-size: 11px; font-weight: 700; line-height: 21px; text-align: center;
+  }
+  .obs-step-t { flex: 1 1 auto; font-size: 14px; line-height: 1.47; color: var(--text); }
+  .obs-para { font-size: 14.5px; line-height: 1.5; color: var(--text-2); margin: 0 0 13px; }
+  /* The say-this-out-loud block. Copper, not scarlet, and the reason is
+     specific: Session 21 made --danger the Observer's attention colour
+     for an unfilled NEED, and that meaning is live on the same screen.
+     A red script would collide with it. Copper + rule + italic serif
+     reads as "this is a quotation to speak" without borrowing a colour
+     that already says something else here. */
+  .obs-quote {
+    margin: 0 0 12px; padding: 8px 0 8px 15px;
+    border-left: 3px solid var(--accent);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14.5px; line-height: 1.52;
+    color: var(--accent-2);
+  }
+  #obs-panel-foot {
+    padding: 12px 22px 18px;
+    flex: 0 0 auto;
+    background: var(--bg);
+    border-top: 1px solid var(--surface);
+    /* Upward shadow = "the text continues under this bar". Without it a
+       clipped last step reads as the end of the message, which on a
+       facilitator's script is a real failure, not a cosmetic one. */
+    box-shadow: 0 -11px 13px -9px rgba(43,36,28,0.22);
+  }
+  #obs-minimize-btn {
+    font: 600 12.5px var(--font);
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  #obs-minimize-btn:hover { background: var(--surface-2); }
+
+  /* The minimized chip. Small enough to live anywhere, obvious enough to
+     find again. Draggable; a tap (as distinct from a drag) re-expands. */
+  #obs-chip {
+    display: none;
+    position: fixed;
+    z-index: 9660;
+    max-width: 232px;
+    align-items: center; gap: 9px;
+    padding: 9px 13px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 5px 18px rgba(0,0,0,0.26);
+    font-family: var(--font);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    transform-origin: top left;
+  }
+  #obs-chip.open { display: flex; }
+  #obs-chip.landing { transition: transform 240ms cubic-bezier(0.2,0.9,0.3,1.2); }
+  #obs-chip-label {
+    font-size: 12.5px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #obs-chip-hint { font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); }
+  #obs-chip-caret { font-size: 13px; color: var(--accent); flex: 0 0 auto; }
+
   /* ══ ONBOARDING TIPS (260817.1, Session 18) ═════════════════
      Designed in testbed v1–v3; owner-chosen values baked in: title 20 /
      body 16 / card 408 / tail 72×44 / 240ms. Card edge is a white glow
@@ -2197,7 +2348,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260821.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.2 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2467,6 +2618,31 @@
   </div>
 </div>
 
+
+<!-- ══ OBSERVER SESSION PANEL + CHIP (260826.2, dev session 26) ═══
+     Observer-only facilitator notes. Content, timing and structure come
+     from LOCAL_SESSION_SETTINGS.observerPrompts via getSessionSettings()
+     — the seam an admin-managed session record replaces later.
+     Parented to <body>, outside every .screen, so it is never rebuilt by
+     the dashboard's keyed render. showScreen() tears it down. -->
+<div id="obs-panel">
+  <div id="obs-panel-head">
+    <div class="obs-head-text">
+      <p class="obs-eyebrow" id="obs-panel-eyebrow">Observer note</p>
+      <h3 id="obs-panel-title"></h3>
+    </div>
+    <span id="obs-panel-grip" aria-hidden="true">⠿</span>
+  </div>
+  <div id="obs-panel-body"></div>
+  <div id="obs-panel-foot">
+    <button type="button" id="obs-minimize-btn">Minimize this message for now</button>
+  </div>
+</div>
+<div id="obs-chip" role="button" tabindex="0" aria-label="Reopen observer note">
+  <span id="obs-chip-caret" aria-hidden="true">▸</span>
+  <span id="obs-chip-label"></span>
+  <span id="obs-chip-hint">Open</span>
+</div>
 
 <!-- ══ PAUSE MODAL (host only) ════════════════════════════════ -->
 <div id="pause-modal" style="display:none; position:fixed; z-index:9700;
@@ -2830,7 +3006,139 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
       what it means. If it changes again, all clients must be on the
       same deployed build: never deploy mid-session, and hard-refresh
       every browser before a facilitated run.
+   ── A THIRD TERM, added dev session 26 ─────────────────────
+   SESSION — a group of settings created by an administrator, that one
+     or more TEAMS can belong to. A teacher sets up one SESSION for a
+     40-person class; ten teams of four join it and inherit its
+     settings (facilitator messages, display options, expiry). A team
+     belongs to at most one session; a team in NO session gets the
+     default experience, which is exactly the behaviour of every build
+     up to and including 260821.3.
+     Named: sessionCode, sessionSettings, LOCAL_SESSION_SETTINGS,
+     getSessionSettings, observerPrompts, and the obsPrompt* runtime
+     state. NEVER a bare identifier called `session` — see hazard 4.
+
+   Note the deliberate mismatch, and do NOT "tidy" it: what players
+   are being moved toward calling a TEAM is what this code calls a
+   game (gameCode, games/{code}, createGame, joinGame). A staged
+   internal rename is planned as its own dev session, in the Session 12
+   shape; until then the mismatch is documented rather than half-done.
+
+   4. A fourth hazard, specific to the word "session": this file is
+      full of comments saying "Session 16", "Session 20" and so on,
+      meaning a DEVELOPMENT session — a chat in which the file was
+      edited. Those are unrelated to the SESSION concept above. A
+      search for "session" therefore returns mostly comments, so any
+      sweep in this area must key on the compound identifiers listed
+      above, never on the bare word. (In the project documents, our own
+      sittings are called "dev sessions" from 26 onward for the same
+      reason.)
 ══════════════════════════════════════════════════════════════════════ */
+
+/* ═══ LOCAL SESSION SETTINGS (260826.2, dev session 26) ════════════════
+   GROUNDWORK, deliberately hand-edited. This block holds what an
+   administrator will eventually set in a separate admin tool and store
+   against a session code in Firebase. Nothing here is read from or
+   written to the database — a team with no session code (i.e. every team
+   today) simply gets these defaults.
+
+   WHY IT LOOKS LIKE THIS: the shape is the shape the stored session
+   record is intended to have, and every consumer goes through
+   getSessionSettings() rather than touching the constant. When the admin
+   tool exists, that one function changes where it reads from and the
+   display code below does not change at all. Resist adding a second way
+   to reach these values.
+
+   ── observerPrompts ────────────────────────────────────────────────
+   Facilitator notes shown to the Observer ONLY. The list may be empty
+   (no notes), hold one, or hold several at different times; entries fire
+   independently, in time order.
+
+     id      — stable, unique. It keys the once-per-round guard, so
+               changing an id makes a note eligible to fire again.
+     level   — which level the note belongs to. Observer is a Level 2
+               role today, so "level2" in practice; the field exists so
+               the admin schema needn't widen later.
+     trigger — { type: "elapsed", minutes: N }  N minutes into the round
+                 on the shared clock. Because resumeGame() shifts
+                 startTime forward, elapsed already excludes paused time
+                 — a huddle does not spend the next note's clock.
+               { type: "challenge" }  the moment a shared challenge takes
+                 over the Observer's screen.
+     title   — the panel heading, and the chip's label when minimized.
+               Keep it short enough to read in a 232px chip.
+     blocks  — the body, as an ORDERED list of content blocks:
+                 { type: "step",  text } — auto-numbered 1..N in order.
+                   The renderer numbers them, not the author, so
+                   reordering can never produce "1. 2. 2. 4.".
+                 { type: "para",  text } — an unnumbered paragraph.
+                 { type: "quote", text } — something the Observer reads
+                   ALOUD. Rendered in copper italic serif behind a rule.
+               A plain `body:` string is still accepted and rendered as a
+               single paragraph, so a simple note needs no blocks at all.
+
+   Why blocks rather than rich text: an admin needs bold, bullets and
+   emphasis eventually, and the two cheap routes are a markdown subset or
+   typed blocks. Typed blocks won because they map directly onto admin UI
+   ("add a step" / "add a quote"), can't be malformed by a facilitator
+   mistyping syntax, and are rendered as DOM nodes rather than injected
+   as markup. Inline formatting WITHIN a block is the piece still
+   deferred; if it's wanted, add it here rather than at the render site.
+
+   OWNER-EDITED CONTENT. Timings and copy are the facilitator's, not the
+   code's — change them here.                                          */
+const LOCAL_SESSION_SETTINGS = {
+  observerPrompts: [
+    {
+      id: "obs-l2-huddle-5min",
+      level: "level2",
+      trigger: { type: "elapsed", minutes: 5 },
+      title: "Mid-round huddle",
+      blocks: [
+        { type: "step", text: "It’s about time to pause play for a mid-round huddle. "
+                            + "Click the pause button at the top to pause the game." },
+        { type: "step", text: "When you pause the game, start a 3 minute timer and say:" },
+        { type: "quote", text: "“We’re pausing the game for 3 minutes to do a quick team huddle. "
+                             + "Our goal is to see if we can improve our coordination. We’ll do a "
+                             + "quick STOP-START-CONTINUE discussion. Is there anything the team "
+                             + "should STOP doing, something that’s not helpful? Is there something "
+                             + "the team should START doing, something that would help? Is there "
+                             + "anything that’s working that the team should CONTINUE doing, "
+                             + "something that’s already helpful?”" },
+        { type: "step", text: "Try to get some quick response from each person. Not every person "
+                            + "needs to talk about all three things (a stop, start, or continue). "
+                            + "They could talk just about one." },
+        { type: "step", text: "Add your own observations. What do you think they should stop, start, "
+                            + "or continue? Try to align the team on at least one specific change to "
+                            + "try (one START or one STOP)." },
+        { type: "step", text: "When time runs out, or the discussion ends, restart the game." }
+      ]
+    }
+    // A challenge-triggered note looks like the entry below. Left
+    // commented out for the 260826 playtest by owner decision: the fire
+    // is what the Observer most needs to be watching. The machinery is
+    // built and exercised — uncomment to switch it on.
+    //
+    // {
+    //   id: "obs-l2-fire",
+    //   level: "level2",
+    //   trigger: { type: "challenge" },
+    //   title: "A fire has broken out",
+    //   blocks: [
+    //     { type: "para", text: "Watch who moves first, and whether anyone keeps cooking." },
+    //     { type: "para", text: "One player holding a spawner alone will not put it out." }
+    //   ]
+    // }
+  ]
+};
+
+/* The seam. Every reader of session settings goes through here, so that
+   swapping the source later is a one-function change. Returns the local
+   defaults today; will return the session record for this team's session
+   code, falling back to these defaults, once sessions exist. */
+function getSessionSettings() {
+  return LOCAL_SESSION_SETTINGS;
+}
 
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
    Replace this object with your own Firebase project config.
@@ -3288,6 +3596,9 @@ function showScreen(id) {
   // 260817.1 (Session 18): nothing tooltip-shaped survives a screen
   // change either — same reasoning as the ghost teardown above.
   dismissTipsQuietly();
+  // 260826.1: nor does an Observer prompt, open or queued. A round
+  // ending under a held prompt must not carry it into the debrief.
+  obsPromptsDismissQuietly();
   // Session 13 diagnostics (Issue 3): records WHEN this client's screen
   // actually changed, which is a different number from when it received
   // the instruction to change. See diagNoteScreen().
@@ -5906,6 +6217,351 @@ document.getElementById("obs-handle").addEventListener("click", () => {
   setTimeout(renderObserverDashboard, 270);   // re-lay the rows once the board height settles
 });
 
+/* ═══ OBSERVER SESSION PANEL (260826.2, dev session 26) ════════════════
+   Facilitator notes for the Observer, scheduled by session settings. See
+   LOCAL_SESSION_SETTINGS near the top of this script for the data shape;
+   this half is rendering, scheduling and window management only.
+
+   Contained by construction, and that containment is why this shipped
+   before any of the rest of the session work:
+   · It reads gameState and getSessionSettings(). It writes NOTHING to
+     Firebase and adds no field to the wire format, so a client on an
+     older build is unaffected by a note firing on this one.
+   · Every path is gated on amObserver. The Observer is already excluded
+     from task distribution, spawns, the teammates panel, completion
+     spawning and the debrief table, so no participant's code path is
+     reachable from here.
+   · No new timer. The scheduling check rides the Observer clock's
+     existing 500ms interval, inheriting its guards: screen active,
+     gameState present, startTime present, status "playing". A note
+     therefore cannot fire on a paused round, nor on a screen the
+     Observer is not looking at.
+
+   ── The 260826.2 reframing: a panel, not a modal ────────────────────
+   260826.1 shipped this as a dismissable modal. The owner's actual use
+   case is a reference document consulted WHILE running a huddle, which
+   breaks that framing in three ways, so the design changed:
+   · No backdrop, no full-screen overlay, nothing input-blocking. The
+     first thing the huddle note says is "press Pause" — a dimming
+     overlay would have made the Pause button unclickable.
+   · Minimize, never close. The only control condenses the panel into a
+     chip; tapping the chip brings it back. Nothing the Observer can do
+     mid-round loses the notes.
+   · Panel and chip are both drag-positioned, so a pause modal, a fire,
+     or a busy dashboard can be worked around rather than designed for.
+
+   ── Fire interaction (owner decision) ───────────────────────────────
+   An elapsed note that comes due while the Observer is spectating a
+   shared challenge is HELD and appears the moment the challenge tears
+   down — the fire is what the Observer most needs to watch. A
+   "challenge" note is the deliberate exception and opens over the fire.
+*/
+const OBS_FLIGHT_MS   = 260;   // must match #obs-panel.flying's transition duration
+const OBS_CHIP_LAND_MS = 240;  // must match #obs-chip.landing's transition duration
+const OBS_EDGE        = 12;    // px kept between a dragged window and the viewport edge
+/* The expanded panel's default resting place. Horizontally centred;
+   vertically low enough to clear a pause modal parked at the top of the
+   screen (see obsPositionPauseModalForObserver). Both are draggable, so
+   this only has to be a sane starting point, not a solved layout. */
+const OBS_PANEL_DEFAULT_TOP = 296;
+
+let obsPromptFired = new Set();   // `${roundInstanceId}::${promptId}` — the once-per-round guard
+let obsPromptQueue = [];          // notes held behind a live challenge, in due order
+let obsPromptOpen  = null;        // the note currently loaded into the panel, or null
+let obsPanelPos    = null;        // {left, top} once positioned or dragged; survives minimize
+let obsChipPos     = null;        // {left, top} for the chip; defaults to lower-left
+
+function obsPanelEl() { return document.getElementById("obs-panel"); }
+function obsChipEl()  { return document.getElementById("obs-chip"); }
+
+/* Notes for this team's session, filtered to one level and trigger type.
+   Tolerates a missing or malformed list — a settings source that returns
+   nothing must mean "no notes", never an error on the Observer's screen. */
+function obsPromptsFor(levelType, triggerType) {
+  const list = getSessionSettings()?.observerPrompts;
+  if (!Array.isArray(list)) return [];
+  return list.filter(p =>
+    p && p.id && p.trigger?.type === triggerType &&
+    (p.level || "level2") === levelType);
+}
+
+/* Called from the Observer clock interval with elapsed seconds, so it
+   inherits that interval's guards rather than repeating them. */
+function obsCheckPrompts(elapsedSec) {
+  if (!amObserver) return;
+  const roundId = currentRoundInstanceId || gameState.roundInstanceId;
+  if (!roundId) return;   // no round identity yet — nothing to key the guard on
+  const due = obsPromptsFor(currentLevel, "elapsed")
+    .filter(p => Number.isFinite(p.trigger.minutes)
+              && elapsedSec >= p.trigger.minutes * 60
+              && !obsPromptFired.has(`${roundId}::${p.id}`))
+    .sort((a, b) => a.trigger.minutes - b.trigger.minutes);
+  for (const p of due) {
+    obsPromptFired.add(`${roundId}::${p.id}`);   // marked before showing: fires once per round even if a render races
+    obsShowOrQueuePrompt(p);
+  }
+}
+
+/* The challenge-trigger entry point. Called where the Observer becomes a
+   spectator, so it lands with the fire rather than after it. */
+function obsChallengePrompt() {
+  if (!amObserver) return;
+  const roundId = currentRoundInstanceId || gameState.roundInstanceId;
+  if (!roundId) return;
+  for (const p of obsPromptsFor(currentLevel, "challenge")) {
+    const key = `${roundId}::${p.id}`;
+    if (obsPromptFired.has(key)) continue;
+    obsPromptFired.add(key);
+    obsOpenPanel(p);   // deliberately NOT queued — this one belongs on top of the fire
+    break;             // one at a time; any others wait their turn
+  }
+}
+
+function obsChallengeIsUp() {
+  return kfSpectating || document.getElementById("kf-overlay").classList.contains("active");
+}
+
+/* A note arriving while a fire is up waits. A note arriving while an
+   EARLIER note is still expanded also waits, so the Observer is never
+   robbed of what they were reading mid-sentence. A note arriving while
+   one is MINIMIZED takes over, because a chip means "not reading it now". */
+function obsShowOrQueuePrompt(p) {
+  const expanded = obsPanelEl().classList.contains("open");
+  if (obsChallengeIsUp() || expanded) { obsPromptQueue.push(p); return; }
+  obsOpenPanel(p);
+}
+
+/* ── content rendering ───────────────────────────────────────────────
+   Builds DOM nodes rather than assigning innerHTML, so nothing in a
+   session's message content can ever be interpreted as markup. Steps
+   are numbered here, from their order in the list. */
+function obsRenderBlocks(prompt) {
+  const body = document.getElementById("obs-panel-body");
+  body.textContent = "";
+  const blocks = Array.isArray(prompt.blocks)
+    ? prompt.blocks
+    : (prompt.body ? [{ type: "para", text: prompt.body }] : []);
+  let n = 0;
+  for (const b of blocks) {
+    if (!b || !b.text) continue;
+    if (b.type === "step") {
+      n += 1;
+      const row = document.createElement("div"); row.className = "obs-step";
+      const num = document.createElement("span"); num.className = "obs-step-n"; num.textContent = String(n);
+      const txt = document.createElement("div");  txt.className = "obs-step-t";  txt.textContent = b.text;
+      row.appendChild(num); row.appendChild(txt); body.appendChild(row);
+    } else if (b.type === "quote") {
+      const q = document.createElement("p"); q.className = "obs-quote"; q.textContent = b.text;
+      body.appendChild(q);
+    } else {
+      const p = document.createElement("p"); p.className = "obs-para"; p.textContent = b.text;
+      body.appendChild(p);
+    }
+  }
+  body.scrollTop = 0;   // a re-opened panel starts at the top, not where it was left
+}
+
+/* ── open / minimize / restore ───────────────────────────────────────
+   Visibility is class-toggled, never style.display = "" — the Session 17
+   ELAPSED trap (an empty string strips the stylesheet's flex display). */
+function obsOpenPanel(prompt) {
+  obsPromptOpen = prompt;
+  const panel = obsPanelEl(), chip = obsChipEl();
+  document.getElementById("obs-panel-title").textContent = prompt.title || "";
+  document.getElementById("obs-chip-label").textContent  = prompt.title || "Observer note";
+  obsRenderBlocks(prompt);
+  chip.classList.remove("open");
+  panel.classList.remove("flying");
+  panel.style.opacity   = "1";
+  panel.style.transform = "none";
+  panel.classList.add("open");
+  obsPlacePanel();
+}
+
+/* Default placement, or wherever the Observer last dragged it. Runs after
+   the panel is visible so its measured size is real. */
+function obsPlacePanel() {
+  const panel = obsPanelEl();
+  const r = panel.getBoundingClientRect();
+  if (!obsPanelPos) {
+    obsPanelPos = {
+      left: Math.max(OBS_EDGE, Math.round((window.innerWidth - r.width) / 2)),
+      top:  OBS_PANEL_DEFAULT_TOP
+    };
+  }
+  obsApplyPos(panel, obsPanelPos);
+}
+
+/* The minimize flight: the panel scales down toward the chip's resting
+   place, then the chip pops in there. This is the whole point of the
+   animation — the Observer must see WHERE their notes went, or a
+   persistent chip in a corner is just clutter they didn't ask for. */
+function obsMinimizePanel() {
+  const panel = obsPanelEl(), chip = obsChipEl();
+  if (!panel.classList.contains("open")) return;
+
+  if (!obsChipPos) obsChipPos = obsDefaultChipPos();
+  const pr = panel.getBoundingClientRect();
+  const target = obsClamp(obsChipPos, 232, 40);
+
+  // Scale toward the chip's corner. Ratio is deliberately not the true
+  // size ratio — a panel shrunk to exact chip width reads as vanishing
+  // rather than as landing.
+  const dx = target.left - pr.left, dy = target.top - pr.top;
+  panel.classList.add("flying");
+  requestAnimationFrame(() => {
+    panel.style.transform = `translate(${dx}px, ${dy}px) scale(0.22)`;
+    panel.style.opacity   = "0.15";
+  });
+
+  setTimeout(() => {
+    panel.classList.remove("open", "flying");
+    panel.style.transform = "none";
+    panel.style.opacity   = "1";
+    obsChipPos = target;
+    obsApplyPos(chip, obsChipPos);
+    chip.classList.add("open");
+    // A brief overshoot on arrival, so the chip reads as having been
+    // dropped there rather than having always been there.
+    chip.style.transform = "scale(0.82)";
+    chip.classList.add("landing");
+    requestAnimationFrame(() => { chip.style.transform = "scale(1)"; });
+    setTimeout(() => chip.classList.remove("landing"), OBS_CHIP_LAND_MS + 40);
+  }, OBS_FLIGHT_MS);
+}
+
+function obsRestorePanel() {
+  if (!obsPromptOpen) return;
+  obsChipEl().classList.remove("open");
+  obsOpenPanel(obsPromptOpen);
+  // A note that arrived while this one was minimized stays queued and is
+  // deliberately NOT auto-advanced here: the Observer tapped the chip to
+  // get THIS note back. The queued one gets its turn on the next minimize.
+}
+
+function obsDefaultChipPos() {
+  return { left: OBS_EDGE + 12, top: window.innerHeight - 40 - OBS_EDGE - 12 };
+}
+
+/* ── positioning helpers ─────────────────────────────────────────────
+   left/top in pixels, clamped so a drag or a device rotation can never
+   strand a window off-screen. */
+function obsClamp(pos, w, h) {
+  return {
+    left: Math.min(Math.max(OBS_EDGE, pos.left), Math.max(OBS_EDGE, window.innerWidth  - w - OBS_EDGE)),
+    top:  Math.min(Math.max(OBS_EDGE, pos.top),  Math.max(OBS_EDGE, window.innerHeight - h - OBS_EDGE))
+  };
+}
+
+function obsApplyPos(el, pos) {
+  const r = el.getBoundingClientRect();
+  const c = obsClamp(pos, r.width || 232, r.height || 40);
+  el.style.left = c.left + "px";
+  el.style.top  = c.top  + "px";
+  return c;
+}
+
+/* ── dragging ────────────────────────────────────────────────────────
+   Pointer events with setPointerCapture, NOT the mouse-only pattern the
+   pause modal uses. Two reasons: pointer events cover touch and mouse in
+   one path (the owner's tablet case), and capture means the gesture
+   cannot be lost by the pointer leaving the element mid-drag.
+
+   This is deliberately NOT wired into the game's drag system
+   (aDragIsInFlight / lockDragRenders). Those exist for resource tiles
+   and rail tickets, neither of which exists on the Observer's screen,
+   and the Session 13 WebKit touch constraint does not apply here because
+   the dragged node is never re-rendered mid-gesture: only its left/top
+   change, and the dashboard's keyed render never touches these elements
+   (they are parented to <body>, outside every .screen). */
+function obsMakeDraggable(el, handle, opts = {}) {
+  let dragging = false, ox = 0, oy = 0, moved = 0, pid = null;
+  handle.addEventListener("pointerdown", e => {
+    if (e.target.closest("button") && !opts.buttonsDrag) return;
+    const r = el.getBoundingClientRect();
+    ox = e.clientX - r.left; oy = e.clientY - r.top;
+    dragging = true; moved = 0; pid = e.pointerId;
+    try { handle.setPointerCapture(pid); } catch (_) {}
+  });
+  handle.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    moved = Math.max(moved, Math.abs(e.clientX - (el.getBoundingClientRect().left + ox))
+                          + Math.abs(e.clientY - (el.getBoundingClientRect().top  + oy)));
+    const pos = obsApplyPos(el, { left: e.clientX - ox, top: e.clientY - oy });
+    if (opts.onMove) opts.onMove(pos);
+    e.preventDefault();
+  });
+  const end = e => {
+    if (!dragging) return;
+    dragging = false;
+    try { handle.releasePointerCapture(pid); } catch (_) {}
+    if (opts.onEnd) opts.onEnd(moved);
+  };
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+
+/* ── release valves and teardown ─────────────────────────────────────*/
+
+/* Called from kfTeardownChallengeUI(): the held notes' release valve. */
+function obsReleaseQueuedPrompts() {
+  if (!amObserver || !obsPromptQueue.length) return;
+  if (obsPanelEl().classList.contains("open")) return;   // still reading the last one
+  obsOpenPanel(obsPromptQueue.shift());
+}
+
+/* Nothing panel-shaped survives a screen change — same reasoning as the
+   drag-ghost and tip teardowns in showScreen(). The fired-set is keyed by
+   roundInstanceId, so it needs no clearing: a new round cannot collide
+   with an old round's keys. Positions are deliberately NOT reset, so an
+   Observer who moved the panel in round 1 finds it there in round 2. */
+function obsPromptsDismissQuietly() {
+  const panel = obsPanelEl(), chip = obsChipEl();
+  panel.classList.remove("open", "flying");
+  panel.style.transform = "none";
+  panel.style.opacity   = "1";
+  chip.classList.remove("open", "landing");
+  obsPromptOpen  = null;
+  obsPromptQueue = [];
+}
+
+/* The pause modal is centred and the panel's default sits below it, but
+   only one client can ever see both: an Observer who is also the host
+   (applyPausedState shows the modal on amHost only). For that client the
+   modal is moved to the top of the screen, so the two stack rather than
+   overlap. Untouched for every other host — a plain host has no panel. */
+function obsPositionPauseModalForObserver() {
+  if (!amObserver) return;
+  const m = document.getElementById("pause-modal");
+  if (!m) return;
+  m.style.top = "56px";
+  m.style.left = "50%";
+  m.style.transform = "translateX(-50%)";
+}
+
+/* ── wiring ──────────────────────────────────────────────────────────*/
+obsMakeDraggable(obsPanelEl(), document.getElementById("obs-panel-head"),
+  { onMove: pos => { obsPanelPos = pos; } });
+
+obsMakeDraggable(obsChipEl(), obsChipEl(), {
+  buttonsDrag: true,
+  onMove: pos => { obsChipPos = pos; },
+  // A tap re-expands; a drag does not. 5px of slop, because a finger
+  // never produces a pixel-perfect tap.
+  onEnd: moved => { if (moved < 5) obsRestorePanel(); }
+});
+
+document.getElementById("obs-minimize-btn").addEventListener("click", obsMinimizePanel);
+obsChipEl().addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); obsRestorePanel(); }
+});
+
+// Device rotation or a resized window must not strand either element.
+window.addEventListener("resize", () => {
+  if (obsPanelEl().classList.contains("open") && obsPanelPos) obsPanelPos = obsApplyPos(obsPanelEl(), obsPanelPos);
+  if (obsChipEl().classList.contains("open")  && obsChipPos)  obsChipPos  = obsApplyPos(obsChipEl(),  obsChipPos);
+});
+
 // The Observer's clock: same shared startTime and pause-shift rules as
 // startTimer() — reads gameState fresh each tick, freezes while paused
 // (resume shifts startTime, so elapsed excludes the pause everywhere at
@@ -5920,6 +6576,10 @@ setInterval(() => {
   if (gameState.status !== "playing") return;   // freeze the display during a pause
   const elapsed = Math.max(0, Math.floor((Date.now() - gameState.startTime) / 1000));
   el.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+  // 260826.1: the scheduled-prompt check rides this interval on purpose —
+  // no second timer, and it inherits every guard above (screen active,
+  // gameState present, startTime present, status "playing").
+  obsCheckPrompts(elapsed);
 }, 500);
 
 window.addEventListener("resize", renderObserverDashboard);
@@ -7298,6 +7958,13 @@ function applyPausedState(paused) {
   // Host pause modal
   const pauseModal = document.getElementById("pause-modal");
   if (pauseModal && amHost) pauseModal.style.display = paused ? "flex" : "none";
+  // 260826.2: an Observer who is ALSO the host is the only client that
+  // can see both the pause modal and the Observer notes panel. Park the
+  // modal at the top for them so the two stack instead of overlapping —
+  // the huddle note's first instruction is to press Pause, so they will
+  // reliably be reading one while the other is up. No effect on a plain
+  // host, who has no panel.
+  if (pauseModal && amHost && paused) obsPositionPauseModalForObserver();
   // 260818.3 (Session 20): keep the Observer's filler screen in step —
   // static elements, harmless to update on every client.
   const obsStatus = document.getElementById("observer-round-status");
@@ -7351,24 +8018,41 @@ _ACTIVITY_FREEZE_EVENTS.forEach(type => {
 });
 
 // Make pause modal draggable
+// 260826.2: converted from mouse-only (mousedown/mousemove/mouseup) to
+// pointer events. The old handlers bound no touch events at all, so this
+// modal simply could not be dragged on a tablet — found while building
+// the Observer notes panel, which needs to share the screen with it.
+// pointerdown fires for mouse too, so this is a strict superset of the
+// old behaviour; setPointerCapture also means the gesture survives the
+// pointer leaving the modal mid-drag. The Resume button is still exempt,
+// so a tap on it can never be read as the start of a drag.
 (function() {
-  let isDragging = false, dragOX = 0, dragOY = 0;
+  let isDragging = false, dragOX = 0, dragOY = 0, dragPid = null;
   document.addEventListener("DOMContentLoaded", () => {
     const modal = document.getElementById("pause-modal");
     if (!modal) return;
-    modal.addEventListener("mousedown", e => {
-      if (e.target.tagName === "BUTTON") return;
-      isDragging = true;
+    modal.style.touchAction = "none";
+    modal.addEventListener("pointerdown", e => {
+      if (e.target.closest("button")) return;
+      isDragging = true; dragPid = e.pointerId;
       const rect = modal.getBoundingClientRect();
       dragOX = e.clientX - rect.left; dragOY = e.clientY - rect.top;
       modal.style.transform = "none";
+      try { modal.setPointerCapture(dragPid); } catch (_) {}
     });
-    document.addEventListener("mousemove", e => {
+    modal.addEventListener("pointermove", e => {
       if (!isDragging) return;
       modal.style.left = (e.clientX - dragOX) + "px";
       modal.style.top  = (e.clientY - dragOY) + "px";
+      e.preventDefault();
     });
-    document.addEventListener("mouseup", () => { isDragging = false; });
+    const endDrag = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      try { modal.releasePointerCapture(dragPid); } catch (_) {}
+    };
+    modal.addEventListener("pointerup", endDrag);
+    modal.addEventListener("pointercancel", endDrag);
   });
 })();
 
@@ -8443,6 +9127,11 @@ function kfHandleChallengeUpdate(id, data) {
       // untouched — a mid-round fire is not a round boundary).
       kfSpectating = true;
       kfEnsureActiveChallengeRunning(id, data);
+      // 260826.1: a session may declare a prompt keyed to a challenge
+      // takeover rather than to the clock. Called AFTER kfSpectating is
+      // raised so the state it reads is already true, and it is a no-op
+      // when no such prompt is declared (which is the shipped default).
+      obsChallengePrompt();
     } else {
       // Only reachable by a true non-participant non-Observer — no such
       // client exists in an all-hands challenge today; this is the
@@ -9957,6 +10646,11 @@ function kfTeardownChallengeUI() {
   kf.challengeStartedAt = null; // 260821.1: wind-down state dies with the challenge
   document.querySelectorAll('.kf-flame, .kf-flame-tag').forEach(el => el.remove());
   kfFlameEls.clear(); kfPlayerTagEls.clear(); kfBirthSeen.clear(); // 260821.1
+  // 260826.1: an Observer prompt that came due during the fire was held
+  // rather than painted over it — this is where it gets its turn. Must
+  // run AFTER kfSpectating is cleared above, or obsChallengeIsUp() still
+  // reads true and the prompt is held forever.
+  obsReleaseQueuedPrompts();
 }
 
 /* ---- boot ---- */
