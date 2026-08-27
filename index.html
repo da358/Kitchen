@@ -2392,7 +2392,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2536,7 +2536,7 @@
 <path d="M62.5 0C97.0178 0 125 27.9822 125 62.5C125 97.0178 97.0178 125 62.5 125C27.9822 125 0 97.0178 0 62.5C0 27.9822 27.9822 0 62.5 0ZM50.0117 28.5C46.4154 28.5 43.5 31.4154 43.5 35.0117V89.5469C43.5002 93.143 46.4156 96.0586 50.0117 96.0586C53.6078 96.0585 56.5232 93.1429 56.5234 89.5469V35.0117C56.5234 31.4155 53.6079 28.5 50.0117 28.5ZM75.0117 28.5C71.4154 28.5 68.5 31.4154 68.5 35.0117V89.5469C68.5002 93.143 71.4156 96.0586 75.0117 96.0586C78.6078 96.0585 81.5232 93.1429 81.5234 89.5469V35.0117C81.5234 31.4155 78.608 28.5 75.0117 28.5Z" fill="black"/>
 </svg>
       </button>
-      <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px;">End game</button>
+      <button class="btn btn-danger" id="btn-end-game" style="font-size:12px; padding:7px 14px; display:none;">End game</button>
     </div>
   </div>
 
@@ -2665,7 +2665,7 @@
 
 <!-- ══ OBSERVER SESSION PANEL + CHIP (260826.2, dev session 26) ═══
      Observer-only facilitator notes. Content, timing and structure come
-     from LOCAL_SESSION_SETTINGS.observerPrompts via getSessionSettings()
+     from LOCAL_SESSION_SETTINGS.messages via getSessionSettings()
      — the seam an admin-managed session record replaces later.
      Parented to <body>, outside every .screen, so it is never rebuilt by
      the dashboard's keyed render. showScreen() tears it down. -->
@@ -2694,8 +2694,8 @@
   padding:24px 28px; box-shadow:0 8px 40px rgba(0,0,0,0.45); min-width:280px; max-width:380px;
   top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; gap:16px;
   flex-direction:column; cursor:move;">
-  <div style="font-size:15px; font-weight:600; color:#FFFFFF;">Play is paused.</div>
-  <div style="font-size:13px; color:#C0B8B0;">Click below to continue.</div>
+  <div id="pause-modal-title" style="font-size:15px; font-weight:600; color:#FFFFFF;">Play is paused.</div>
+  <div id="pause-modal-sub" style="font-size:13px; color:#C0B8B0;">Click below to continue.</div>
   <button id="btn-resume" style="margin-top:4px; padding:10px 20px; border-radius:var(--radius);
     border:none; cursor:pointer; font-size:14px; font-weight:600; font-family:var(--font);
     background:#FFFFFF; color:#2B241C; letter-spacing:0.01em;">▶ Resume</button>
@@ -3059,8 +3059,16 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
      default experience, which is exactly the behaviour of every build
      up to and including 260821.3.
      Named: sessionCode, sessionSettings, LOCAL_SESSION_SETTINGS,
-     getSessionSettings, observerPrompts, and the obsPrompt* runtime
+     getSessionSettings, messages, and the obsPrompt* runtime
      state. NEVER a bare identifier called `session` — see hazard 4.
+
+     260826.7: the settings list was renamed observerPrompts -> messages
+     when audiences arrived — it no longer carries notes for the Observer
+     alone. The obsPrompt and obs- prefixed runtime and element names
+     are now similarly misleading, and are logged for the same staged
+     pass as the game -> team rename below; they were deliberately NOT
+     renamed in the same build as a behaviour change, so that any defect
+     in the message engine can be attributed.
 
    Note the deliberate mismatch, and do NOT "tidy" it: what players
    are being moved toward calling a TEAM is what this code calls a
@@ -3093,16 +3101,31 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
    display code below does not change at all. Resist adding a second way
    to reach these values.
 
-   ── observerPrompts ────────────────────────────────────────────────
-   Facilitator notes shown to the Observer ONLY. The list may be empty
-   (no notes), hold one, or hold several at different times; entries fire
-   independently, in time order.
+   ── messages ───────────────────────────────────────────────────────
+   Facilitator and player messages, scheduled by this list. It may be
+   empty (no messages), hold one, or hold several at different times;
+   entries fire independently, in time order.
+
+   RENAMED 260826.7 (was `observerPrompts`): with four audiences the list
+   is no longer Observer-only, and renaming it before any new message was
+   written against the old shape was cheaper than renaming it after.
 
      id      — stable, unique. It keys the once-per-round guard, so
-               changing an id makes a note eligible to fire again.
-     level   — which level the note belongs to. Observer is a Level 2
-               role today, so "level2" in practice; the field exists so
-               the admin schema needn't widen later.
+               changing an id makes a message eligible to fire again.
+     level   — which level the message belongs to.
+     audience — WHO sees it. One of:
+                 "observer"     the Observer only
+                 "host"         the host only
+                 "players"      all non-Observers (this INCLUDES the
+                                  host, who is a cook in Level 2)
+                 "non-hosts"    everyone except the host
+                 "everyone"     every client
+               Missing is treated as "observer", so an entry written
+               before this field existed behaves exactly as it did.
+               Audiences overlap, so precedence is explicit: the MORE
+               SPECIFIC audience wins and the other queues. Specificity
+               order, narrowest first: observer, host, non-hosts,
+               players, everyone.
      trigger — { type: "elapsed", minutes: N }  N minutes into the round
                  on the shared clock. Because resumeGame() shifts
                  startTime forward, elapsed already excludes paused time
@@ -3132,10 +3155,11 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
    OWNER-EDITED CONTENT. Timings and copy are the facilitator's, not the
    code's — change them here.                                          */
 const LOCAL_SESSION_SETTINGS = {
-  observerPrompts: [
+  messages: [
     {
       id: "obs-l2-huddle-5min",
       level: "level2",
+      audience: "observer",
       trigger: { type: "elapsed", minutes: 5 },
       title: "Mid-round huddle",
       blocks: [
@@ -3167,6 +3191,7 @@ const LOCAL_SESSION_SETTINGS = {
     // {
     //   id: "obs-l2-fire",
     //   level: "level2",
+    //   audience: "observer",
     //   trigger: { type: "challenge" },
     //   title: "A fire has broken out",
     //   blocks: [
@@ -6347,11 +6372,51 @@ function obsChipEl()  { return document.getElementById("obs-chip"); }
    Tolerates a missing or malformed list — a settings source that returns
    nothing must mean "no notes", never an error on the Observer's screen. */
 function obsPromptsFor(levelType, triggerType) {
-  const list = getSessionSettings()?.observerPrompts;
+  const list = getSessionSettings()?.messages;
   if (!Array.isArray(list)) return [];
   return list.filter(p =>
     p && p.id && p.trigger?.type === triggerType &&
     (p.level || "level2") === levelType);
+}
+
+/* 260826.7: audience resolution. Separated from obsPromptsFor above so
+   that the "which messages exist for this level and trigger" question
+   and the "is this one mine" question stay independently testable — the
+   second is the one that has to be right on ten different clients.
+   A missing audience means "observer", which is what every entry
+   written before 260826.7 meant. */
+const MSG_AUDIENCES = ["observer", "host", "non-hosts", "players", "everyone"];
+
+function msgAudienceOf(m) {
+  const a = (m && m.audience) || "observer";
+  return MSG_AUDIENCES.includes(a) ? a : "observer";
+}
+
+/* Does this client belong to the message's audience? Reads the same
+   amHost/amObserver flags every other role check uses, so it cannot
+   disagree with them. Note "players" deliberately includes the host:
+   in Level 2 the host is a cook, and the run of show's huddle message
+   is meant to reach them. */
+function msgIsForMe(m) {
+  switch (msgAudienceOf(m)) {
+    case "observer":  return !!amObserver;
+    case "host":      return !!amHost;
+    case "players":   return !amObserver;
+    case "non-hosts": return !amHost;
+    case "everyone":  return true;
+    default:          return false;
+  }
+}
+
+/* Precedence, for the rare case two messages come due for the SAME
+   person at the same moment: the narrower audience shows and the wider
+   one queues. Confirmed dev session 28 that the owner's run of show
+   contains no such collision — the 4:30 pair and the post-Level-2 pair
+   each go to different people — so this is insurance, sized as
+   insurance. Lower number = more specific = wins. */
+function msgSpecificity(m) {
+  const i = MSG_AUDIENCES.indexOf(msgAudienceOf(m));
+  return i < 0 ? MSG_AUDIENCES.length : i;
 }
 
 /* Called from the Observer clock interval with elapsed seconds, so it
@@ -7307,6 +7372,16 @@ function enterGame() {
     // Show pause button to host only (Levels 2/3 have timers)
     const pauseBtn = document.getElementById("btn-pause");
     if (pauseBtn) pauseBtn.style.display = (amHost && currentLevel !== "level1") ? "" : "none";
+    /* 260826.7 (dev session 29): End game is host-only here too. It was
+       ungated — every player could see the scarlet button and end the round
+       for the whole team, confirmed in a browser, not just read. The
+       Observer screen's copy has been host-only since Session 20; these two
+       screens now agree, and the comment in that branch says why. The run of
+       show makes this load-bearing rather than cosmetic: the host drives
+       every level transition, and a player ending the round mid-huddle
+       would strand everyone on a debrief screen with no way back. */
+    const endBtn = document.getElementById("btn-end-game");
+    if (endBtn) endBtn.style.display = amHost ? "inline-flex" : "none";
     // Shared challenges (Session 9) are Level 2 and Level 3.
     const triggerBtn = document.getElementById("btn-trigger-challenge");
     if (triggerBtn) triggerBtn.style.display = (amHost && (currentLevel === "level2" || currentLevel === "level3")) ? "" : "none";
@@ -8261,6 +8336,29 @@ function kfChallengeIsLive() {
   return !!(gameState && gameState.activeChallengeId);
 }
 
+/* ─── WHO IS EXPECTED TO RESTART PLAY (260826.7, dev session 29) ─────
+   pauseReason is absent for a manual host pause — which is every pause in
+   every build up to and including 260826.6 — and is set to "message" by an
+   auto-pause that a scheduled message caused. Item 3 adds the writer; this
+   build only reads, which is why 260826.7 stays off the wire.
+
+   Anything unrecognised is treated as message-driven rather than manual.
+   That is the safe direction: the failure mode is a host who has to ask the
+   Observer to resume, not a host who resumes on top of a huddle. */
+function msgPauseIsMessageDriven() {
+  const r = gameState && gameState.pauseReason;
+  return !!r && r !== "host";
+}
+
+/* Is there an Observer this round? Level 2 may legitimately start without
+   one, and in that round the host MUST keep the Resume button — otherwise a
+   message-driven pause leaves nobody able to restart play and End game is
+   the only way out. Reads the same field the role routing reads, so it
+   cannot disagree with who is actually observing. */
+function msgRoundHasObserver() {
+  return !!(gameState && gameState.observerPlayerId);
+}
+
 /* Grays the pause controls while a fire is up, so the refusal is visible
    before the click rather than after it. Deliberately not the only guard:
    toasts render at z-index 1000, far below the fire overlay at 9600, so a
@@ -8319,7 +8417,30 @@ function applyPausedState(paused) {
   else if (cookBtn && !paused && currentTask) checkTaskComplete();
   // Host pause modal
   const pauseModal = document.getElementById("pause-modal");
-  if (pauseModal && amHost) pauseModal.style.display = paused ? "flex" : "none";
+  if (pauseModal && amHost) {
+    /* 260826.7: three distinct states, not two.
+         manual pause                  -> "Play is paused." + Resume
+         message pause, Observer here  -> hand-off text, NO Resume
+         message pause, no Observer    -> hand-off text, Resume KEPT,
+                                          because otherwise nobody can
+                                          restart play at all. */
+    const msgDriven = paused && msgPauseIsMessageDriven();
+    const handOff   = msgDriven && msgRoundHasObserver();
+    const titleEl   = document.getElementById("pause-modal-title");
+    const subEl     = document.getElementById("pause-modal-sub");
+    const resumeEl  = document.getElementById("btn-resume");
+    if (titleEl) titleEl.textContent = msgDriven
+      ? "Play is paused for a team huddle."
+      : "Play is paused.";
+    if (subEl) subEl.textContent = handOff
+      ? "Your Observer will restart play when the huddle is done."
+      : msgDriven
+        ? "There's no Observer this round, so restart play yourself when the huddle is done."
+        : "Click below to continue.";
+    // Explicit display values both ways — never "" against the inline style.
+    if (resumeEl) resumeEl.style.display = handOff ? "none" : "inline-block";
+    pauseModal.style.display = paused ? "flex" : "none";
+  }
   // 260826.2: an Observer who is ALSO the host is the only client that
   // can see both the pause modal and the Observer notes panel. Park the
   // modal at the top for them so the two stack instead of overlapping —
