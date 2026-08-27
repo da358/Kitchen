@@ -2477,7 +2477,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3241,6 +3241,23 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
                  — a huddle does not spend the next note's clock.
                { type: "challenge" }  the moment a shared challenge takes
                  over the Observer's screen.
+               { type: "arrival", screen: "id" }  the moment this client
+                 ARRIVES at a screen — the id showScreen() is called with,
+                 e.g. "summary-level2" for the Level 2 debrief. Added dev
+                 session 31. Seven of the nine messages in the run of show
+                 fire this way. The hook is the LAST line of showScreen(),
+                 after obsPromptsDismissQuietly() — hooked any earlier, the
+                 same teardown meant to clear the PREVIOUS screen's message
+                 would tear down the one just triggered.
+
+                 `level` is checked as well as `screen` when the entry
+                 declares one, because the LOBBY screen is shared by all
+                 three levels. Two future cases need care and neither
+                 exists yet: the lobby's level is pendingLevelType rather
+                 than currentLevel, and on the LANDING screen currentLevel
+                 is whatever the last round left behind. Both are covered
+                 by writing `level: "any"`, which skips the level check —
+                 message 1 will need it.
      title   — the panel heading, and the chip's label when minimized.
                Keep it short enough to read in a 232px chip.
      blocks  — the body, as an ORDERED list of content blocks:
@@ -3392,7 +3409,7 @@ const LOCAL_SESSION_SETTINGS = {
            without it they may read all three out mechanically, or wonder
            whether they are the only one who can see them. Observer only:
            the players obviously know what is on their own screen. */
-        { type: "aside", text: "(Your teammates can see these questions on their screens.)" },
+        { type: "aside", text: "(Your teammates can see these questions on their screens)" },
         { type: "step", text: "Try to get some quick response from each person. Not every person "
                             + "needs to talk about all three things (a stop, start, or continue). "
                             + "They could talk just about one." },
@@ -3454,6 +3471,92 @@ const LOCAL_SESSION_SETTINGS = {
             "Is there anything that’s working that the team should CONTINUE doing, "
               + "something that’s already helpful?"
         ] }
+      ]
+    },
+    /* ── MESSAGE 6 of the run of show — the Observer's Level 2 debrief
+       (dev session 31). Owner's own copy, pasted in full.
+
+       Fires on ARRIVING at the Level 2 debrief screen rather than on a
+       clock, which is the new trigger type this build adds. Both halves of
+       the debrief — this and message 7 — arrive on their own screens with no
+       shared timer, because every client reaches that screen off the same
+       "ended" write.
+
+       THE COUNTDOWN RUNS FROM THE MOMENT THE ROUND ENDED, not from arrival.
+       `endedAt` is written once by the host and read by everybody, so two
+       screens showing 1:52 and 1:47 are both RIGHT — somebody who took five
+       seconds longer to land here has five seconds less debrief. Arriving
+       after zero shows the time's-up line, never a negative number.
+
+       The three questions are a `letters` block rather than the 1/2/3 of
+       the owner's document, for the same reason the huddle's are: message 7
+       carries the SAME three, and shared labels let somebody say "let's take
+       question B" with everyone looking at the same thing. If one copy is
+       edited, edit both.
+
+       `group` ties the two together as one event. It carries no `pause`, so
+       nothing about the pause engine applies to it — in particular these
+       messages are NOT dismissed on a resume, which only happens to
+       messages in a pausing group. */
+    {
+      id: "l2-debrief-observer",
+      level: "level2",
+      audience: "observer",
+      group: "l2-debrief",
+      trigger: { type: "arrival", screen: "summary-level2" },
+      countdown: { seconds: 120, from: "roundEnd",
+                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
+      title: "Level 2 debrief",
+      blocks: [
+        { type: "para", text: "It’s time for a short debrief on Level 2. Start with your own "
+                            + "observations about one or more of the following:" },
+        { type: "letters", items: [
+            "Did the team try to change something based on the STOP-START-CONTINUE huddle? "
+              + "Did that pay off?",
+            "Where was the team strongest or at its best?",
+            "Is there anything the team could have done to be more effective?"
+        ] },
+        { type: "aside", text: "(Your teammates can see these questions on their screens)" },
+        { type: "para", text: "After you’ve shared a few thoughts, open the discussion up to "
+                            + "hear from others." }
+      ]
+    },
+    /* ── MESSAGE 7 of the run of show — the players' and host's Level 2
+       debrief (dev session 31). Owner's own copy, with ONE line changed and
+       flagged to them:
+
+       The owner's paste opened this message with message 6's sentence,
+       "Start with your own observations", and then closed it with "You'll
+       hear from the Observer first" — which told the same person to go
+       first and to wait. The opening line here reads "The discussion will
+       cover one or more of the following", so the closing line stands
+       unopposed. Revert this line if the owner prefers the original.
+
+       audience "players" is every non-Observer AND INCLUDES THE HOST, who
+       is a cook in Level 2 and takes part in the debrief like anybody else.
+       Same convention as message 5. */
+    {
+      id: "l2-debrief-players",
+      level: "level2",
+      audience: "players",
+      group: "l2-debrief",
+      trigger: { type: "arrival", screen: "summary-level2" },
+      countdown: { seconds: 120, from: "roundEnd",
+                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
+      title: "Level 2 debrief",
+      blocks: [
+        { type: "para", text: "It’s time for a short debrief on Level 2. Some questions you "
+                            + "might discuss:" },
+        /* WORD FOR WORD message 6's questions. The build script asserts all
+           three appear exactly twice in this file. */
+        { type: "letters", items: [
+            "Did the team try to change something based on the STOP-START-CONTINUE huddle? "
+              + "Did that pay off?",
+            "Where was the team strongest or at its best?",
+            "Is there anything the team could have done to be more effective?"
+        ] },
+        { type: "para", text: "You’ll hear from the Observer first. After that, others can "
+                            + "jump in with a quick comment." }
       ]
     }
     // A challenge-triggered note looks like the entry below. Left
@@ -3996,6 +4099,12 @@ function showScreen(id) {
   // actually changed, which is a different number from when it received
   // the instruction to change. See diagNoteScreen().
   diagNoteScreen(id);
+  /* 260827.6 (dev session 31): the screen-arrival message trigger. THIS
+     MUST BE THE LAST LINE OF THIS FUNCTION. obsPromptsDismissQuietly()
+     above clears any message belonging to the screen being left; running
+     the arrival check before it would hand that same teardown the message
+     it had just triggered. See msgCheckArrival(). */
+  msgCheckArrival(id);
 }
 
 function hideLoading() {
@@ -6983,6 +7092,95 @@ function obsChallengePrompt() {
     obsPromptFired.add(key);
     obsOpenPanel(p);   // deliberately NOT queued — this one belongs on top of the fire
     break;             // one at a time; any others wait their turn
+  }
+}
+
+/* ═══ THE SCREEN-ARRIVAL TRIGGER (dev session 31) ══════════════════
+   Seven of the nine messages in the run of show fire on ARRIVING at a
+   screen. showScreen() is the single funnel every screen change passes
+   through, so there is exactly one place to hook, and the hook is its LAST
+   line — after obsPromptsDismissQuietly(). Hooked any earlier, the teardown
+   whose job is to clear the message from the screen you just LEFT would
+   tear down the message you just arrived at. That ordering is the whole
+   trap in this feature and it is not visible from the call site.
+
+   No new scheduler and no new timer. showScreen() runs on every client
+   whatever its role, so a player's arrival message is delivered by the same
+   line that delivers the Observer's — unlike the elapsed triggers, which
+   ride the Observer clock and are still Observer-only (obsCheckPrompts).
+
+   Countdowns need nothing new either: msgRenderCountdown()'s interval is
+   module-level rather than part of any screen's tick, and `from: "roundEnd"`
+   reads `endedAt`, which the host writes once and every client already
+   reads. So a debrief countdown is correct on every screen, and somebody who
+   arrives late correctly sees less time left. */
+
+/* Which key the once-shown guard uses for an arrival message.
+
+   Everything built before this keyed the guard `roundInstanceId::messageId`,
+   which is right for anything with a round behind it: a new round re-arms it
+   with no clearing. But message 1 fires on the LANDING page, where there is
+   no team and no round at all — and worse, currentRoundInstanceId is not
+   cleared on the way back to landing, so a stale id from the last round is
+   still sitting there and would key it to something meaningless.
+
+   The rule is therefore taken from the MESSAGE, not from whatever happens to
+   be in the variable: a message that declares a level belongs to a round and
+   is keyed by round; a message with no level (or level "any") is keyed to
+   this PAGE LOAD. Owner decision, dev session 31: message 1 showing again
+   after a refresh is wanted — better to repeat the instructions than to
+   withhold them from somebody who reloaded. */
+function msgArrivalKey(m) {
+  const scoped = m && m.level && m.level !== "any";
+  const roundId = currentRoundInstanceId || (gameState && gameState.roundInstanceId) || null;
+  return (scoped && roundId) ? `${roundId}::${m.id}` : `page::${m.id}`;
+}
+
+/* Messages that fire on arriving at this screen id.
+
+   `level` is checked as well as `screen` because the LOBBY screen is shared
+   by all three levels — messages 3 and 8 are told apart by nothing else.
+   Two cases to handle when those are built, neither of which exists yet: in
+   the lobby the level to compare against is pendingLevelType rather than
+   currentLevel, and on the landing screen currentLevel is simply whatever
+   the last round left behind. Writing `level: "any"` skips the check. */
+function msgArrivalsFor(screenId) {
+  const list = getSessionSettings()?.messages;
+  if (!Array.isArray(list)) return [];
+  return list.filter(m =>
+    m && m.id &&
+    m.trigger?.type === "arrival" &&
+    m.trigger.screen === screenId &&
+    (!m.level || m.level === "any" || m.level === currentLevel));
+}
+
+/* Called from the END of showScreen(). Narrowest audience first, so that if
+   two ever came due for the same person the specific one opens and the wider
+   one queues — the same precedence the pause delivery uses. No client is
+   addressed twice by the run of show as it stands. */
+function msgCheckArrival(screenId) {
+  const mine = msgArrivalsFor(screenId)
+    .filter(msgIsForMe)
+    .sort((a, b) => msgSpecificity(a) - msgSpecificity(b));
+  for (const m of mine) {
+    const key = msgArrivalKey(m);
+    /* An arrival message belongs to its screen, so a REPEAT arrival with
+       nothing on screen re-opens it rather than skipping it. This is not a
+       theoretical case: on the host, showSummary() runs twice — endGame()
+       calls it and so does the listener's "ended" branch — so the host's own
+       debrief message was opened by the first arrival and torn down by the
+       second one's obsPromptsDismissQuietly(). Found by the dev session 31
+       harness; the host was the ONLY client left with no message.
+
+       "Nothing on screen" deliberately counts the chip and the queue as
+       something: a minimized message is never stolen back open, and a
+       message waiting its turn is never jumped. */
+    const nothingOnScreen = !obsPanelEl().classList.contains("open")
+                         && !obsChipEl().classList.contains("open")
+                         && !obsPromptQueue.length;
+    if (obsPromptFired.has(key) && !nothingOnScreen) continue;
+    obsPromptFired.add(key);   // marked before showing, as elsewhere: once per key even if a render races
+    obsShowOrQueuePrompt(m);
   }
 }
 
