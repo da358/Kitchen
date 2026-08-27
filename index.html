@@ -2022,7 +2022,12 @@
     margin: 0 0 12px; padding: 8px 0 8px 15px;
     border-left: 3px solid var(--accent);
   }
-  .obs-letter { display: flex; gap: 10px; margin: 0 0 9px; }
+  /* 260827.5: align-items BASELINE, not the flex default. The letter is
+     13px and the question 14.5px, so with the default the letter sat a
+     couple of pixels high and read as not quite lined up (owner, live test
+     of 260827.4). Baseline alignment is the typographic answer and holds at
+     any size, which a hand-tuned margin would not. */
+  .obs-letter { display: flex; align-items: baseline; gap: 10px; margin: 0 0 9px; }
   .obs-letter:last-child { margin-bottom: 0; }
   .obs-letter-l {
     flex: 0 0 auto; min-width: 15px;
@@ -2038,6 +2043,18 @@
     font-style: italic;
     font-size: 14.5px; line-height: 1.52;
     color: var(--accent-2);
+  }
+  /* The aside (260827.5). Sits under the copper questions and explains
+     something about them rather than being part of them, so it takes the
+     body's own text colour and the body's own font — the only thing
+     marking it out is being smaller and italic. Indented to the questions'
+     text, not to the copper rule, so it reads as a note about that block. */
+  .obs-aside {
+    margin: -4px 0 12px 18px;
+    font-family: var(--font);
+    font-style: italic;
+    font-size: 12.5px; line-height: 1.45;
+    color: var(--text-2);
   }
   #obs-panel-foot {
     padding: 12px 22px 18px;
@@ -2075,7 +2092,11 @@
     max-width: 168px;
     font-size: 13px; font-weight: 600; line-height: 1.35;
     letter-spacing: 0.01em;
-    color: var(--text-2);
+    /* 260827.5: RED, on every screen. Red is this project's alert colour
+       and an expired huddle timer qualifies (owner, live test of
+       260827.4). It was --text-2, which read as a quiet footnote at
+       exactly the moment the line most needs to be seen. */
+    color: var(--danger);
   }
   #obs-countdown:empty { display: none; }   /* no gap for a message with no countdown */
   #obs-minimize-btn {
@@ -2456,7 +2477,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.4 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3229,6 +3250,23 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
                  { type: "para",  text } — an unnumbered paragraph.
                  { type: "quote", text } — something the Observer reads
                    ALOUD. Rendered in copper italic serif behind a rule.
+
+                   A NOTE ON WHAT COPPER MEANS, added 260827.5. Copper has
+                   meant "these are the words, say them" since dev session
+                   26, when the only audience was the Observer. Messages 4
+                   and 5 put the SAME copper questions on everybody's
+                   screen, so for them copper means "the shared questions"
+                   — the Observer may still read them out, but the team is
+                   already looking at them. Message 4 carries an `aside`
+                   block saying so. If a future message needs words that
+                   only the Observer can see and must therefore be spoken,
+                   that distinction now needs stating in the message rather
+                   than being carried by the colour alone.
+                 { type: "aside", text } — a quiet remark ABOUT the message
+                   rather than part of it: small, italic, body-coloured,
+                   never copper. Added dev session 30 to tell the Observer
+                   their teammates can see the huddle questions too. Not a
+                   step, so step numbering continues around it.
                  { type: "letters", items: […] } — a list AUTO-LETTERED
                    A, B, C by the renderer, styled as the quote. Added
                    dev session 30 so the three huddle questions carry the
@@ -3264,6 +3302,20 @@ const LOCAL_SESSION_SETTINGS = {
        starts without one and the lobby says so, which is the behaviour of
        every build up to and including 260826.7.
 
+     observerMustBeNonHost — when true, the HOST may not take the Observer
+       role: their Observer card is dimmed and chooseRole() refuses it, so
+       the Observer must be somebody else. When false (or absent), a host
+       may be the Observer, which is the behaviour of every build up to and
+       including 260827.4 and is still fully supported everywhere else in
+       the code (the pause modal parks for a host-Observer, and that path
+       is tested).
+
+       Owner direction, dev session 30, after live-testing 260827.4: some
+       sessions may allow a host-Observer and some may require a separate
+       one. The upcoming workshop requires a separate one. LIKE
+       requireObserver, THIS IS A SETTING THE SESSION CREATION TOOL SHOULD
+       OWN — it is hardwired here until that tool exists.
+
      ***THIS IS A SETTING, NOT A RULE OF THE GAME.*** Owner direction, dev
      session 30: the session creation tool should let an administrator
      choose, per level, whether an Observer is required or optional. It is
@@ -3279,9 +3331,9 @@ const LOCAL_SESSION_SETTINGS = {
      requiring an Observer at the start does not guarantee one is still
      connected at 4:30. */
   levelRules: {
-    level1: { requireObserver: false },
-    level2: { requireObserver: true },
-    level3: { requireObserver: false }
+    level1: { requireObserver: false, observerMustBeNonHost: false },
+    level2: { requireObserver: true,  observerMustBeNonHost: true  },
+    level3: { requireObserver: false, observerMustBeNonHost: false }
   },
 
   messages: [
@@ -3335,6 +3387,12 @@ const LOCAL_SESSION_SETTINGS = {
             "Is there anything that’s working that the team should CONTINUE doing, "
               + "something that’s already helpful?"
         ] },
+        /* 260827.5, owner direction. The Observer needs to know the team is
+           looking at these same three questions on their own screens —
+           without it they may read all three out mechanically, or wonder
+           whether they are the only one who can see them. Observer only:
+           the players obviously know what is on their own screen. */
+        { type: "aside", text: "(Your teammates can see these questions on their screens.)" },
         { type: "step", text: "Try to get some quick response from each person. Not every person "
                             + "needs to talk about all three things (a stop, start, or continue). "
                             + "They could talk just about one." },
@@ -3437,6 +3495,26 @@ function getSessionSettings() {
 function levelRequiresObserver(levelType) {
   const rules = getSessionSettings()?.levelRules;
   return !!(rules && rules[levelType] && rules[levelType].requireObserver);
+}
+
+/* Must the Observer be someone other than the host? (260827.5.) Same seam,
+   same fail-open default: an unknown level or a settings source that
+   returns nothing means NO extra restriction, because a missing setting
+   must never be the thing that stops a team starting a round. */
+function levelObserverMustBeNonHost(levelType) {
+  const rules = getSessionSettings()?.levelRules;
+  return !!(rules && rules[levelType] && rules[levelType].observerMustBeNonHost);
+}
+
+/* Am I barred from taking the Observer role right now? Used by BOTH the
+   lobby render (to dim the card) and chooseRole (to refuse the claim), so
+   the button and the handler cannot disagree — the same shape as
+   lobbyCanStart being re-checked inside hostStartRound. */
+function iAmBarredFromObserver() {
+  if (!gameState || !myPlayerId) return false;
+  const levelType = gameState.pendingLevelType || gameState.levelType || currentLevel;
+  if (!levelObserverMustBeNonHost(levelType)) return false;
+  return myPlayerId === gameState.hostPlayerId;
 }
 
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
@@ -6971,6 +7049,16 @@ function obsRenderBlocks(prompt) {
         row.appendChild(lab); row.appendChild(txt); wrap.appendChild(row);
       });
       if (items.length) body.appendChild(wrap);
+    } else if (b.type === "aside") {
+      /* 260827.5: the fifth block type. A quiet plain-text remark that is
+         neither an instruction to follow nor words to say — small, italic,
+         and DELIBERATELY NOT COPPER, because copper has meant "these are
+         the words" everywhere else in this panel and an aside is the
+         opposite of that. Like the letters block it does not touch `n`, so
+         step numbering continues around it. */
+      const a = document.createElement("p"); a.className = "obs-aside";
+      a.textContent = b.text;
+      body.appendChild(a);
     } else {
       const p = document.createElement("p"); p.className = "obs-para"; p.textContent = b.text;
       body.appendChild(p);
@@ -7636,8 +7724,20 @@ function enterLobby() {
       const cardO = document.getElementById("role-card-observer");
       cardP.classList.toggle("chosen", myRole === "player");
       cardO.classList.toggle("chosen", myRole === "observer");
-      cardO.classList.toggle("taken",  takenByOther);
-      cardO.disabled = takenByOther;
+      /* 260827.5: a host who is not allowed the Observer role gets the card
+         dimmed too. Reuses the EXISTING `taken` treatment rather than
+         inventing a second disabled look — to the person looking at it the
+         two cases are the same thing ("not available to me"), and one
+         visual state is one thing to keep consistent instead of two.
+         The card carries the REASON in its own description, so the
+         explanation is where the person is already looking. */
+      const barred = iAmBarredFromObserver();
+      cardO.classList.toggle("taken",  takenByOther || barred);
+      cardO.disabled = takenByOther || barred;
+      const descO = cardO.querySelector(".role-desc");
+      if (descO) descO.textContent = barred
+        ? "Someone other than the host needs to be the Observer this round."
+        : "Watch silently, pause for a huddle, lead the debrief.";
     }
 
     const entries = Object.entries(players);
@@ -7653,7 +7753,14 @@ function enterLobby() {
          huddle, which is the level's whole point. When not required the
          old behaviour is unchanged, including its copy. */
       const needObs   = levelRequiresObserver(rtLobby);
-      const obsMissing = needObs && !obsId;
+      /* 260827.5: when the level requires a NON-HOST Observer, a claim held
+         by the host does not satisfy the requirement. In practice the host
+         cannot make that claim (chooseRole refuses it), so this is the
+         belt to the card's braces — it also covers a claim that predates
+         this build or arrives from a stale client. */
+      const obsIsHost = !!obsId && obsId === gameState.hostPlayerId;
+      const obsBad    = levelObserverMustBeNonHost(rtLobby) && obsIsHost;
+      const obsMissing = needObs && (!obsId || obsBad);
       lobbyCanStart   = everyone && cookCount >= 2 && !obsMissing;
       statusText = entries.length < 2 ? "Waiting for players to join…"
         : !everyone     ? `${chosen} of ${entries.length} have chosen`
@@ -7722,6 +7829,11 @@ async function chooseRole(role) {
   if (!gameCode || !myPlayerId) return;
   const obsRef = ref(db, `games/${gameCode}/observerPlayerId`);
   if (role === "observer") {
+    /* 260827.5: the host cannot be the Observer when the level says so.
+       Guarded HERE and not only on the card, because a dimmed button is a
+       hint and a refused write is a rule — and because chooseRole is also
+       reachable from the keyboard handler. */
+    if (iAmBarredFromObserver()) return;
     const result = await runTransaction(obsRef, current =>
       (current === null || current === myPlayerId) ? myPlayerId : undefined);
     if (!result.committed || result.snapshot.val() !== myPlayerId) return; // someone else holds it
