@@ -187,6 +187,11 @@
      rule below is what JS's style.display = "" falls back to when the
      host gate shows the button. */
   #btn-pause { display: inline-flex; align-items: center; background: none; border: none; padding: 4px 6px; cursor: pointer; }
+  /* 260826.4: the bare pause icon carries no .btn class, so the global
+     .btn:disabled rule above does not reach it. Pause is disabled while a
+     kitchen fire is live (see kfSyncPauseAvailability) and that has to be
+     visible, or the host clicks a dead control and assumes the game broke. */
+  #btn-pause:disabled { opacity: 0.35; cursor: default; }
   .paused-badge {
     font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--danger);
@@ -1064,6 +1069,23 @@
   }
 
   /* Notification toast */
+  /* 260826.5: the rejoin offer. Deliberately quiet — it is a recovery
+     path, not a call to action, and on a landing page where the two real
+     choices are Create and Join a third loud control would compete with
+     them. Only ever visible to somebody who was actually in a team on this
+     browser in the last 12 hours. */
+  #rejoin-offer {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  #rejoin-line { font-size: 12px; color: var(--text-3); margin-bottom: 7px; }
+  #btn-rejoin {
+    background: none; border: 1.5px solid var(--accent-2); color: var(--accent-2);
+    border-radius: 999px; padding: 7px 16px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.01em;
+  }
+  #btn-rejoin:hover { background: var(--accent-2); color: #fff; }
   #toast-container {
     position: fixed;
     bottom: 20px;
@@ -1285,6 +1307,9 @@
     font-size: 19px; letter-spacing: 0.02em;
   }
   .kf-modal-header .sub { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+  /* 260826.5: the #kf-escape-btn styles were removed with the button. See
+     kfTeardownChallengeUI for the reasoning; do not reinstate without
+     reading it. */
   .kf-blueprint-wrap { padding: 14px; }
   .kf-blueprint {
     position: relative; width: 100%; aspect-ratio: 568 / 508; border-radius: 10px;
@@ -2340,6 +2365,15 @@
         <input id="join-code" type="text" placeholder="GAME CODE (REQUIRED)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
         <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join game →</button>
         <div class="error-msg" id="join-error"></div>
+        <!-- 260826.5 (dev session 27): the rejoin offer. Hidden unless this
+             browser holds a recent identity — see refreshRejoinOffer(). It
+             exists because the person who most needs to get back into a
+             team is the one who crashed out of it, and by then they have
+             long forgotten the code. Their own browser still knows it. -->
+        <div id="rejoin-offer" style="display:none;">
+          <div id="rejoin-line">Back after a crash?</div>
+          <button type="button" id="btn-rejoin">Rejoin</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2348,7 +2382,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3567,11 +3601,23 @@ const lastKnownInventoryRef = { ingredients: {}, tools: {} };
 
 /* ─── UTILITIES ─────────────────────────────────────────────── */
 function genCode() {
+  /* 26 five-letter words, one per letter of the alphabet — that structure is
+     why they are all distinct and survive being read aloud over Zoom audio.
+     Adding MORE words was considered (dev session 27) and rejected: it means
+     reaching for less obvious words, which get misheard and misspelled in a
+     breakout. 260826.5 widened the space with a THIRD DIGIT instead — one
+     extra character, ten times the space (23,400 rather than 2,340), no new
+     spelling risk, and still inside the join field's 8-character limit.
+     What this buys, precisely: collisions are already handled by the check
+     in createGame(), so the gain is GUESSABILITY. With 15 live teams, a
+     stranger typing random codes lands in somebody's game about once in
+     1,560 tries rather than once in 156. Better, and still not security —
+     that is Phase 1's auth work, not this. */
   const words = ["APPLE","BASIN","CEDAR","DELTA","EMBER","FORGE","GROVE","HAVEN",
                  "IVORY","JUMBO","KARMA","LEMON","MAPLE","NOBLE","OCEAN","PEARL",
                  "QUILL","RIVER","STORM","TORCH","ULTRA","VAPOR","WHEAT","XENON","YEAST","ZESTY"];
   const w = words[Math.floor(Math.random()*words.length)];
-  const n = String(Math.floor(Math.random()*90)+10);
+  const n = String(Math.floor(Math.random()*900)+100);
   return w+n;
 }
 
@@ -3590,6 +3636,10 @@ function toast(msg, type="") {
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-"+id).classList.add("active");
+  // 260826.5: the rejoin offer is re-evaluated on every arrival at the
+  // landing screen, which covers first load, a deliberate exit (identity
+  // already cleared by resetToLanding, so the offer hides) and a disband.
+  if (id === "landing" && typeof refreshRejoinOffer === "function") refreshRejoinOffer();
   // Session 13 (Issue 2): a stranded ghost is parented to <body>, outside
   // every .screen, which is why players saw one persist past the end of a
   // level. Nothing should ever survive a screen change.
@@ -6586,13 +6636,173 @@ setInterval(() => {
 window.addEventListener("resize", renderObserverDashboard);
 
 /* ─── GAME FLOW ─────────────────────────────────────────────── */
+/* ── IDENTITY PERSISTENCE (260826.4, dev session 27) ──────────────────
+   THE FIRST AND ONLY THING THIS PROJECT STORES ON A PLAYER'S DEVICE.
+   Read this before adding anything else to localStorage.
+
+   The problem it solves: myPlayerId was generated fresh on every join, so
+   a player whose browser closed, crashed or reloaded came back as a
+   stranger. Their old record stayed in the team holding whatever tickets
+   and resources it had been dealt, and because tickets are dealt at round
+   start from the players present, those tickets were stranded with a
+   ghost — a team could be left unable to reach its target at all. At one
+   team for a short sitting this was an annoyance; at 10-15 teams for 40-50
+   minutes it is the most likely way a team dies.
+
+   What is stored: a random player id and the name they typed, keyed by
+   team code, with a timestamp. No personal data beyond the name they
+   entered into the game themselves, nothing that identifies a device,
+   nothing sent anywhere — it never leaves the browser. If asked, that is
+   the whole answer.
+
+   Deliberate limits, so nobody expects more than it does:
+   · Same browser on the same machine only. A different computer, or a
+     private window, is still a stranger. It covers accidental close,
+     reload and crash-and-restart, which are the common cases.
+   · It is NOT auto-resume, which remains rejected. The player still types
+     the team code and their name. All this does is hand them back their
+     own record instead of minting a new one.
+   · Two tabs on one machine joining the same team would both be the same
+     player and mirror each other. Odd, not harmful, and it beats the
+     alternative of one of them stranding tickets.
+   · Entries are scoped per team code and pruned after 12 hours, so next
+     week's session can never rejoin you as somebody from this one.
+
+   Every path fails open: private browsing and disabled storage both throw
+   on access, and a throw here must never stop somebody joining a game. */
+const IDENTITY_KEY_PREFIX = "kitchen.player.";
+const IDENTITY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+function identityPrune() {
+  try {
+    const now = Date.now();
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k || k.indexOf(IDENTITY_KEY_PREFIX) !== 0) continue;
+      let rec = null;
+      try { rec = JSON.parse(localStorage.getItem(k)); } catch (e) { rec = null; }
+      if (!rec || !rec.ts || (now - rec.ts) > IDENTITY_MAX_AGE_MS) localStorage.removeItem(k);
+    }
+  } catch (e) { /* storage unavailable — nothing to prune */ }
+}
+
+function rememberMyIdentity() {
+  if (!gameCode || !myPlayerId) return;
+  try {
+    identityPrune();
+    localStorage.setItem(IDENTITY_KEY_PREFIX + gameCode,
+      JSON.stringify({ id: myPlayerId, name: myPlayerName, ts: Date.now() }));
+  } catch (e) { /* fail open: no persistence, old behaviour */ }
+}
+
+function recallMyIdentity(code) {
+  try {
+    const raw = localStorage.getItem(IDENTITY_KEY_PREFIX + code);
+    if (!raw) return null;
+    const rec = JSON.parse(raw);
+    if (!rec || !rec.id || !rec.ts) return null;
+    if (Date.now() - rec.ts > IDENTITY_MAX_AGE_MS) return null;
+    return rec;
+  } catch (e) { return null; }
+}
+
+function forgetMyIdentity(code) {
+  try { if (code) localStorage.removeItem(IDENTITY_KEY_PREFIX + code); }
+  catch (e) { /* fail open */ }
+}
+
+/* 260826.5: the most recent team this browser was in, or null. Used only
+   by the landing page's rejoin offer. Most recent rather than all of them
+   because offering a list would be a menu of past teams on a page whose
+   job is to get somebody into a game — and at an event, "the team I was
+   just in" is the only one anybody wants. */
+function recallMostRecentIdentity() {
+  let best = null;
+  try {
+    identityPrune();
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k.indexOf(IDENTITY_KEY_PREFIX) !== 0) continue;
+      let rec = null;
+      try { rec = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
+      if (!rec || !rec.id || !rec.ts) continue;
+      rec.code = k.slice(IDENTITY_KEY_PREFIX.length);
+      if (!best || rec.ts > best.ts) best = rec;
+    }
+  } catch (e) { return null; }
+  return best;
+}
+
+/* Shows or hides the rejoin offer. Called on every arrival at the landing
+   screen (from showScreen), so it is correct after a deliberate exit —
+   resetToLanding() clears the identity first, and this then hides the
+   offer rather than inviting somebody back into a team they just left. */
+function refreshRejoinOffer() {
+  const wrap = document.getElementById("rejoin-offer");
+  if (!wrap) return;
+  const rec = recallMostRecentIdentity();
+  if (!rec) { wrap.style.display = "none"; return; }
+  document.getElementById("rejoin-line").textContent =
+    "Were you in team " + rec.code + "?";
+  document.getElementById("btn-rejoin").textContent =
+    "Rejoin as " + (rec.name || "yourself");
+  wrap.style.display = "";
+}
+
+/* One tap fills the join fields and runs the ordinary join. Deliberately
+   NOT a separate code path: the returning-player branch already lives in
+   joinGame(), and a second route into a game would be a second thing to
+   keep correct. It is also still not auto-resume — the player chooses. */
+function useRejoinOffer() {
+  const rec = recallMostRecentIdentity();
+  if (!rec) { refreshRejoinOffer(); return; }
+  document.getElementById("join-name").value = rec.name || "";
+  document.getElementById("join-code").value = rec.code;
+  joinGame();
+}
+
 async function createGame(levelType) {
   myPlayerName = document.getElementById("create-name").value.trim();
   if (!myPlayerName) {
     document.getElementById("create-error").textContent = "Please enter your name.";
     return;
   }
-  gameCode   = genCode();
+  /* 260826.4 (dev session 27): game-code collision check. Verified defect —
+     createGame() previously generated a code and set() it straight to
+     games/{code}, overwriting whatever was already there. The code space is
+     2,340 (26 words x two digits) and nothing ever deletes an old game, so
+     at the multi-team event's 10-15 concurrent teams the odds of one team
+     silently landing on another's record were roughly one in twenty.
+     Ask for a code, check it, ask again if taken. Five tries is plenty:
+     even with 100 live games the chance of five consecutive collisions is
+     about one in a hundred million. Read-only, one small get() per attempt,
+     and it works under the Phase 0 rules because reading a single
+     games/{code} is exactly what those rules allow (a read of the games
+     node itself would NOT be allowed, which is why this checks one code at
+     a time rather than fetching the list). Deliberately not a transaction:
+     the residual race is two hosts creating in the same few hundred ms AND
+     drawing the same code, which is vanishingly small next to the bug it
+     replaces, and a transaction here would add a failure mode (contention
+     retry) to the one flow that must never fail in front of a room. */
+  gameCode = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = genCode();
+    let taken = true;
+    try {
+      const probe = await get(ref(db, `games/${candidate}`));
+      taken = probe.exists();
+    } catch (e) {
+      // A read failure is not evidence the code is taken. Fail open rather
+      // than trapping the host on the landing page: the old behaviour (use
+      // the code) is still strictly better than refusing to start.
+      taken = false;
+    }
+    if (!taken) { gameCode = candidate; break; }
+  }
+  if (!gameCode) {
+    document.getElementById("create-error").textContent = "Couldn't get a free team code. Please try again.";
+    return;
+  }
   myPlayerId = genPlayerId();
 
   const lobbyEventName = genEventName();
@@ -6610,6 +6820,7 @@ async function createGame(levelType) {
   };
 
   await set(ref(db, `games/${gameCode}`), gameData);
+  rememberMyIdentity();  // 260826.4: the host's browser is as likely to reload as anyone's
   diagAttachGame();
   enterLobby();
 }
@@ -6633,22 +6844,55 @@ async function joinGame() {
     return;
   }
   const data = snap.val();
-  if (data.status !== "lobby") {
-    document.getElementById("join-error").textContent = "That game has already started.";
-    return;
-  }
-  const playerCount = Object.keys(data.players || {}).length;
-  if (playerCount >= 6) {
-    document.getElementById("join-error").textContent = "Game is full (max 6 players).";
-    return;
+
+  /* 260826.4 (dev session 27): the returning-player branch. See the
+     IDENTITY PERSISTENCE block above createGame() for what is stored and
+     why. A recalled id only counts as a rejoin if that player record is
+     STILL IN THIS GAME — a stale id whose record has gone (a new round
+     redealt, the host disbanded and remade) falls through to a normal
+     fresh join rather than resurrecting a player who no longer exists.
+
+     Two rules that shipped with this and matter more than they look:
+
+     (a) A rejoin is allowed mid-round. The "already started" refusal below
+         is what made a dropout permanent: the one person who most needs to
+         get back in is by definition trying to join a game in progress.
+         enterLobby()'s listener already forwards anyone into enterGame()
+         when status is playing or paused, so the returning player lands
+         back in the round on their own, with their own tickets and
+         resources, restored from Firebase by the normal listeners.
+
+     (b) A rejoin writes ONLY the name. The fresh-join write below sets
+         tasksCompleted: 0 and currentTaskId: "t1"; running that on a
+         returning player would wipe their score and shove them back to
+         their first ticket — a fix that costs the team more than the bug
+         did. Name only, because a returning player may have retyped it. */
+  const recalled = recallMyIdentity(code);
+  const existing = recalled && data.players && data.players[recalled.id] ? recalled.id : null;
+
+  if (!existing) {
+    if (data.status !== "lobby") {
+      document.getElementById("join-error").textContent = "That game has already started.";
+      return;
+    }
+    const playerCount = Object.keys(data.players || {}).length;
+    if (playerCount >= 6) {
+      document.getElementById("join-error").textContent = "Game is full (max 6 players).";
+      return;
+    }
   }
 
   gameCode   = code;
-  myPlayerId = genPlayerId();
+  myPlayerId = existing || genPlayerId();
 
-  await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
-    name: myPlayerName, ready: false, tasksCompleted: 0, currentTaskId: "t1"
-  });
+  if (existing) {
+    await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), { name: myPlayerName });
+  } else {
+    await update(ref(db, `games/${gameCode}/players/${myPlayerId}`), {
+      name: myPlayerName, ready: false, tasksCompleted: 0, currentTaskId: "t1"
+    });
+  }
+  rememberMyIdentity();
   diagAttachGame();
   enterLobby();
 }
@@ -7317,6 +7561,7 @@ function enterGame() {
     if (gameState.activeChallengeId !== kfLastSeenActiveChallengeId) {
       kfLastSeenActiveChallengeId = gameState.activeChallengeId;
       kfSetupChallengeDocListener(gameState.activeChallengeId);
+      kfSyncPauseAvailability();  // 260826.4: pause is unavailable while a fire is live
     }
 
     if (gameState.status === "paused") {
@@ -7416,6 +7661,11 @@ function endGame() {
 // Resets all local state and returns everyone to the landing screen.
 // Called when the host disbands, or when this player clicks "Exit this team".
 function resetToLanding() {
+  // 260826.4: leaving on purpose (Exit this team) or being disbanded ends
+  // the identity too — otherwise rejoining that code later would silently
+  // put you back into a record you chose to walk away from. A crash or a
+  // reload never reaches here, which is exactly the distinction we want.
+  forgetMyIdentity(gameCode);
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
   roundStartInFlight = false;
@@ -7917,10 +8167,57 @@ function isGamePaused() {
   return gameState.status === "paused";
 }
 
+/* 260826.4 (dev session 27): pause is unavailable while a kitchen fire is
+   live, and this is a real fix rather than tidiness.
+
+   VERIFIED, and it surprised us: pause did nothing whatsoever to a running
+   fire. resumeGame() shifts startTime so a huddle costs the team no round
+   time, but the challenge's 90-second deadline is a wall-clock stamp on the
+   challenge doc, and nothing in the fire code consults isGamePaused() — the
+   authority loop keeps simulating, flames keep spreading and being born,
+   and the watchdog keeps counting. So pausing mid-fire produced a team who
+   believed the game was stopped while their fire burned on and, in a long
+   enough huddle, timed out unattended.
+
+   Two ways to fix it: shift the fire's deadline by the paused duration, or
+   refuse the pause. We chose refuse. The fire is 90 seconds; a pause inside
+   it has no purpose a host could explain, and "you can't pause during a
+   fire" is a rule a host with no training and no script can hold in their
+   head, which the alternative is not. It also keeps a single meaning for
+   the paused flag rather than making pause mean two different things
+   depending on what else is on screen.
+
+   Guarding pauseGame() rather than only the buttons is the load-bearing
+   half: it holds for the host's control, the Observer's control, the
+   keyboard path, and anything a later message-driven auto-pause adds. When
+   Block 2 schedules auto-pausing messages, THIS is the guard they will hit,
+   and a message due mid-fire will need to be held the way an Observer note
+   already is (see obsReleaseQueuedPrompts) rather than silently lost. */
+function kfChallengeIsLive() {
+  return !!(gameState && gameState.activeChallengeId);
+}
+
+/* Grays the pause controls while a fire is up, so the refusal is visible
+   before the click rather than after it. Deliberately not the only guard:
+   toasts render at z-index 1000, far below the fire overlay at 9600, so a
+   refusal message during a fire would be invisible — the button state is
+   the whole feedback channel here. */
+function kfSyncPauseAvailability() {
+  const live = kfChallengeIsLive();
+  ["btn-pause", "btn-observer-pause"].forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    if (b.dataset.baseTitle === undefined) b.dataset.baseTitle = b.title || "";
+    b.disabled = live;
+    b.title    = live ? "You can't pause while a kitchen fire is burning" : b.dataset.baseTitle;
+  });
+}
+
 function pauseGame() {
   // 260818.3 (Session 20): the Observer holds pause authority too — the
   // huddle flow is theirs to call. Everything else stays host-only.
   if (!(amHost || amObserver) || gameState.status !== "playing") return;
+  if (kfChallengeIsLive()) return;  // 260826.4: see the block comment above
   clearInterval(timerInterval); timerInterval = null;
   update(ref(db, `games/${gameCode}`), { status: "paused", pausedAt: Date.now() });
 }
@@ -8104,6 +8401,16 @@ const LANDING_ARM_GROUP = [
   { el: document.getElementById("btn-join"),          kind: "button",                      onEnact: () => joinGame() },
 ];
 let armedLandingMember = LANDING_ARM_GROUP[0]; // Level 1 starts armed
+/* 260826.5: the rejoin button is deliberately NOT a member of the arm
+   group above. That group's two-tap arm-then-confirm exists to stop a
+   stray touch starting a game; rejoining is a recovery action for
+   somebody who has already lost time, and making them tap twice to get
+   back into a round in progress would be the wrong trade. */
+document.getElementById("btn-rejoin").addEventListener("click", useRejoinOffer);
+/* First load never routes through showScreen("landing") — the landing
+   screen is already .active in the markup — so the offer needs an explicit
+   first evaluation here. */
+refreshRejoinOffer();
 let lastArmedLevelType = "level1"; // tracks the level specifically — see the Enter-key handler below
 const isTouchDevice = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
@@ -10635,8 +10942,47 @@ function kfEnsureActiveChallengeRunning(id, data) {
   }
 }
 
+/* ── THE STUCK-FIRE ESCAPE HATCH — BUILT 260826.4, REMOVED 260826.5 ───
+   Do not reinstate this without reading why it went, because the case FOR
+   it is superficially convincing and the case against took two people
+   arguing to reach.
+
+   What it was: a host/Observer-only "End this fire" button in the fire's
+   header, appearing 25 seconds in, resolving the challenge through the
+   same path the 90-second watchdog uses.
+
+   Why it was removed, at the owner's direction and with the developer
+   agreeing on reflection:
+
+   1. IT WAS A CHEAT VECTOR, and a leaderboard is coming. The round clock
+      keeps running during a fire — the board says so in as many words.
+      Ending a fire early is therefore not merely psychological relief, it
+      is straightforwardly less time spent not cooking. At a self-
+      facilitating event a team would reasonably conclude "this is what
+      you're supposed to press", and a faster time would follow.
+
+   2. THE PROBLEM IT SOLVED HAD ALREADY BEEN SOLVED, ninety minutes
+      earlier, by identity persistence in this same session. The scenario
+      that justified it was: the host's browser dies, so the timeout
+      watchdog (host-gated) never fires, and the team is trapped in a fire
+      with no exit at all. That was true before 260826.4. It is not true
+      now — a host who reloads recovers their identity, is host again, and
+      their watchdog resumes. What remains is a host who is gone for good,
+      and that team has no End game either, so it needs a human regardless.
+
+   3. The 90-second timeout IS the escape hatch. Owner testing across many
+      rounds: teams that time out still report feeling they were doing
+      something. A visible exit changes that from a challenge into a
+      choice.
+
+   If it is ever revived, the agreed shape is a TIME-NEUTRAL penalty —
+   ending at second 30 costs the 60 seconds you would have waited anyway —
+   and NOT a flat 90-second charge, which punishes a team for a fault that
+   isn't theirs and would feel unjust in a debrief. */
+
 function kfTeardownChallengeUI() {
   document.getElementById('kf-overlay').classList.remove('active');
+  kfSyncPauseAvailability();  // 260826.4: pause becomes available again
   if (kf.loopHandle) { cancelAnimationFrame(kf.loopHandle); kf.loopHandle = null; }
   if (kfFlushInterval) { clearInterval(kfFlushInterval); kfFlushInterval = null; }
   kfDetachParticipantSync();
