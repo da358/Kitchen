@@ -2009,8 +2009,43 @@
     font-size: 14.5px; line-height: 1.52;
     color: var(--accent-2);
   }
+  /* The auto-lettered question list (260827.1). Same copper voice as the
+     quote above, because it is the same thing — words the Observer says
+     out loud — and it must be recognisable as the SAME block when a
+     player sees it in their own message. One rule down the whole group
+     rather than one per row: the three questions are a single spoken
+     passage, not three separate asides. The letter itself is upright and
+     not italic so it stays legible as a label somebody says aloud
+     ("question B"), while the question text keeps the quote's italic
+     serif. */
+  .obs-letters {
+    margin: 0 0 12px; padding: 8px 0 8px 15px;
+    border-left: 3px solid var(--accent);
+  }
+  .obs-letter { display: flex; gap: 10px; margin: 0 0 9px; }
+  .obs-letter:last-child { margin-bottom: 0; }
+  .obs-letter-l {
+    flex: 0 0 auto; min-width: 15px;
+    font-family: var(--font);
+    font-weight: 700; font-style: normal;
+    font-size: 13px; line-height: 1.52;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .obs-letter-t {
+    flex: 1 1 auto;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14.5px; line-height: 1.52;
+    color: var(--accent-2);
+  }
   #obs-panel-foot {
     padding: 12px 22px 18px;
+    /* 260827.4: the countdown moved out of here into the head, so the foot
+       holds the minimize button alone. Laid out in the stylesheet, not
+       inline, so the Session 17 trap cannot bite — an inline display would
+       be erased by any style.display reset. */
+    display: flex; align-items: center; gap: 14px;
     flex: 0 0 auto;
     background: var(--bg);
     border-top: 1px solid var(--surface);
@@ -2019,7 +2054,36 @@
        facilitator's script is a real failure, not a cosmetic one. */
     box-shadow: 0 -11px 13px -9px rgba(43,36,28,0.22);
   }
+  /* The countdown (260827.2, moved to the head and enlarged 260827.4).
+     Tabular figures so the number does not jitter as it ticks — on a
+     deadline several people are watching at once, a number that shifts
+     sideways every second reads as broken. Big, because the owner's
+     requirement is that it be noticeable, and because in a Zoom breakout
+     this is being seen at arm's length or further.
+
+     At zero the SAME element carries the time's-up sentence instead of a
+     number, so it drops to sentence size and gets a width to wrap in. */
+  #obs-countdown {
+    flex: 0 0 auto; margin-top: 2px; text-align: right;
+    font: 700 30px var(--font);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.05;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+  }
+  #obs-countdown.is-up {
+    max-width: 168px;
+    font-size: 13px; font-weight: 600; line-height: 1.35;
+    letter-spacing: 0.01em;
+    color: var(--text-2);
+  }
+  #obs-countdown:empty { display: none; }   /* no gap for a message with no countdown */
   #obs-minimize-btn {
+    /* 260827.3: the time's-up sentence sits opposite this button and was
+       squeezing it onto two lines. The button is a fixed label, so it keeps
+       its width and the sentence wraps instead. */
+    flex: 0 0 auto;
+    white-space: nowrap;
     font: 600 12.5px var(--font);
     padding: 10px 16px;
     border-radius: 8px;
@@ -2392,7 +2456,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.4 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2675,6 +2739,11 @@
       <p class="obs-eyebrow" id="obs-panel-eyebrow">Observer note</p>
       <h3 id="obs-panel-title"></h3>
     </div>
+    <!-- 260827.4: the countdown belongs at the TOP of the message and has
+         to be big enough to notice across a room (owner's feature list).
+         It sat in the footer at 15px in 260827.3. Same element id, so every
+         reader of it is unchanged. -->
+    <span id="obs-countdown"></span>
     <span id="obs-panel-grip" aria-hidden="true">⠿</span>
   </div>
   <div id="obs-panel-body"></div>
@@ -2682,7 +2751,7 @@
     <button type="button" id="obs-minimize-btn">Minimize this message for now</button>
   </div>
 </div>
-<div id="obs-chip" role="button" tabindex="0" aria-label="Reopen observer note">
+<div id="obs-chip" role="button" tabindex="0" aria-label="Reopen this message">
   <span id="obs-chip-caret" aria-hidden="true">▸</span>
   <span id="obs-chip-label"></span>
   <span id="obs-chip-hint">Open</span>
@@ -3126,6 +3195,25 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
                SPECIFIC audience wins and the other queues. Specificity
                order, narrowest first: observer, host, non-hosts,
                players, everyone.
+     group   — OPTIONAL. Ties several messages together as one event, so
+               that one auto-pause can deliver a different message to each
+               audience. Messages 4 and 5 share group "l2-huddle": the
+               host's browser writes one pause carrying the group, and each
+               client shows the message in that group for its OWN audience.
+               Exactly ONE entry in a group may carry `pause: true`, or two
+               browsers would race to write the pause.
+     pause   — OPTIONAL, default false. When true, this message's trigger
+               ALSO pauses play. The host's browser alone writes it. Added
+               dev session 30.
+     countdown — OPTIONAL. { seconds, from, timesUpText }. `from` is
+               "pause" (counts from the recorded pause moment) or
+               "roundEnd" (counts from when the round ended). Both stamps
+               already exist and are already shared, so a countdown needs
+               NO new field and NO new writer, and somebody arriving late
+               correctly sees less time left. At zero the countdown is
+               replaced by timesUpText and a minimized message re-opens
+               itself, because zero is exactly when people should be
+               looking at the full message.
      trigger — { type: "elapsed", minutes: N }  N minutes into the round
                  on the shared clock. Because resumeGame() shifts
                  startTime forward, elapsed already excludes paused time
@@ -3141,6 +3229,17 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
                  { type: "para",  text } — an unnumbered paragraph.
                  { type: "quote", text } — something the Observer reads
                    ALOUD. Rendered in copper italic serif behind a rule.
+                 { type: "letters", items: […] } — a list AUTO-LETTERED
+                   A, B, C by the renderer, styled as the quote. Added
+                   dev session 30 so the three huddle questions carry the
+                   same labels in the Observer's message and the players'
+                   message; a participant can then say "on question B" and
+                   everyone is looking at the same thing. The renderer
+                   owns the letters for the same reason it owns the step
+                   numbers — no reorder or edit can produce "A. B. B.".
+                   A letters block is NOT a step, so step numbering
+                   continues correctly around it: step, letters, step,
+                   step renders as 1, A/B/C, 2, 3.
                A plain `body:` string is still accepted and rendered as a
                single paragraph, so a simple note needs no blocks at all.
 
@@ -3155,32 +3254,148 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
    OWNER-EDITED CONTENT. Timings and copy are the facilitator's, not the
    code's — change them here.                                          */
 const LOCAL_SESSION_SETTINGS = {
+
+  /* ── levelRules ──────────────────────────────────────────────────────
+     Per-level rules about how a round may start. Read through
+     getSessionSettings() like everything else in this block.
+
+     requireObserver — when true, the level cannot start until somebody
+       has claimed the Observer role. When false (or absent), the level
+       starts without one and the lobby says so, which is the behaviour of
+       every build up to and including 260826.7.
+
+     ***THIS IS A SETTING, NOT A RULE OF THE GAME.*** Owner direction, dev
+     session 30: the session creation tool should let an administrator
+     choose, per level, whether an Observer is required or optional. It is
+     hardwired true for Level 2 here because the upcoming workshop wants
+     it required, and hand-editing this block IS the right sequencing
+     until the admin tool exists. When that tool arrives, this object is
+     what it writes, and no display code changes.
+
+     Why it is worth having at all: a Level 2 round with no Observer has
+     nobody to run the mid-round huddle, which is the level's whole
+     educational point. See also the third state of the host's pause modal
+     (applyPausedState), which is DELIBERATELY KEPT as a safety net —
+     requiring an Observer at the start does not guarantee one is still
+     connected at 4:30. */
+  levelRules: {
+    level1: { requireObserver: false },
+    level2: { requireObserver: true },
+    level3: { requireObserver: false }
+  },
+
   messages: [
+    /* ── MESSAGE 4 of the run of show — the Observer's huddle script ──
+       Replaces obs-l2-huddle-5min (dev session 30). Four things changed,
+       all of them settled decisions rather than edits of taste:
+
+       · 4:30, not 5:00, and two and a half minutes, not 3 (dev session
+         28). The copy reads "two and a half minutes" rather than "2.5
+         minutes", which reads like a spreadsheet (owner, dev session 29).
+       · The Observer is no longer told to press Pause. The game pauses
+         itself and the pause is the signal that carries both huddle
+         messages — so step 1 describes what has already happened.
+       · The three STOP-START-CONTINUE questions moved out of the spoken
+         quote into a "letters" block, so they carry the SAME A/B/C labels
+         here and in message 5. A participant can say "on question B" and
+         everybody is looking at the same thing. That is the point of the
+         structure and it should not be quietly simplified away.
+       · "restart the game" became "resume the game" — "restart" reads
+         like starting over.
+
+       The id changed with the content, which re-arms the once-per-round
+       guard by design (the guard is keyed roundInstanceId::id).
+
+       pause and countdown are read by the auto-pause engine. They are
+       declared here in 260827.1 and honoured from 260827.2 — data ahead
+       of code, deliberately, so the entry is complete and reviewable
+       before the writer that acts on it exists. In 260827.1 this message
+       still fires on the Observer's own clock and nothing pauses. */
     {
-      id: "obs-l2-huddle-5min",
+      id: "l2-huddle-observer",
       level: "level2",
       audience: "observer",
-      trigger: { type: "elapsed", minutes: 5 },
+      group: "l2-huddle",          // pairs this with message 5 — see `group` above
+      trigger: { type: "elapsed", minutes: 4.5 },
+      pause: true,                 // the ONE entry in this group that writes the pause
+      /* The owner's paste gave this line twice, once as "click above to
+         resume game" and once as "click above to resume the game". "the
+         game" is used in both places here, and in message 5's line below,
+         so the three read alike. */
+      countdown: { seconds: 150, from: "pause",
+                   timesUpText: "Time’s up. Click above to resume the game." },
       title: "Mid-round huddle",
       blocks: [
-        { type: "step", text: "It’s about time to pause play for a mid-round huddle. "
-                            + "Click the PAUSE button on the top menu bar to pause the game." },
-        { type: "step", text: "When you pause the game, start a 3 minute timer and say:" },
-        { type: "quote", text: "“We’re pausing the game for 3 minutes to do a quick team huddle. "
-                             + "Our goal is to see if we can improve our coordination. We’ll do a "
-                             + "quick STOP-START-CONTINUE discussion. Is there anything the team "
-                             + "should STOP doing, something that’s not helpful? Is there something "
-                             + "the team should START doing, something that would help? Is there "
-                             + "anything that’s working that the team should CONTINUE doing, "
-                             + "something that’s already helpful?”" },
+        { type: "step", text: "We’re pausing the game for two and a half minutes to do a quick "
+                            + "team huddle. You’ll lead the team through a STOP-START-CONTINUE "
+                            + "discussion to see if the team can improve coordination." },
+        { type: "letters", items: [
+            "Is there anything the team should STOP doing, something that’s not helpful?",
+            "Is there something the team should START doing, something that would help?",
+            "Is there anything that’s working that the team should CONTINUE doing, "
+              + "something that’s already helpful?"
+        ] },
         { type: "step", text: "Try to get some quick response from each person. Not every person "
                             + "needs to talk about all three things (a stop, start, or continue). "
                             + "They could talk just about one." },
         { type: "step", text: "Add your own observations. What do you think they should stop, start, "
                             + "or continue? Try to align the team on at least one specific change to "
                             + "try (one START or one STOP)." },
-        { type: "step", text: "When your 3 minute timer runs out, or the discussion ends, "
-                            + "click the RESUME button on the top menu bar to restart the game." }
+        { type: "step", text: "When the timer runs out, click above to resume the game." }
+      ]
+    },
+    /* ── MESSAGE 5 of the run of show — what the players and the host see
+       during the huddle (260827.2, dev session 30).
+
+       audience "players" means every non-Observer, WHICH INCLUDES THE
+       HOST: in Level 2 the host is a cook, and they are meant to take part
+       in the huddle like anybody else. That is also why the host's pause
+       modal parks at the top of the screen during a message pause — the
+       modal is z-index 9700 against the panel's 9660 and would otherwise
+       bury this message for the one person most likely to press Resume.
+
+       Same `group` as message 4, so the two are the two halves of one
+       huddle: the host's browser writes ONE pause carrying that group, and
+       every client then picks the message in the group that belongs to its
+       own audience. No client runs its own clock, so no two screens can
+       disagree about when the huddle started.
+
+       The A/B/C questions are WORD-FOR-WORD message 4's. That is the whole
+       point of the letters block: a participant says "on question B" and
+       everybody is looking at the same thing. If one copy is edited, edit
+       both.
+
+       This entry has NO `pause: true` — exactly one entry per group may
+       write the pause, or two writes would race. */
+    {
+      id: "l2-huddle-players",
+      level: "level2",
+      audience: "players",
+      group: "l2-huddle",
+      trigger: { type: "elapsed", minutes: 4.5 },
+      /* THE OWNER'S PASTE SAID "The Observer will restart the game" HERE.
+         That is the pre-dev-session-28 wording: "restart" was rejected for
+         reading like starting the level over, and dev session 29 recorded
+         this exact line as the one agreed fix never applied. Message 4 in
+         the same paste says "resume". Resolved to "resume" — raise it with
+         the owner if they meant the older wording deliberately. */
+      countdown: { seconds: 150, from: "pause",
+                   timesUpText: "Time’s up. Your Observer will resume the game." },
+      title: "Team huddle",
+      blocks: [
+        { type: "step", text: "We’re pausing the game for two and a half minutes. Your Observer "
+                            + "will lead you through a STOP-START-CONTINUE discussion to see if you "
+                            + "can improve coordination." },
+        /* WORD FOR WORD message 4's questions, including the trailing
+           clause on C. The build script asserts all three appear twice in
+           this file, because a participant saying "on question B" is the
+           entire point of the shared labels. */
+        { type: "letters", items: [
+            "Is there anything the team should STOP doing, something that’s not helpful?",
+            "Is there something the team should START doing, something that would help?",
+            "Is there anything that’s working that the team should CONTINUE doing, "
+              + "something that’s already helpful?"
+        ] }
       ]
     }
     // A challenge-triggered note looks like the entry below. Left
@@ -3208,6 +3423,20 @@ const LOCAL_SESSION_SETTINGS = {
    code, falling back to these defaults, once sessions exist. */
 function getSessionSettings() {
   return LOCAL_SESSION_SETTINGS;
+}
+
+/* Does this level need an Observer before it can start? (260827.1, dev
+   session 30.) Reads the levelRules block through the same seam as
+   everything else, and defaults to FALSE for an unknown level or a
+   settings source that returns nothing — a missing setting must never be
+   the thing that stops a team starting a round.
+
+   One caller only, on purpose: lobbyCanStart. hostStartRound() re-checks
+   that same value, so gating it there covers the button AND the handler,
+   the same shape as guarding pauseGame() rather than the pause buttons. */
+function levelRequiresObserver(levelType) {
+  const rules = getSessionSettings()?.levelRules;
+  return !!(rules && rules[levelType] && rules[levelType].requireObserver);
 }
 
 /* ─── FIREBASE CONFIG ──────────────────────────────────────────
@@ -5869,6 +6098,11 @@ function startTimer(startTime) {
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
     timerEl.textContent = `${m}:${s.toString().padStart(2,"0")}`;
+    // 260827.2: the host's auto-pause check rides this tick. Self-guarded,
+    // so it is a no-op on every other client. This interval is CLEARED
+    // while paused, which is fine — the writer only ever acts on a round
+    // that is playing.
+    msgCheckAutoPause();
   }, 500);
 }
 
@@ -6419,6 +6653,223 @@ function msgSpecificity(m) {
   return i < 0 ? MSG_AUDIENCES.length : i;
 }
 
+/* ═══ THE AUTO-PAUSE ENGINE (260827.2, dev session 30) ══════════════════
+   Seven of the nine messages in the run of show fire on arriving at a
+   screen; two — messages 4 and 5 — fire partway through Level 2 and pause
+   play while the team huddles. This block is that second kind.
+
+   THE SHAPE, AND WHY IT IS THIS SHAPE. The host's browser alone writes the
+   pause, together with a field saying why it paused and which message
+   event it was. Every other browser is already listening to that record,
+   and shows its own message on SEEING the pause rather than on its own
+   clock. That buys three things in one move:
+     · the pause genuinely lands before the messages, which is what the
+       owner asked for;
+     · every screen shows its message at the same moment, with no shared
+       timer to build and no clocks to keep in step;
+     · one writer, which is the standing decision — ten browsers each
+       running their own timer would fight over the paused flag.
+   A consequence worth knowing: the Observer's own message also arrives on
+   seeing the pause, a fraction of a second after it, NOT on the Observer's
+   clock. That is deliberate. It also removes a race, because the Observer's
+   clock would otherwise reach 4:30 at almost the same instant.
+
+   COUNTDOWNS RIDE STAMPS THAT ALREADY EXIST. The huddle deadline is the
+   recorded pause moment plus two and a half minutes; a debrief countdown
+   runs from when the round ended. Both are already written once and shared,
+   so there is no new deadline field and no second writer, and somebody
+   arriving late correctly sees less time remaining rather than a fresh
+   two and a half minutes.
+
+   WHAT IS NOT HERE YET: the screen-arrival trigger type, and the other
+   seven messages. This block deliberately covers only the pausing pair. */
+
+/* Elapsed PLAY time in seconds, or null if the round has not started.
+   While paused it returns the elapsed time as at the moment of the pause,
+   which is what makes a message due "during" a huddle evaluate sensibly.
+   Pause-correctness across a whole round is free elsewhere because
+   resumeGame() shifts startTime forward. */
+function msgElapsedPlaySec() {
+  if (!gameState || !gameState.startTime) return null;
+  const end = (gameState.status === "paused" && gameState.pausedAt)
+    ? gameState.pausedAt : Date.now();
+  return Math.max(0, Math.floor((end - gameState.startTime) / 1000));
+}
+
+/* All messages for this level, whatever their trigger or audience. */
+function msgAllForLevel(levelType) {
+  const list = getSessionSettings()?.messages;
+  if (!Array.isArray(list)) return [];
+  return list.filter(m => m && m.id && (m.level || "level2") === levelType);
+}
+
+/* Which event a message belongs to. Falls back to its own id, so an entry
+   with no group is simply an event of one. */
+function msgGroupOf(m) { return (m && m.group) || (m && m.id) || null; }
+
+/* Does any message in this event pause play? If so, every message in the
+   event is delivered by the pause rather than by anybody's clock. */
+function msgGroupIsPausing(group) {
+  if (!group) return false;
+  return msgAllForLevel(currentLevel).some(m => m.pause === true && msgGroupOf(m) === group);
+}
+
+/* ── the writer ──────────────────────────────────────────────────────
+   HOST ONLY, and that is the whole point. Called from the round tick and
+   from the game listener, the same poll-plus-listener pairing the natural
+   challenge trigger uses: the listener keeps it responsive when data is
+   moving, the tick catches an already-elapsed trigger during a quiet
+   stretch when nothing else is writing. */
+let msgPauseWritten = new Set();   // `${roundInstanceId}::${group}`
+
+function msgCheckAutoPause() {
+  if (!amHost) return;                                  // ONE writer, ever
+  if (!gameState || gameState.status !== "playing") return;
+  const roundId = currentRoundInstanceId || gameState.roundInstanceId;
+  if (!roundId) return;
+  const elapsed = msgElapsedPlaySec();
+  if (elapsed === null) return;
+  const due = msgAllForLevel(currentLevel)
+    .filter(m => m.pause === true
+              && m.trigger?.type === "elapsed"
+              && Number.isFinite(m.trigger.minutes)
+              && elapsed >= m.trigger.minutes * 60
+              && !msgPauseWritten.has(`${roundId}::${msgGroupOf(m)}`))
+    .sort((a, b) => a.trigger.minutes - b.trigger.minutes);
+  if (!due.length) return;
+  /* A fire is live, so pauseGame() would refuse (260826.4). Return WITHOUT
+     marking it written, so the next tick tries again and the huddle is
+     merely late rather than silently lost. This is the "held rather than
+     lost" case the pause guard's comment anticipated. */
+  if (kfChallengeIsLive()) return;
+  const m = due[0];
+  msgPauseWritten.add(`${roundId}::${msgGroupOf(m)}`);
+  pauseGame({ reason: "message", group: msgGroupOf(m) });
+}
+
+/* ── delivery: every client, on SEEING the pause ─────────────────────
+   Runs on every client from the game listener's paused branch. Picks the
+   one message in the paused event that belongs to THIS client's audience,
+   narrowest audience first if somehow several match. */
+function msgOnPauseSeen() {
+  if (!msgPauseIsMessageDriven()) return;
+  const roundId = currentRoundInstanceId || gameState.roundInstanceId;
+  if (!roundId) return;
+  const group = gameState.pauseGroup || null;
+  const mine = msgAllForLevel(currentLevel)
+    .filter(m => msgGroupOf(m) === group && msgIsForMe(m))
+    .sort((a, b) => msgSpecificity(a) - msgSpecificity(b));
+  if (!mine.length) return;   // nothing addressed to this client — correct, not an error
+  const m = mine[0];
+  const key = `${roundId}::${m.id}`;
+  if (obsPromptFired.has(key)) return;
+  obsPromptFired.add(key);
+  obsShowOrQueuePrompt(m);
+}
+
+/* ── the countdown ───────────────────────────────────────────────────
+   One new interval, and it is the only timer this feature adds. It has to
+   exist: the round tick is CLEARED while the game is paused, and a huddle
+   countdown by definition runs during a pause, so there is no existing
+   tick to ride. Fully guarded — it does nothing at all unless a message
+   with a countdown is currently on screen. */
+function msgCountdownDeadline(m) {
+  const c = m && m.countdown;
+  if (!c || !Number.isFinite(c.seconds)) return null;
+  if (c.from === "pause") {
+    if (!gameState || !gameState.pausedAt) return null;
+    return gameState.pausedAt + c.seconds * 1000;
+  }
+  if (c.from === "roundEnd") {
+    if (!gameState || !gameState.endedAt) return null;
+    return gameState.endedAt + c.seconds * 1000;
+  }
+  return null;
+}
+
+function msgFormatRemaining(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function msgRenderCountdown() {
+  const out  = document.getElementById("obs-countdown");
+  const hint = document.getElementById("obs-chip-hint");
+  const m = obsPromptOpen;
+  const deadline = msgCountdownDeadline(m);
+  if (!m || deadline === null) {
+    if (out) { out.textContent = ""; out.classList.remove("is-up"); }
+    if (hint) hint.textContent = "Open";
+    return;
+  }
+  const left = deadline - Date.now();
+  const up   = left <= 0;
+  if (out) {
+    out.textContent = up
+      ? (m.countdown.timesUpText || "Time’s up.")
+      : msgFormatRemaining(left);
+    out.classList.toggle("is-up", up);
+  }
+  /* The chip's affordance text becomes the running clock. Deliberately no
+     new element: the chip is capped at 232px and a time's-up sentence does
+     not fit it, which is also why zero re-opens the panel instead of
+     trying to say so on the card. */
+  if (hint) hint.textContent = up ? "Open" : msgFormatRemaining(left);
+  /* Auto-expand at zero. Zero is exactly the moment people should be
+     looking at the whole message rather than a chip. */
+  if (up && obsChipEl().classList.contains("open")) obsRestorePanel();
+}
+
+setInterval(() => {
+  // No message open, or the open one has no countdown: nothing to do.
+  if (!obsPromptOpen) return;
+  if (!obsPanelEl().classList.contains("open") && !obsChipEl().classList.contains("open")) return;
+  msgRenderCountdown();
+}, 500);
+
+/* Called from the game listener when play resumes.
+   260827.4, OWNER DIRECTION: a huddle message and its chip DISAPPEAR when
+   play resumes. They have done their job by then, and message 5 is the only
+   message in the run of show that appears on the live game screen — leaving
+   even a chip there is clutter over a kitchen somebody is trying to work in.
+   260827.3 minimized instead, which was a guess and is now superseded.
+
+   This is a deliberate exception to the panel's standing "minimize, never
+   close" rule, and the reason the rule exists does not apply here: that rule
+   protects a reference document the Observer consults while running a
+   huddle, and the huddle is over. Only messages in a PAUSING event are
+   dismissed this way; anything else is left alone. */
+let msgLastSeenStatus = null;   // for the paused -> playing edge below
+
+function msgOnResume() {
+  /* EDGE, not state. The listener's playing branch runs on every snapshot
+     and one action lands as several, so testing "is playing" would ask this
+     question dozens of times a round and let any stray snapshot dismiss a
+     message that had just arrived. Only the transition out of a pause
+     should clear anything. */
+  const wasPaused = msgLastSeenStatus === "paused";
+  msgLastSeenStatus = "playing";
+  if (!wasPaused) return;
+  if (!obsPromptOpen) return;
+  /* Asks about the message's CONFIGURATION, not about the clock.
+     resumeGame() has already cleared pausedAt by the time we get here, and
+     a huddle deadline is derived from pausedAt — so anything reading the
+     live deadline here finds null and does nothing at all. */
+  if (!msgGroupIsPausing(msgGroupOf(obsPromptOpen))) return;
+  const panel = obsPanelEl(), chip = obsChipEl();
+  panel.classList.remove("open", "flying");
+  panel.style.transform = "none";
+  panel.style.opacity   = "1";
+  chip.classList.remove("open", "landing");
+  const hint = document.getElementById("obs-chip-hint");
+  if (hint) hint.textContent = "Open";
+  const out = document.getElementById("obs-countdown");
+  if (out) { out.textContent = ""; out.classList.remove("is-up"); }
+  obsPromptOpen = null;
+  // The queue is deliberately NOT cleared: a message held behind this one
+  // has not been shown yet and still deserves its turn.
+}
+
 /* Called from the Observer clock interval with elapsed seconds, so it
    inherits that interval's guards rather than repeating them. */
 function obsCheckPrompts(elapsedSec) {
@@ -6428,6 +6879,12 @@ function obsCheckPrompts(elapsedSec) {
   const due = obsPromptsFor(currentLevel, "elapsed")
     .filter(p => Number.isFinite(p.trigger.minutes)
               && elapsedSec >= p.trigger.minutes * 60
+              /* 260827.2: a message in a PAUSING event is delivered by the
+                 pause itself (msgOnPauseSeen), not by this clock. Without
+                 this skip the Observer would race their own huddle message
+                 against the pause and could see it a moment BEFORE play
+                 stopped, which is the opposite of the intended order. */
+              && !msgGroupIsPausing(msgGroupOf(p))
               && !obsPromptFired.has(`${roundId}::${p.id}`))
     .sort((a, b) => a.trigger.minutes - b.trigger.minutes);
   for (const p of due) {
@@ -6468,7 +6925,8 @@ function obsShowOrQueuePrompt(p) {
 /* ── content rendering ───────────────────────────────────────────────
    Builds DOM nodes rather than assigning innerHTML, so nothing in a
    session's message content can ever be interpreted as markup. Steps
-   are numbered here, from their order in the list. */
+   are numbered here, and letters lettered here, from their order in the
+   list — never by the author. */
 function obsRenderBlocks(prompt) {
   const body = document.getElementById("obs-panel-body");
   body.textContent = "";
@@ -6477,7 +6935,13 @@ function obsRenderBlocks(prompt) {
     : (prompt.body ? [{ type: "para", text: prompt.body }] : []);
   let n = 0;
   for (const b of blocks) {
-    if (!b || !b.text) continue;
+    /* 260827.1: the guard has to admit a block whose content is not a
+       `text` string. A letters block carries `items`, and the original
+       `!b.text` test dropped it silently — the steps still numbered
+       correctly around a block that never rendered. Any future block type
+       must be added here as well as to the branches below. */
+    if (!b) continue;
+    if (!b.text && !Array.isArray(b.items)) continue;
     if (b.type === "step") {
       n += 1;
       const row = document.createElement("div"); row.className = "obs-step";
@@ -6487,6 +6951,26 @@ function obsRenderBlocks(prompt) {
     } else if (b.type === "quote") {
       const q = document.createElement("p"); q.className = "obs-quote"; q.textContent = b.text;
       body.appendChild(q);
+    } else if (b.type === "letters") {
+      /* 260827.1: the fourth block type. Auto-lettered A, B, C by the
+         renderer, on exactly the principle the steps use — an author
+         reordering or inserting an item cannot produce "A. B. B.".
+         Deliberately does NOT touch `n`: a letters block is not a step,
+         so the step numbering continues correctly around it.
+         Beyond 26 items the letters would run off the alphabet, which is
+         not a real case for a spoken question list; it wraps rather than
+         producing junk, and never throws. */
+      const wrap = document.createElement("div"); wrap.className = "obs-letters";
+      const items = Array.isArray(b.items) ? b.items.filter(t => t) : [];
+      items.forEach((t, i) => {
+        const row = document.createElement("div"); row.className = "obs-letter";
+        const lab = document.createElement("span"); lab.className = "obs-letter-l";
+        lab.textContent = String.fromCharCode(65 + (i % 26)) + ".";
+        const txt = document.createElement("div"); txt.className = "obs-letter-t";
+        txt.textContent = t;
+        row.appendChild(lab); row.appendChild(txt); wrap.appendChild(row);
+      });
+      if (items.length) body.appendChild(wrap);
     } else {
       const p = document.createElement("p"); p.className = "obs-para"; p.textContent = b.text;
       body.appendChild(p);
@@ -6498,11 +6982,27 @@ function obsRenderBlocks(prompt) {
 /* ── open / minimize / restore ───────────────────────────────────────
    Visibility is class-toggled, never style.display = "" — the Session 17
    ELAPSED trap (an empty string strips the stylesheet's flex display). */
+/* 260827.3: the eyebrow follows the AUDIENCE. It was the fixed string
+   "Observer note", which was true while this panel served nobody else and
+   became wrong the moment message 5 started reaching cooks — a player was
+   being shown their own huddle message labelled as somebody else's note.
+   Caught in a screenshot, not by any assertion.
+
+   Derived rather than authored, so no message can be mislabelled by an
+   editing mistake; a message may still override it with an `eyebrow` field
+   if a future one wants its own word. */
+function msgEyebrowFor(m) {
+  if (m && m.eyebrow) return m.eyebrow;
+  return msgAudienceOf(m) === "observer" ? "Observer note" : "Team message";
+}
+
 function obsOpenPanel(prompt) {
   obsPromptOpen = prompt;
   const panel = obsPanelEl(), chip = obsChipEl();
+  const eyebrowEl = document.getElementById("obs-panel-eyebrow");
+  if (eyebrowEl) eyebrowEl.textContent = msgEyebrowFor(prompt);
   document.getElementById("obs-panel-title").textContent = prompt.title || "";
-  document.getElementById("obs-chip-label").textContent  = prompt.title || "Observer note";
+  document.getElementById("obs-chip-label").textContent  = prompt.title || "Message";
   obsRenderBlocks(prompt);
   chip.classList.remove("open");
   panel.classList.remove("flying");
@@ -6637,9 +7137,12 @@ function obsMakeDraggable(el, handle, opts = {}) {
 
 /* ── release valves and teardown ─────────────────────────────────────*/
 
-/* Called from kfTeardownChallengeUI(): the held notes' release valve. */
+/* Called from kfTeardownChallengeUI(): the held notes' release valve.
+   260827.2: no longer Observer-only. Messages now reach players and the
+   host as well, and a player's message held behind a fire has to be
+   released by the same valve or it would be stranded. */
 function obsReleaseQueuedPrompts() {
-  if (!amObserver || !obsPromptQueue.length) return;
+  if (!obsPromptQueue.length) return;
   if (obsPanelEl().classList.contains("open")) return;   // still reading the last one
   obsOpenPanel(obsPromptQueue.shift());
 }
@@ -6659,15 +7162,32 @@ function obsPromptsDismissQuietly() {
   obsPromptQueue = [];
 }
 
-/* The pause modal is centred and the panel's default sits below it, but
-   only one client can ever see both: an Observer who is also the host
-   (applyPausedState shows the modal on amHost only). For that client the
-   modal is moved to the top of the screen, so the two stack rather than
-   overlap. Untouched for every other host — a plain host has no panel. */
+/* The pause modal is centred, and the panel's default resting place sits
+   below it. Two clients can now see both at once, so both get the modal
+   parked at the top of the screen where the two stack instead of overlap:
+
+     · an Observer who is also the host (dev session 26, the original case
+       — applyPausedState shows the modal on amHost only);
+     · 260827.2: ANY host during a message-driven pause. In Level 2 the
+       host is a cook and receives message 5 like every other player, and
+       the modal outranks the panel (z-index 9700 against 9660), so without
+       this the message would be buried for the one person most likely to
+       press Resume. Hiding the modal instead was rejected: it would take
+       the host's own Resume away, which matters if the Observer's browser
+       dies mid-huddle.
+
+   A manual pause for a plain host is left exactly where it was, and is
+   actively restored to centre in case a message pause moved it earlier in
+   the same round. */
 function obsPositionPauseModalForObserver() {
-  if (!amObserver) return;
   const m = document.getElementById("pause-modal");
   if (!m) return;
+  if (!amObserver && !msgPauseIsMessageDriven()) {
+    m.style.top = "50%";
+    m.style.left = "50%";
+    m.style.transform = "translate(-50%, -50%)";
+    return;
+  }
   m.style.top = "56px";
   m.style.left = "50%";
   m.style.transform = "translateX(-50%)";
@@ -6707,13 +7227,26 @@ setInterval(() => {
   const el = document.getElementById("obs-clock");
   if (!el || !gameState) return;
   if (!gameState.startTime) { el.textContent = "0:00"; return; }
-  if (gameState.status !== "playing") return;   // freeze the display during a pause
-  const elapsed = Math.max(0, Math.floor((Date.now() - gameState.startTime) / 1000));
-  el.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
-  // 260826.1: the scheduled-prompt check rides this interval on purpose —
-  // no second timer, and it inherits every guard above (screen active,
-  // gameState present, startTime present, status "playing").
-  obsCheckPrompts(elapsed);
+  /* 260827.2 — THE PAUSED-GUARD REVERSAL. This used to return early on any
+     non-playing status, which froze the clock display AND stopped messages
+     being scheduled. Freezing the display is right. Stopping the
+     scheduling is wrong, and the reason is specific: the original note
+     told the Observer to press Pause, so it could not sensibly arrive
+     during a pause — but a player message that has to be READ during the
+     huddle it announces must be able to. Reversed for the player and host
+     audiences by owner decision, dev session 28.
+     The display still freezes; only the scheduling continues. */
+  if (gameState.status === "playing") {
+    const elapsed = Math.max(0, Math.floor((Date.now() - gameState.startTime) / 1000));
+    el.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+    // 260826.1: the scheduled-prompt check rides this interval on purpose —
+    // no second timer, and it inherits the remaining guards above (screen
+    // active, gameState present, startTime present).
+    obsCheckPrompts(elapsed);
+  } else {
+    const paused = msgElapsedPlaySec();
+    if (paused !== null) obsCheckPrompts(paused);
+  }
 }, 500);
 
 window.addEventListener("resize", renderObserverDashboard);
@@ -7060,6 +7593,8 @@ function enterLobby() {
     // role of "observer" WITHOUT the claim is a mid-transition remnant
     // (backing out is a release-then-write, two steps) and renders as
     // unchosen.
+    // 260827.1: whether an Observer is REQUIRED to start is a per-level
+    // setting — see levelRequiresObserver() and lobbyCanStart below.
     const rtLobby        = gameState.pendingLevelType || gameState.levelType || "";
     const isLevel2Lobby  = rtLobby === "level2";
     const obsId          = gameState.observerPlayerId || null;
@@ -7111,10 +7646,20 @@ function enterLobby() {
       const chosen    = entries.filter(([pid, p]) => effRole(pid, p) !== null).length;
       const cookCount = entries.filter(([pid, p]) => effRole(pid, p) === "player").length;
       const everyone  = entries.length >= 2 && chosen === entries.length;
-      lobbyCanStart   = everyone && cookCount >= 2;
+      /* 260827.1: an Observer can be REQUIRED per level (see
+         levelRequiresObserver and the levelRules setting). When required
+         and nobody has claimed the role, the round cannot start — a
+         Level 2 round with no Observer has nobody to run the mid-round
+         huddle, which is the level's whole point. When not required the
+         old behaviour is unchanged, including its copy. */
+      const needObs   = levelRequiresObserver(rtLobby);
+      const obsMissing = needObs && !obsId;
+      lobbyCanStart   = everyone && cookCount >= 2 && !obsMissing;
       statusText = entries.length < 2 ? "Waiting for players to join…"
         : !everyone     ? `${chosen} of ${entries.length} have chosen`
         : cookCount < 2 ? "Need at least two Players to start"
+        : obsMissing    ? (isHostInLobby ? "This level needs an Observer — one person should choose that role"
+                                         : "Waiting for someone to be the Observer")
         : obsId         ? (isHostInLobby ? "Everyone's chosen — start when ready"
                                          : "Everyone's chosen — waiting for the host")
                         : (isHostInLobby ? "No Observer this round — start when ready"
@@ -7701,9 +8246,23 @@ function enterGame() {
       kfSyncPauseAvailability();  // 260826.4: pause is unavailable while a fire is live
     }
 
+    // 260827.2: the host's auto-pause writer. Paired with the round tick
+    // for the same reason kfCheckNaturalTrigger is — the listener reacts
+    // promptly whenever data moves, and the tick covers a quiet stretch in
+    // which nothing else writes and an elapsed trigger would otherwise sit
+    // unevaluated. Self-guarded: a no-op on every client but the host.
+    msgCheckAutoPause();
+
     if (gameState.status === "paused") {
       clearInterval(timerInterval); timerInterval = null;
       applyPausedState(true);
+      /* 260827.2: THE PAUSE IS THE SIGNAL. Every client shows its own
+         message here, on seeing the pause, rather than on its own clock.
+         Runs after applyPausedState so the host's modal has already been
+         parked out of the way. Self-guarded and idempotent — the listener
+         fires several times per pause and the fired-once set absorbs it. */
+      msgOnPauseSeen();
+      msgLastSeenStatus = "paused";   // 260827.2: the other half of the edge
       // Session 11 (revised): a mini-game already open when pause hits is the
       // one action entry point a simple guard-on-mutation can't cover — the
       // player could still finish the gesture puzzle and tap Complete.
@@ -7719,6 +8278,7 @@ function enterGame() {
     } else if (gameState.status === "playing") {
       applyPausedState(false);
       setActivityFrozen(false);
+      msgOnResume();   // 260827.2: hand the game screen back, keep the chip
     }
 
     if (gameState.status === "ended") {
@@ -8375,13 +8935,38 @@ function kfSyncPauseAvailability() {
   });
 }
 
-function pauseGame() {
+/* 260827.2: pauseGame takes an optional reason, so that a manual pause and
+   a message-driven one are the same write through the same guards. This is
+   the ONLY place a pause is written.
+
+   opts = { reason: "host" | "message", group: <message group> }
+   Called with nothing at all, it is a manual host pause, which keeps every
+   existing caller correct.
+
+   NOTE ON THE ARGUMENT, and it is a real hazard rather than a nicety: this
+   used to be wired straight to a click listener
+   (addEventListener("click", pauseGame)), which hands the handler a
+   PointerEvent as its first argument. The listener is now wrapped in an
+   arrow function (see the wiring near the bottom of this file) so no DOM
+   event can ever arrive here as `opts`. Any function that grows a first
+   parameter needs its listeners checked for exactly this. */
+function pauseGame(opts) {
   // 260818.3 (Session 20): the Observer holds pause authority too — the
   // huddle flow is theirs to call. Everything else stays host-only.
   if (!(amHost || amObserver) || gameState.status !== "playing") return;
   if (kfChallengeIsLive()) return;  // 260826.4: see the block comment above
+  const reason = (opts && opts.reason) || "host";
+  const group  = (opts && opts.group)  || null;
   clearInterval(timerInterval); timerInterval = null;
-  update(ref(db, `games/${gameCode}`), { status: "paused", pausedAt: Date.now() });
+  update(ref(db, `games/${gameCode}`), {
+    status: "paused", pausedAt: Date.now(),
+    // 260827.2 WIRE FIELDS. pauseReason: "host" for a manual pause,
+    // "message" for one a scheduled message caused. pauseGroup names which
+    // message event it was, so each client can show its own half of it.
+    // Every device must be on this build or later — a client that cannot
+    // read these will show no huddle message at all.
+    pauseReason: reason, pauseGroup: group
+  });
 }
 
 // Session 11: rewritten for the count-up clock. Shifts startTime forward by
@@ -8401,7 +8986,11 @@ function resumeGame() {
   update(ref(db, `games/${gameCode}`), {
     status: "playing",
     startTime: newStartTime || gameState.startTime,
-    pausedAt: null
+    pausedAt: null,
+    // 260827.2: clear the reason with the pause itself, or the NEXT manual
+    // pause would still look message-driven and would hide the host's own
+    // Resume button.
+    pauseReason: null, pauseGroup: null
   });
   document.getElementById("pause-modal").style.display = "none";
   if (newStartTime) startTimer(newStartTime);
@@ -8423,7 +9012,15 @@ function applyPausedState(paused) {
          message pause, Observer here  -> hand-off text, NO Resume
          message pause, no Observer    -> hand-off text, Resume KEPT,
                                           because otherwise nobody can
-                                          restart play at all. */
+                                          restart play at all.
+
+       260827.1: Level 2 now REQUIRES an Observer to start (see
+       levelRequiresObserver), so the third state is no longer the normal
+       path. It is KEPT DELIBERATELY as a safety net, and must not be
+       removed as dead code: requiring an Observer at the start does not
+       guarantee one is still connected at 4:30. If their browser closes
+       mid-round, this branch is the difference between a team that can
+       carry on and a team whose only way out is End game. */
     const msgDriven = paused && msgPauseIsMessageDriven();
     const handOff   = msgDriven && msgRoundHasObserver();
     const titleEl   = document.getElementById("pause-modal-title");
@@ -8432,10 +9029,13 @@ function applyPausedState(paused) {
     if (titleEl) titleEl.textContent = msgDriven
       ? "Play is paused for a team huddle."
       : "Play is paused.";
+    /* 260827.3: "restart" became "resume" in both lines. The owner rejected
+       "restart" in the message copy for reading like starting the level
+       over, and the same word was still here on the modal beside it. */
     if (subEl) subEl.textContent = handOff
-      ? "Your Observer will restart play when the huddle is done."
+      ? "Your Observer will resume play when the huddle is done."
       : msgDriven
-        ? "There's no Observer this round, so restart play yourself when the huddle is done."
+        ? "There's no Observer this round, so resume play yourself when the huddle is done."
         : "Click below to continue.";
     // Explicit display values both ways — never "" against the inline style.
     if (resumeEl) resumeEl.style.display = handOff ? "none" : "inline-block";
@@ -8695,7 +9295,11 @@ document.getElementById("rail-arrow-left").addEventListener("click", () =>
   document.getElementById("rail-scroll").scrollBy({ left: -130, behavior: "smooth" }));
 document.getElementById("rail-arrow-right").addEventListener("click", () =>
   document.getElementById("rail-scroll").scrollBy({ left: 130, behavior: "smooth" }));
-document.getElementById("btn-pause").addEventListener("click", pauseGame);
+/* 260827.2: wrapped, not passed directly. A click listener hands its
+   handler a PointerEvent as the first argument, and pauseGame() now takes
+   an options object there — passing the function bare would have handed it
+   a DOM event to read a reason out of. */
+document.getElementById("btn-pause").addEventListener("click", () => pauseGame());
 // 260817.1 (Session 18): the header "?" re-summons the onboarding tips.
 // Level 2 runs the Level 1 sequence (owner decision — the board is the
 // same and the welcome tip's goal statement applies).
