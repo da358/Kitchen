@@ -1069,23 +1069,33 @@
   }
 
   /* Notification toast */
-  /* 260826.5: the rejoin offer. Deliberately quiet — it is a recovery
-     path, not a call to action, and on a landing page where the two real
-     choices are Create and Join a third loud control would compete with
-     them. Only ever visible to somebody who was actually in a team on this
-     browser in the last 12 hours. */
+  /* 260826.5: the rejoin offer, made PROMINENT in 260826.6 at the owner's
+     direction after live testing — the quiet first version was too easy to
+     miss, and a recovery path nobody notices is not a recovery path. The
+     original reasoning (a third loud control competes with Create and Join)
+     was wrong about the priority: the person looking at this line has
+     already lost time and their team is waiting on them, so being findable
+     in one glance beats visual restraint. Scarlet --danger rather than the
+     copper --accent so it does not read as a third peer of the two CTAs;
+     it reads as an alert. Only ever visible to somebody who was actually in
+     a team on this browser in the last 12 hours. */
   #rejoin-offer {
-    margin-top: 14px; padding-top: 12px;
-    border-top: 1px solid var(--border);
+    margin-top: 16px; padding-top: 14px;
+    border-top: 2px solid var(--danger);
     text-align: center;
   }
-  #rejoin-line { font-size: 12px; color: var(--text-3); margin-bottom: 7px; }
-  #btn-rejoin {
-    background: none; border: 1.5px solid var(--accent-2); color: var(--accent-2);
-    border-radius: 999px; padding: 7px 16px; cursor: pointer;
-    font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.01em;
+  #rejoin-line {
+    font-size: 15px; font-weight: 700; color: var(--danger);
+    margin-bottom: 10px; line-height: 1.3;
   }
-  #btn-rejoin:hover { background: var(--accent-2); color: #fff; }
+  #btn-rejoin {
+    background: var(--danger); border: none; color: #fff;
+    border-radius: 8px; padding: 12px 20px; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 700;
+    letter-spacing: 0.01em; width: 100%;
+    box-shadow: var(--shadow-sm, 0 2px 6px rgba(0,0,0,0.18));
+  }
+  #btn-rejoin:hover { filter: brightness(1.08); }
   #toast-container {
     position: fixed;
     bottom: 20px;
@@ -2382,7 +2392,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260826.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -5537,6 +5547,10 @@ const TIP_PLACEMENTS = {
 let tipSeq = [], tipIdx = -1, tipBusy = false, tipGen = 0;
 let tipListenersWired = false;
 let tipsPendingRoomModal = false;
+/* 260826.6: set by joinGame() when a player rejoins a round already in
+   progress; holds that round's roundInstanceId so the suppression expires
+   on its own at the next round. Never set on a normal join. */
+let suppressTipsForRoundId = null;
 let tipStartRetries = 0;
 
 function tipEls() {
@@ -5774,6 +5788,10 @@ function repositionTipsIfActive() {
    via the re-measure hooks once stubs exist). */
 function maybeStartOnboardingTips() {
   if (currentLevel !== "level1" && currentLevel !== "level3") return;
+  // 260826.6: suppressed for the round a player rejoined into — see the
+  // rejoin branch in joinGame() for why, and why this is keyed to a round
+  // id rather than a flag that would need clearing.
+  if (suppressTipsForRoundId && suppressTipsForRoundId === currentRoundInstanceId) return;
   const overlay = document.getElementById("room-modal-overlay");
   if (overlay && overlay.style.display === "flex") { tipsPendingRoomModal = true; return; }
   if (currentLevel === "level3" && !document.querySelector("#rail-row .stub-wrap")
@@ -6711,6 +6729,35 @@ function forgetMyIdentity(code) {
   catch (e) { /* fail open */ }
 }
 
+/* 260826.6: clear EVERY stored identity, not just the current team's.
+   VERIFIED DEFECT, found by the owner in live testing of 260826.5: after
+   pressing "Exit this team" the rejoin offer was still on the landing page.
+   forgetMyIdentity(gameCode) had cleared the team just left, and the offer
+   was correctly showing a DIFFERENT, older team from earlier in the same
+   testing session — identities are keyed per team code and accumulate for
+   12 hours. Working as written, wrong as experienced. Our own automated
+   test missed it because it only ever created one team; a real testing
+   session creates several, and so will a real event day.
+
+   That same accumulation caused the second half of the report: the owner
+   tapped Rejoin and landed in a fire that had already burned out. The
+   offer had pointed at an abandoned earlier game whose record still held
+   activeChallengeId and whose challenge doc still said "active" — nobody
+   was left running the simulation, so the flames sat frozen. Fixed here at
+   the root (no stale offer to tap) and again defensively at the point of
+   entry (see the stale-challenge guard in kfHandleChallengeUpdate).
+
+   "Exit this team" means I am done, and so does being disbanded. Both run
+   resetToLanding, so both clear the lot. */
+function forgetAllIdentities() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(IDENTITY_KEY_PREFIX) === 0) localStorage.removeItem(k);
+    }
+  } catch (e) { /* fail open */ }
+}
+
 /* 260826.5: the most recent team this browser was in, or null. Used only
    by the landing page's rejoin offer. Most recent rather than all of them
    because offering a list would be a menu of past teams on a page whose
@@ -6869,6 +6916,21 @@ async function joinGame() {
          did. Name only, because a returning player may have retyped it. */
   const recalled = recallMyIdentity(code);
   const existing = recalled && data.players && data.players[recalled.id] ? recalled.id : null;
+
+  /* 260826.6 (owner direction after live testing): a player who rejoins a
+     round already in progress does NOT get the onboarding tips. The tips
+     dim the screen and step through the basics, which is right at the
+     start of a round and wrong for somebody who just crashed out of one
+     and is scrambling back while their team waits.
+
+     Keyed to the round they came back into rather than a boolean, so it
+     expires by itself: the next round has a different roundInstanceId, the
+     comparison stops matching, and tips behave normally again with nothing
+     to remember to reset. The "?" in the header still re-summons them for
+     anyone who does want them. */
+  if (existing && data.status !== "lobby") {
+    suppressTipsForRoundId = data.roundInstanceId || null;
+  }
 
   if (!existing) {
     if (data.status !== "lobby") {
@@ -7665,7 +7727,9 @@ function resetToLanding() {
   // the identity too — otherwise rejoining that code later would silently
   // put you back into a record you chose to walk away from. A crash or a
   // reload never reaches here, which is exactly the distinction we want.
-  forgetMyIdentity(gameCode);
+  // 260826.6: clears ALL stored identities, not just this team's — see
+  // forgetAllIdentities() for the defect that changed this.
+  forgetAllIdentities();
   unsubscribers.forEach(fn => fn());
   unsubscribers = [];
   roundStartInFlight = false;
@@ -9418,6 +9482,38 @@ function kfHandleChallengeUpdate(id, data) {
     kfNonParticipantToastShown = false;
     kfShowLobby(id, data);
   } else if (data.status === "active") {
+    /* 260826.6: STALE-CHALLENGE GUARD. Owner-found in live testing of
+       260826.5: rejoining a team dropped the player straight into a fire
+       that had burned out long before, with the flames sitting frozen.
+
+       Cause: a challenge doc says "active" until somebody writes the
+       resolve, and the only writer is the host's watchdog. If the host
+       leaves, crashes or closes the tab while a fire is up, nothing ever
+       resolves it — the doc stays "active" and the game record keeps
+       pointing at it, indefinitely. Anyone arriving later is handed a dead
+       fire as though it were live.
+
+       The guard: a fire cannot outlive KF_CHALLENGE_TIMEOUT_MS by design,
+       so a doc still claiming to be active past that deadline is stale by
+       definition, whatever it says. Don't show it to anybody, and if this
+       client is the host, write the resolve the departed host never did —
+       which also cleans the record for everyone else. Uses the same
+       outcome and the same resolve path as the watchdog, so no new
+       end-of-challenge behaviour is introduced.
+
+       Belt and braces with the root fix (forgetAllIdentities), because
+       there are other ways to reach an abandoned game: a code typed by
+       hand, or a code written down at the event and rejoined later. */
+    const kfStaleBy = data.startedAt ? (Date.now() - data.startedAt) - KF_CHALLENGE_TIMEOUT_MS : -1;
+    if (kfStaleBy > 0) {
+      kfCloseLobby();
+      kfTeardownChallengeUI();
+      if (amHost) {
+        kfResolveChallenge(id, data, "timeout");
+        setTimeout(() => update(ref(db, `games/${gameCode}`), { activeChallengeId: null }), 1200);
+      }
+      return;
+    }
     kfCloseLobby();
     const amParticipant = (data.participants || []).includes(myPlayerId);
     if (amParticipant) {
