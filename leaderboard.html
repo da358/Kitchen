@@ -7,12 +7,16 @@
 
 <!-- ══════════════════════════════════════════════════════════════════════════
      THE KITCHEN — ADMIN SESSION LEADERBOARD
-     Leaderboard 260828.1 — built dev session 34.
+     Leaderboard 260828.2 — built dev session 34.
+     260828.1 was the first build of this page in the same session; .2 replaced
+     the automatic fit-to-screen with a three-way spacing control and added the
+     Level 1 board on a toggle, both at owner direction.
 
      WHAT THIS IS. A separate, standalone page for the facilitator to put on a
      shared screen. It is NOT part of the game and shares no code with it.
      Type a session code, and it shows that session's Level 2 and Level 3
-     boards as two stacked tables, live-updating, in big type meant to be read
+     boards as stacked tables (Level 2 and Level 3 always, Level 1 on a
+     toggle), live-updating, in big type meant to be read
      across a room.
 
      IT ONLY EVER READS. Deliberately, the Firebase import below brings in
@@ -84,14 +88,25 @@
     --time-size:   clamp(28px, 2.2vw, 44px);   /* the number people compare */
     --detail-size: clamp(15px, 1.0vw, 21px);   /* cooks · tickets · average — the game uses 12px */
     --note-size:   clamp(15px, 0.95vw, 20px);
-    /* FIT-TO-SCREEN SCALE. Measured, not guessed: with 14 teams on each level
-       the page is three screens tall on a 1080 display, so the room sees eight
-       rows of Level 2 and none of Level 3 — which defeats the point of putting
-       it on a wall. Everything sizeable below multiplies by --fit, and the
-       script shrinks it just enough that both boards fit the window. It never
-       goes below FIT_FLOOR: past that the type stops being readable across a
-       room, and an honest scrollbar beats illegible text. */
-    --fit:         1;
+    /* DENSITY. Owner direction, dev session 34 (second pass): three settings
+       the facilitator chooses, rather than a page that measures itself and
+       shrinks. The automatic fit was removed in the same change — with a
+       density control beside it, two things decided the same question and
+       neither was obviously in charge, and the owner is content to scroll the
+       whole page.
+
+       TWO SCALES, NOT ONE, and this is the point of the whole control:
+       SPACE shrinks much faster than TYPE. Going from wide to tight takes the
+       padding to a third but the type only to about three quarters, so a tight
+       page fits far more rows while the numbers are still readable across a
+       room. One scale would have shrunk both together and hit unreadable type
+       long before it fit a 15-team room.
+
+       --pad  scales padding, margins and gaps
+       --type scales every font size
+       Set together by setDensity(); MEDIUM is the opening default. */
+    --pad:         0.62;
+    --type:        0.85;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -103,18 +118,18 @@
     font-size: 16px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    padding: calc(28px * var(--fit)) 28px calc(20px * var(--fit));
+    padding: calc(28px * var(--pad)) 28px calc(20px * var(--pad));
   }
 
   /* ── HEADER AND CONTROLS ─────────────────────────────────────────────── */
   .top {
-    max-width: 1500px; margin: 0 auto calc(24px * var(--fit));
+    max-width: 1500px; margin: 0 auto calc(24px * var(--pad));
     display: flex; align-items: flex-end; justify-content: space-between;
     gap: 24px; flex-wrap: wrap;
   }
   .wordmark h1 {
     font-family: var(--font-display);
-    font-size: calc(40px * var(--fit)); font-weight: normal; letter-spacing: -0.5px;
+    font-size: calc(40px * var(--type)); font-weight: normal; letter-spacing: -0.5px;
     line-height: 1; color: var(--text);
   }
   .wordmark p {
@@ -157,7 +172,7 @@
      room is looking at, and a room comparing times should be comparing
      completions. Turned OFF it becomes a monitoring view: see lbRender(). */
   .filter-row {
-    max-width: 1500px; margin: 0 auto calc(20px * var(--fit));
+    max-width: 1500px; margin: 0 auto calc(20px * var(--pad));
     display: flex; align-items: center; justify-content: space-between;
     gap: 20px; flex-wrap: wrap;
     padding: 12px 16px; background: var(--surface); border: 1px solid var(--border);
@@ -171,6 +186,22 @@
     width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;
   }
   .filter-hint { font-size: 13px; color: var(--text-3); }
+  .density { display: inline-flex; align-items: center; gap: 6px; }
+  .density-label {
+    font-size: 12px; color: var(--text-3); letter-spacing: 0.06em;
+    text-transform: uppercase; margin-right: 2px;
+  }
+  .btn-density {
+    background: none; border: 1px solid var(--border); color: var(--text-2);
+    padding: 6px 12px; font-size: 13px; font-weight: 600; font-family: var(--font);
+    border-radius: var(--radius); cursor: pointer;
+  }
+  .btn-density:hover { border-color: var(--accent); color: var(--accent); }
+  /* The chosen one is filled, not merely outlined: at a glance from a lectern,
+     an outline-versus-outline difference is not readable. */
+  .btn-density.is-on {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
   /* The liveness line. On a screen left up for an hour, the question is
      never "what does it say" but "is it still connected". */
   .status { font-size: 13.5px; color: var(--text-3); letter-spacing: 0.02em; }
@@ -184,7 +215,7 @@
 
   /* ── THE BOARDS ──────────────────────────────────────────────────────── */
   .boards { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column;
-            gap: calc(24px * var(--fit)); }
+            gap: calc(24px * var(--pad)); }
   /* STACKED IS THE DEFAULT — owner direction, dev session 34.
      MEASURED THE SAME SESSION, which is why the side-by-side option exists at
      all: stacked, on a 1920x1080 screen, only FIVE teams per level fit before
@@ -199,17 +230,17 @@
   .board-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: calc(24px * var(--fit)) 28px; box-shadow: var(--shadow);
+    padding: calc(24px * var(--pad)) 28px; box-shadow: var(--shadow);
   }
   .board-card h2 {
     font-family: var(--font-display); font-weight: normal;
-    font-size: calc(28px * var(--fit)); color: var(--text); line-height: 1.1;
+    font-size: calc(28px * var(--type)); color: var(--text); line-height: 1.1;
   }
   .board-head {
     display: flex; align-items: baseline; justify-content: space-between;
-    gap: 16px; flex-wrap: wrap; margin-bottom: calc(18px * var(--fit));
+    gap: 16px; flex-wrap: wrap; margin-bottom: calc(18px * var(--pad));
   }
-  .board-count { font-size: calc(var(--note-size) * var(--fit)); color: var(--text-2); }
+  .board-count { font-size: calc(var(--note-size) * var(--type)); color: var(--text-2); }
 
   /* A header row, which the in-game card deliberately does not have. There,
      one person reads four numbers about their own team on a page they have
@@ -228,8 +259,8 @@
   .lb-head .lb-rank { color: var(--text-3); font-weight: 700; }
   .lb-row {
     display: flex; align-items: baseline; gap: 16px;
-    padding: calc(14px * var(--fit)) 0; border-bottom: 1px solid var(--border);
-    font-size: calc(var(--row-size) * var(--fit));
+    padding: calc(14px * var(--pad)) 0; border-bottom: 1px solid var(--border);
+    font-size: calc(var(--row-size) * var(--type));
   }
   .lb-row:last-child { border-bottom: none; }
   .lb-rank {
@@ -238,11 +269,11 @@
   }
   .lb-name { flex: 1 1 auto; overflow-wrap: anywhere; }
   .lb-tickets {
-    flex: 0 0 auto; font-size: calc(var(--detail-size) * var(--fit)); color: var(--text-3);
+    flex: 0 0 auto; font-size: calc(var(--detail-size) * var(--type)); color: var(--text-3);
     text-align: right;
   }
   .lb-time {
-    flex: 0 0 auto; font-weight: 600; font-size: calc(var(--time-size) * var(--fit));
+    flex: 0 0 auto; font-weight: 600; font-size: calc(var(--time-size) * var(--type));
     font-variant-numeric: tabular-nums; min-width: 110px; text-align: right;
   }
   /* NO "(you)" ROW TINT ON THIS PAGE — owner direction, dev session 34.
@@ -268,12 +299,12 @@
   }
   .lb-early .lb-row .lb-time { font-size: calc(var(--time-size) - 8px); font-weight: 500; }
   .lb-early .lb-rank { color: var(--text-3); font-weight: 500; }
-  .lb-note { margin-top: calc(16px * var(--fit)); font-size: calc(var(--note-size) * var(--fit));
+  .lb-note { margin-top: calc(16px * var(--pad)); font-size: calc(var(--note-size) * var(--type));
              color: var(--text-3); line-height: 1.45; }
   .lb-empty { font-size: 20px; color: var(--text-2); padding: 8px 0; }
 
   #version-line {
-    max-width: 1500px; margin: calc(20px * var(--fit)) auto 0;
+    max-width: 1500px; margin: calc(20px * var(--pad)) auto 0;
     font-size: 11px; color: var(--text-3); letter-spacing: 0.06em;
   }
 
@@ -315,19 +346,34 @@
     Show only completed rounds
   </label>
   <label>
-    <input type="checkbox" id="fit-screen" checked>
-    Fit both boards on screen
+    <input type="checkbox" id="show-level1">
+    Show Level 1
   </label>
   <label>
     <input type="checkbox" id="side-by-side">
     Side by side
   </label>
+  <span class="density">
+    <span class="density-label">Spacing</span>
+    <button type="button" class="btn-density" data-density="wide">Wide</button>
+    <button type="button" class="btn-density" data-density="medium">Medium</button>
+    <button type="button" class="btn-density" data-density="tight">Tight</button>
+  </span>
   <span class="filter-hint" id="filter-hint"></span>
-  <span class="filter-hint" id="fit-note"></span>
   <span class="status" id="status"><span class="dot"></span><span id="status-text">Enter a session code to begin.</span></span>
 </div>
 
 <div class="boards">
+  <!-- Hidden unless the Show Level 1 box is ticked. Owner direction: useful
+       while monitoring, not meaningful to a room being shown results, because
+       Level 1 has no clock and therefore no time to compare. -->
+  <div class="board-card" id="board-level1" style="display:none;">
+    <div class="board-head">
+      <h2>Level 1 — Onboarding</h2>
+      <span class="board-count" id="count-level1"></span>
+    </div>
+    <div id="body-level1"></div>
+  </div>
   <div class="board-card" id="board-level2">
     <div class="board-head">
       <h2>Level 2 — Core game</h2>
@@ -344,7 +390,7 @@
   </div>
 </div>
 
-<p id="version-line">Leaderboard 260828.1 &nbsp;·&nbsp; reads only &nbsp;·&nbsp; © Set Forth LLC</p>
+<p id="version-line">Leaderboard 260828.2 &nbsp;·&nbsp; reads only &nbsp;·&nbsp; © Set Forth LLC</p>
 
 <script type="module">
 import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -562,54 +608,143 @@ function renderBoard(levelType, records, onlyCompleted) {
   body.appendChild(note);
 }
 
-/* ─── FIT TO SCREEN ──────────────────────────────────────────────────────
-   MEASURED, dev session 34: 14 teams on each level makes the page three
-   screens tall at 1920x1080. On a projected screen that means the room sees
-   the top eight rows of Level 2 and nothing of Level 3, which is the opposite
-   of what this page is for.
+/* ─── DENSITY ────────────────────────────────────────────────────────────
+   Replaced the automatic fit-to-screen, dev session 34 (second pass), at
+   owner direction. The page no longer measures itself or shrinks: the
+   facilitator picks a spacing and the page scrolls if it is long.
 
-   So: shrink until it fits. Everything sizeable multiplies by --fit, and this
-   walks --fit down in small steps, re-measuring after each one, until the page
-   fits the window or the floor is reached. A loop rather than one calculation
-   because the type sizes are clamp() values and the row heights are not a
-   straight multiple of the font size, so one division would overshoot.
+   MEASURED at 1920x1080 with 14 teams on each of Levels 2 and 3, stacked —
+   these are the numbers the choice is really between:
+     wide    two boards ≈ 3200px, so about a third of one board on screen
+     medium  two boards ≈ 2000px
+     tight   two boards ≈ 1450px, and with side-by-side on, both fit at once
+   None of them fits a 15-team room stacked, which is expected and fine: the
+   owner scrolls one page rather than two scrolling tables. */
+const DENSITIES = {
+  wide:   { pad: 1,    type: 1    },
+  medium: { pad: 0.62, type: 0.85 },
+  tight:  { pad: 0.32, type: 0.72 }
+};
+const DEFAULT_DENSITY = "medium";   // owner's choice, dev session 34
+let currentDensity = DEFAULT_DENSITY;
 
-   THE FLOOR IS DELIBERATE. Below it the numbers stop being readable from the
-   back of a room, and at that point an honest scrollbar is better than text
-   nobody can read. With the floor reached the page simply scrolls, and the
-   status line says so rather than leaving the owner to wonder. */
-const FIT_FLOOR = 0.55;
-const FIT_STEP  = 0.04;
+function setDensity(name) {
+  const d = DENSITIES[name] || DENSITIES[DEFAULT_DENSITY];
+  currentDensity = DENSITIES[name] ? name : DEFAULT_DENSITY;
+  document.documentElement.style.setProperty("--pad", String(d.pad));
+  document.documentElement.style.setProperty("--type", String(d.type));
+  document.querySelectorAll(".btn-density").forEach(b =>
+    b.classList.toggle("is-on", b.dataset.density === currentDensity));
+}
 
-function applyFit() {
-  const root = document.documentElement;
-  if (!el("fit-screen").checked) {
-    root.style.setProperty("--fit", "1");
-    el("fit-note").textContent = "";
+/* ─── THE LEVEL 1 BOARD ──────────────────────────────────────────────────
+   A DIFFERENT TABLE, not the same one with a column blanked out, and the
+   reason is in the data: LEVEL 1 RUNS WITH NO CLOCK, so its records carry no
+   totalSec at all. There is no duration to show and none to rank by, and a
+   rank column here would be inventing a competition that did not happen.
+
+   What it shows instead, owner direction: the ORDER teams finished and the
+   TIME OF DAY each finished — which between them answer the question this
+   board is for, "is everybody through Level 1 yet, and how spread out are
+   they". Hidden by default: it is a monitoring view, not something to show a
+   room.
+
+   Recorded for a future session: a real Level 1 duration needs the game to
+   stamp the round start for Level 1, which this file cannot do. */
+function clockFromRecord(r) {
+  /* finishedAtET is written by the host as "2026-08-28 14:13:20 EDT". Take
+     the hour and minute out of it rather than re-deriving from finishedAt,
+     so this page and the Firebase console agree. Falls back to the numeric
+     stamp when the string is missing (records written before 260828.3). */
+  const m = /\b(\d{2}):(\d{2}):\d{2}\b/.exec(String(r && r.finishedAtET || ""));
+  if (m) {
+    let h = Number(m[1]);
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m[2]} ${ampm}`;
+  }
+  if (typeof r.finishedAt === "number") {
+    try {
+      return new Intl.DateTimeFormat("en-US",
+        { hour: "numeric", minute: "2-digit" }).format(new Date(r.finishedAt));
+    } catch (e) { /* fall through */ }
+  }
+  return "—";
+}
+
+function renderLevel1(records, onlyCompleted) {
+  const body  = el("body-level1");
+  const count = el("count-level1");
+  body.textContent = "";
+  count.textContent = "";
+
+  const all = Object.values(records || {}).filter(r => r && r.level === "level1");
+  if (!all.length) {
+    const p = document.createElement("p");
+    p.className = "lb-empty";
+    p.textContent = currentCode ? "No team has finished Level 1 yet."
+                                : "Enter a session code above.";
+    body.appendChild(p);
     return;
   }
-  let fit = 1;
-  root.style.setProperty("--fit", "1");
-  /* Bounded: (1 - 0.55) / 0.04 is eleven steps, so this can never spin. */
-  while (fit > FIT_FLOOR &&
-         document.documentElement.scrollHeight > window.innerHeight) {
-    fit = Math.max(FIT_FLOOR, fit - FIT_STEP);
-    root.style.setProperty("--fit", String(fit));
+
+  /* One line per team, its most recent Level 1 round. Earliest finisher
+     first, because that is the order the room actually moved in. */
+  const byTeam = {};
+  for (const r of all) {
+    if (onlyCompleted && r.endReason !== "completed") continue;
+    const key = r.gameCode || r.teamName || Math.random().toString(36);
+    if (!byTeam[key] || (r.finishedAt || 0) > (byTeam[key].finishedAt || 0)) byTeam[key] = r;
   }
-  const stillTooTall = document.documentElement.scrollHeight > window.innerHeight;
-  el("fit-note").textContent = stillTooTall
-    ? "too many teams to fit — scroll for the rest"
-    : (fit < 1 ? `scaled to ${Math.round(fit * 100)}% to fit` : "");
+  const done = Object.values(byTeam).sort((a, b) => (a.finishedAt || 0) - (b.finishedAt || 0));
+  const teamsSeen = new Set(all.map(r => r.gameCode || r.teamName)).size;
+  count.textContent = `${teamsSeen} team${teamsSeen === 1 ? "" : "s"} through Level 1`;
+
+  if (!done.length) {
+    const p = document.createElement("p");
+    p.className = "lb-empty";
+    p.textContent = "No team has completed Level 1 yet.";
+    body.appendChild(p);
+    return;
+  }
+
+  /* Its own header, because the last column is a clock time, not a duration,
+     and a room reading "TIME" would take it for one. */
+  const h = document.createElement("div");
+  h.className = "lb-head";
+  [["lb-rank", "#"], ["lb-name", "Team"], ["lb-tickets", "Cooks · tickets"],
+   ["lb-time", "Finished"]].forEach(([cls, text]) => {
+    const sp = document.createElement("span"); sp.className = cls; sp.textContent = text;
+    h.appendChild(sp);
+  });
+  body.appendChild(h);
+
+  done.forEach((r, i) => {
+    const cooks = Number(r.roles && r.roles.cooks) || 0;
+    const detail = (cooks ? `${cooks} cook${cooks === 1 ? "" : "s"} · ` : "")
+                 + `${r.tickets || 0} tickets`
+                 + (r.endReason === "completed" ? "" : " · ended early");
+    body.appendChild(rowEl(String(i + 1), r.teamName || r.gameCode || "A team",
+                           detail, clockFromRecord(r)));
+  });
+
+  const note = document.createElement("p");
+  note.className = "lb-note";
+  note.textContent = "Level 1 runs without a clock, so there is no time to rank — "
+                   + "this is the order teams finished and when.";
+  body.appendChild(note);
 }
 
 function renderAll() {
   const onlyCompleted = el("only-completed").checked;
+  const showLevel1    = el("show-level1").checked;
+  el("board-level1").style.display = showLevel1 ? "" : "none";
+  if (showLevel1) renderLevel1(currentRecords, onlyCompleted);
   renderBoard("level2", currentRecords, onlyCompleted);
   renderBoard("level3", currentRecords, onlyCompleted);
   el("filter-hint").textContent = onlyCompleted
     ? "Showing completions only — the view for the room."
     : "Also showing rounds that ended early — the monitoring view.";
-  applyFit();
 }
 
 /* ─── STATUS LINE ────────────────────────────────────────────────────────── */
@@ -707,25 +842,27 @@ el("code-input").addEventListener("keydown", e => { if (e.key === "Enter") attac
    it is alive. */
 el("btn-refresh").addEventListener("click", () => { if (currentCode) attach(currentCode); });
 el("only-completed").addEventListener("change", renderAll);
-el("fit-screen").addEventListener("change", renderAll);
+el("show-level1").addEventListener("change", renderAll);
 el("side-by-side").addEventListener("change", () => {
   document.querySelector(".boards").classList.toggle("side-by-side",
     el("side-by-side").checked);
-  applyFit();
 });
-/* A projector is usually plugged in AFTER the page is open, and that changes
-   the window size, so the fit has to be recomputed. Debounced, because a
-   window drag fires this continuously. */
-let resizeTimer = null;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(applyFit, 200);
-});
+document.querySelectorAll(".btn-density").forEach(b =>
+  b.addEventListener("click", () => {
+    setDensity(b.dataset.density);
+    try { localStorage.setItem("kitchenAdminDensity", currentDensity); } catch (e) {}
+  }));
 
 /* Last code used comes back on a reload, so a page refreshed mid-session
-   lands back on the session rather than on an empty box. */
-let restored = "";
-try { restored = localStorage.getItem("kitchenAdminLastCode") || ""; } catch (e) { restored = ""; }
+   lands back on the session rather than on an empty box. The spacing comes
+   back with it: a facilitator who set the page up for the room should not
+   have to set it up again because a laptop went to sleep. */
+let restored = "", storedDensity = "";
+try {
+  restored = localStorage.getItem("kitchenAdminLastCode") || "";
+  storedDensity = localStorage.getItem("kitchenAdminDensity") || "";
+} catch (e) { /* private mode */ }
+setDensity(storedDensity || DEFAULT_DENSITY);
 renderAll();
 if (restored) attach(restored);
 </script>
