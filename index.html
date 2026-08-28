@@ -2477,7 +2477,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3505,7 +3505,7 @@ const LOCAL_SESSION_SETTINGS = {
       group: "l2-debrief",
       trigger: { type: "arrival", screen: "summary-level2" },
       countdown: { seconds: 120, from: "roundEnd",
-                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
+                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
       title: "Level 2 debrief",
       blocks: [
         { type: "para", text: "It’s time for a short debrief on Level 2. Start with your own "
@@ -3542,7 +3542,7 @@ const LOCAL_SESSION_SETTINGS = {
       group: "l2-debrief",
       trigger: { type: "arrival", screen: "summary-level2" },
       countdown: { seconds: 120, from: "roundEnd",
-                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
+                   timesUpText: "Time’s up. The Host should move everyone to Level 3." },
       title: "Level 2 debrief",
       blocks: [
         { type: "para", text: "It’s time for a short debrief on Level 2. Some questions you "
@@ -6780,10 +6780,70 @@ const OBS_EDGE        = 12;    // px kept between a dragged window and the viewp
    this only has to be a sane starting point, not a solved layout. */
 const OBS_PANEL_DEFAULT_TOP = 296;
 
+/* ── per-screen resting positions (260827.7) ─────────────────────────────
+   Where the panel OPENS on each screen, as a distance from the top of the
+   window. Owner's numbers, measured in the dev session 31 testbed against
+   real screenshots of every screen at 1440x900.
+
+   Only the vertical number is here. Every position the owner chose was
+   horizontally centred, so centring stays computed from the real window
+   width — pinning it to the measured 460px would put the panel off-centre
+   on every other window size.
+
+   KEYS. A screen id, optionally qualified by level with a colon. The
+   qualified key wins. The LOBBY needs this because one screen serves all
+   three levels and the message that lands on it differs by level; the GAME
+   screen needs it for the same reason. Anything not listed falls back to
+   OBS_PANEL_DEFAULT_TOP.
+
+   These were measured at a 900px-tall window. On a shorter one obsApplyPos
+   clamps the panel back inside the viewport, so nothing can be stranded —
+   but a number like the landing page's 500 will feel lower on a laptop than
+   it did in the testbed. If that matters, the testbed is the place to
+   re-measure rather than this table the place to guess. */
+const OBS_PANEL_TOP_BY_SCREEN = {
+  "landing":              500,
+  "summary-level1":        23,   // message 2, host
+  "lobby:level2":         258,   // message 3, host
+  "lobby:level3":         180,   // message 8, host
+  "game:level2":          200,   // message 5, the huddle, on a cook's screen
+  "observer":             136,   // message 4, the huddle, on the Observer's dashboard
+  "summary-level2":       240,   // messages 6 and 7
+  "summary-level3":       210    // message 9
+};
+
+/* Which screen the panel is opening on, as a key for the table above.
+   The level qualifier is resolved the same way the lobby resolves it
+   (pendingLevelType first — see iAmBarredFromObserver), so the lobby's
+   position follows the level it is about to start rather than the one it
+   just finished. */
+function msgCurrentScreenKey() {
+  const active = document.querySelector(".screen.active");
+  const id = active ? String(active.id).replace(/^screen-/, "") : "";
+  const level = (gameState && (gameState.pendingLevelType || gameState.levelType)) || currentLevel || "";
+  return { id, qualified: level ? `${id}:${level}` : id };
+}
+
+function msgPanelTopForScreen() {
+  const k = msgCurrentScreenKey();
+  if (Object.prototype.hasOwnProperty.call(OBS_PANEL_TOP_BY_SCREEN, k.qualified))
+    return OBS_PANEL_TOP_BY_SCREEN[k.qualified];
+  if (Object.prototype.hasOwnProperty.call(OBS_PANEL_TOP_BY_SCREEN, k.id))
+    return OBS_PANEL_TOP_BY_SCREEN[k.id];
+  return OBS_PANEL_DEFAULT_TOP;
+}
+
 let obsPromptFired = new Set();   // `${roundInstanceId}::${promptId}` — the once-per-round guard
 let obsPromptQueue = [];          // notes held behind a live challenge, in due order
 let obsPromptOpen  = null;        // the note currently loaded into the panel, or null
-let obsPanelPos    = null;        // {left, top} once positioned or dragged; survives minimize
+let obsPanelPos    = null;        // {left, top} for the panel on screen NOW; survives minimize
+/* 260827.7: a dragged position is remembered PER SCREEN, keyed the same way
+   OBS_PANEL_TOP_BY_SCREEN is. One remembered position for the whole session
+   meant the first screen's position followed the panel to every screen
+   afterwards, which is why per-screen defaults could not work before this.
+   The behaviour the original note wanted is unaffected: moving the panel in
+   round 1 and finding it there in round 2 is the SAME screen. */
+let obsPanelPosByScreen = {};
 let obsChipPos     = null;        // {left, top} for the chip; defaults to lower-left
 
 function obsPanelEl() { return document.getElementById("obs-panel"); }
@@ -7279,7 +7339,20 @@ function obsRenderBlocks(prompt) {
    if a future one wants its own word. */
 function msgEyebrowFor(m) {
   if (m && m.eyebrow) return m.eyebrow;
-  return msgAudienceOf(m) === "observer" ? "Observer note" : "Team message";
+  switch (msgAudienceOf(m)) {
+    /* 260827.7, owner direction from the position testbed: a message
+       addressed to the host ALONE says so. Messages 2, 3 and 8 are host-only
+       and were being labelled "Team message", which is a message to the whole
+       team — wrong for a note only one person can see.
+
+       "players" deliberately stays "Team message": that audience INCLUDES the
+       host, who is a cook in Level 2, so message 5 genuinely is a team
+       message even on the host's own screen. Same for "non-hosts" and
+       "everyone". */
+    case "observer": return "Observer note";
+    case "host":     return "Host message";
+    default:         return "Team message";
+  }
 }
 
 function obsOpenPanel(prompt) {
@@ -7303,12 +7376,14 @@ function obsOpenPanel(prompt) {
 function obsPlacePanel() {
   const panel = obsPanelEl();
   const r = panel.getBoundingClientRect();
-  if (!obsPanelPos) {
-    obsPanelPos = {
-      left: Math.max(OBS_EDGE, Math.round((window.innerWidth - r.width) / 2)),
-      top:  OBS_PANEL_DEFAULT_TOP
-    };
-  }
+  /* Where this screen was last dragged to, if it ever was; otherwise this
+     screen's resting position from the owner's table. Horizontal centring is
+     computed from the live window width either way. */
+  const key = msgCurrentScreenKey().qualified;
+  obsPanelPos = obsPanelPosByScreen[key] || {
+    left: Math.max(OBS_EDGE, Math.round((window.innerWidth - r.width) / 2)),
+    top:  msgPanelTopForScreen()
+  };
   obsApplyPos(panel, obsPanelPos);
 }
 
@@ -7481,7 +7556,8 @@ function obsPositionPauseModalForObserver() {
 
 /* ── wiring ──────────────────────────────────────────────────────────*/
 obsMakeDraggable(obsPanelEl(), document.getElementById("obs-panel-head"),
-  { onMove: pos => { obsPanelPos = pos; } });
+  { onMove: pos => { obsPanelPos = pos;
+                     obsPanelPosByScreen[msgCurrentScreenKey().qualified] = pos; } });
 
 obsMakeDraggable(obsChipEl(), obsChipEl(), {
   buttonsDrag: true,
@@ -7498,7 +7574,13 @@ obsChipEl().addEventListener("keydown", e => {
 
 // Device rotation or a resized window must not strand either element.
 window.addEventListener("resize", () => {
-  if (obsPanelEl().classList.contains("open") && obsPanelPos) obsPanelPos = obsApplyPos(obsPanelEl(), obsPanelPos);
+  if (obsPanelEl().classList.contains("open") && obsPanelPos) {
+    obsPanelPos = obsApplyPos(obsPanelEl(), obsPanelPos);
+    /* 260827.7: keep the per-screen memory in step, but only where one
+       already exists — see the note above obsPanelPosByScreen. */
+    const key = msgCurrentScreenKey().qualified;
+    if (obsPanelPosByScreen[key]) obsPanelPosByScreen[key] = obsPanelPos;
+  }
   if (obsChipEl().classList.contains("open")  && obsChipPos)  obsChipPos  = obsApplyPos(obsChipEl(),  obsChipPos);
 });
 
