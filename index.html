@@ -2515,7 +2515,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.9 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.1 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3296,12 +3296,12 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
 
                  `level` is checked as well as `screen` when the entry
                  declares one, because the LOBBY screen is shared by all
-                 three levels. Two future cases need care and neither
-                 exists yet: the lobby's level is pendingLevelType rather
-                 than currentLevel, and on the LANDING screen currentLevel
-                 is whatever the last round left behind. Both are covered
-                 by writing `level: "any"`, which skips the level check —
-                 message 1 will need it.
+                 three levels. Both awkward cases are now HANDLED (260828.1,
+                 dev session 33): msgArrivalsFor() resolves a lobby's level
+                 as pendingLevelType first, which is what tells messages 3
+                 and 8 apart; and on the LANDING screen currentLevel is
+                 whatever the last round left behind, so message 1 carries
+                 `level: "any"` and skips the level check altogether.
      title   — the panel heading, and the chip's label when minimized.
                Keep it short enough to read in a 232px chip.
      blocks  — the body, as an ORDERED list of content blocks:
@@ -3398,6 +3398,106 @@ const LOCAL_SESSION_SETTINGS = {
   },
 
   messages: [
+    /* ── MESSAGE 1 of the run of show — the landing instructions
+       (260828.1, dev session 33). Owner's own copy, verbatim, with the three
+       words changed in 260827.9 when the panels were renamed: CREATE A TEAM,
+       JOIN A TEAM, and "click Join team".
+
+       FOUR STRINGS ON THIS SCREEN ARE COUPLED TO THIS MESSAGE — the two
+       panel headings, the Join button, and the team code it tells the host to
+       hand out. Change either side alone and the first screen of the game
+       contradicts itself in front of a room of people. Learned 260827.9.
+
+       level: "any" IS LOAD-BEARING. It does two things. It skips the level
+       check, which matters because on the landing screen currentLevel is
+       whatever the last round left behind; and it keys the once-shown guard
+       to this PAGE LOAD rather than to a round, because
+       currentRoundInstanceId is NOT cleared on the way back to landing and a
+       stale id would otherwise key something meaningless. Owner decision, dev
+       session 31: message 1 showing again after a refresh is WANTED — better
+       to repeat the instructions than to withhold them from somebody who
+       reloaded.
+
+       337CHARLIE is hand-typed here and read from nowhere. It cannot be
+       looked up BY session code, because this is the message that tells
+       people the session code — see the known limit in the briefing. Owner
+       confirmed dev session 33 that this is the value for the event.
+
+       The only message in the run of show whose audience is "everyone" and
+       the only one that fires before anybody has joined anything. Nothing
+       else fires on the landing screen, which is what keeps it clear of the
+       queue trap recorded in the panel section. */
+    {
+      id: "landing-instructions",
+      level: "any",
+      audience: "everyone",
+      trigger: { type: "arrival", screen: "landing" },
+      title: "Welcome",
+      blocks: [
+        { type: "para", text: "Welcome to the game. If you’re a Host, enter your name in the "
+                            + "CREATE A TEAM panel on the left. Name your team (your choice!). "
+                            + "Enter Session Code 337CHARLIE. Select Level 1." },
+        { type: "para", text: "If you’re a Player, enter your name in the JOIN A TEAM panel on "
+                            + "the right. Sit tight for a moment. When your Host gives you a team "
+                            + "code, enter that and click Join team." }
+      ]
+    },
+    /* ── MESSAGE 2 of the run of show — the host at the end of Level 1
+       (260828.1, dev session 33). Owner's own copy, verbatim.
+
+       The FIRST host-only message ever built, so this is where 260827.7's
+       "Host message" eyebrow gets its first live exercise. It could not be
+       tested before now because no host-only message existed.
+
+       Fires every time Level 1 ends, INCLUDING a repeated Level 1 — owner
+       direction, dev session 33. That comes free from the guard being keyed
+       to the round instance rather than to the level: a second Level 1 is a
+       new instance, so the message re-arms with nothing to clear. Tested
+       rather than assumed this session.
+
+       No countdown. Nothing is being timed here; the host reads a sentence
+       and clicks a button. */
+    {
+      id: "l1-debrief-host",
+      level: "level1",
+      audience: "host",
+      trigger: { type: "arrival", screen: "summary-level1" },
+      title: "Level 1 complete",
+      blocks: [
+        { type: "para", text: "Great job on Level 1. Click the “Move to Level 2” button for "
+                            + "your next challenge." }
+      ]
+    },
+    /* ── MESSAGE 3 of the run of show — the host in the Level 2 lobby
+       (260828.1, dev session 33). Owner's own copy, verbatim, including the
+       dev session 31 edit that is part of the recorded text: "one team member
+       (not you) must play the Observer role—they watch silently rather than
+       cook, and they'll lead a discussion later". The older wording ("a
+       silent Observer role") risked an Observer who runs the whole level from
+       the dashboard, which is not the play experience wanted.
+
+       THE LOBBY IS ONE SCREEN SERVING ALL THREE LEVELS, so this entry and
+       message 8 are told apart by `level` alone — and the level a lobby
+       belongs to is pendingLevelType, not currentLevel. That is the code
+       change this build makes; see msgArrivalsFor(). Without it neither of
+       these two messages could ever fire.
+
+       "When everyone is set, click Let's go." closes it. Message 8 carries
+       the same closing sentence for the same reason: a host who is told what
+       has to be true and not what to do next will sit and wait. */
+    {
+      id: "l2-lobby-host",
+      level: "level2",
+      audience: "host",
+      trigger: { type: "arrival", screen: "lobby" },
+      title: "Starting Level 2",
+      blocks: [
+        { type: "para", text: "In Level 2, one team member (not you) must play the Observer "
+                            + "role—they watch silently rather than cook, and they’ll lead a "
+                            + "discussion later. Everyone else (including you) will be Players. "
+                            + "When everyone is set, click Let’s go." }
+      ]
+    },
     /* ── MESSAGE 4 of the run of show — the Observer's huddle script ──
        Replaces obs-l2-huddle-5min (dev session 30). Four things changed,
        all of them settled decisions rather than edits of taste:
@@ -3601,6 +3701,84 @@ const LOCAL_SESSION_SETTINGS = {
         ] },
         { type: "para", text: "You’ll hear from the Observer first. After that, others can "
                             + "jump in with a quick comment." }
+      ]
+    },
+    /* ── MESSAGE 8 of the run of show — the host in the Level 3 lobby
+       (260828.1, dev session 33). Owner's own copy, verbatim, including the
+       dev session 31 addition of "When everyone is set, click Let’s go." —
+       message 3 ended with an instruction and this one did not, so a host
+       trained by the Level 2 lobby would sit and wait for one.
+
+       Same screen as message 3 and told apart by `level` alone. See the note
+       on message 3 and msgArrivalsFor(). */
+    {
+      id: "l3-lobby-host",
+      level: "level3",
+      audience: "host",
+      trigger: { type: "arrival", screen: "lobby" },
+      title: "Starting Level 3",
+      blocks: [
+        { type: "para", text: "In Level 3, everyone is a Player. There are no Observers. When "
+                            + "everyone is set, click Let’s go." }
+      ]
+    },
+    /* ── MESSAGE 9 of the run of show — the final discussion (260828.1, dev
+       session 33). Owner's own copy, verbatim, carrying the two dev session 31
+       edits that are part of the recorded text: "all three levels" rather than
+       "all three rounds" (see the Vocabulary section), and "The HOST and
+       whoever was your OBSERVER in Level 2" rather than "the OBSERVER" —
+       Level 3 has no Observer, so the older wording named a role nobody
+       currently holds.
+
+       AUDIENCE "everyone", and that is deliberate rather than loose. It has to
+       reach whoever was the Observer in Level 2, and amObserver has been
+       cleared by the time this fires. "players" would have caught them anyway,
+       being everyone who is not an Observer — but "everyone" says what is
+       meant, and this message genuinely does address the whole team including
+       the host by name.
+
+       THE TWO REFLECTION QUESTIONS ARE A LETTERED BLOCK, and the sentences
+       below them read "(Question A above)" and "(Question B above)" rather
+       than Question 1 and Question 2. Owner decision, dev session 31: the copy
+       changed so the renderer would not need a second labelling scheme. EVERY
+       list of discussion questions in this game is lettered, so "question B"
+       means the same thing in the huddle, in the Level 2 debrief and here.
+
+       The 7-minute countdown runs from the moment the ROUND ENDED, not from
+       arrival — `endedAt`, written once by the host and read by everybody, the
+       same stamp messages 6 and 7 use. Somebody who takes ten seconds longer
+       to land here has ten seconds less discussion, which is correct.
+       Arriving after zero shows the time's-up line, never a negative number.
+
+       The time's-up text surfaced only in the owner's dev session 32 paste and
+       is in no older note. The full stop is for consistency with the four
+       other time's-up lines — owner confirmed, dev session 33. */
+    {
+      id: "l3-debrief-everyone",
+      level: "level3",
+      audience: "everyone",
+      trigger: { type: "arrival", screen: "summary-level3" },
+      countdown: { seconds: 420, from: "roundEnd",
+                   timesUpText: "Time’s up. Return to the main room." },
+      title: "Final discussion",
+      blocks: [
+        { type: "para", text: "Congratulations on finishing all three levels!" },
+        { type: "para", text: "We’re starting a 7 minute timer. For the first minute, everyone "
+                            + "should reflect SILENTLY on their own (you’re encouraged to take "
+                            + "notes):" },
+        { type: "letters", items: [
+            "What did you observe about TEAMWORK and coordination? What helps a team succeed? "
+              + "What can trip up a team?",
+            "What did you observe about YOURSELF in this activity? How did you communicate and "
+              + "act … what were your instincts? How did this teamwork feel for you?"
+        ] },
+        { type: "para", text: "After a minute, open the discussion up. Start by discussing "
+                            + "TEAMWORK (Question A above). Try to hear from everyone. With about "
+                            + "3 minutes remaining, shift the discussion to YOURSELVES "
+                            + "(Question B above)." },
+        { type: "para", text: "The HOST and whoever was your OBSERVER in Level 2 should listen "
+                            + "closely and each be ready to bring one brief observation or "
+                            + "takeaway from your team’s discussion back to the main room." }
       ]
     }
     // A challenge-triggered note looks like the entry below. Left
@@ -7251,11 +7429,25 @@ function msgArrivalKey(m) {
 function msgArrivalsFor(screenId) {
   const list = getSessionSettings()?.messages;
   if (!Array.isArray(list)) return [];
+  /* 260828.1 (dev session 33): in the LOBBY the level to compare against is
+     the one ABOUT TO START, not the one just finished. currentLevel still
+     holds the finished level all the way through the between-round lobby, so
+     comparing against it meant messages 3 and 8 — the Level 2 and Level 3
+     lobby messages — could never match on the screen they are written for.
+     Resolved pendingLevelType first, the same order the lobby render and
+     msgCurrentScreenKey() use, so all three agree about which level a lobby
+     belongs to. Scoped to the lobby on purpose: on a debrief screen
+     currentLevel IS the right answer, and on the landing screen it is stale
+     rubbish left by the last round, which is why message 1 carries
+     level: "any" and skips the check entirely. */
+  const level = (screenId === "lobby")
+    ? ((gameState && (gameState.pendingLevelType || gameState.levelType)) || currentLevel)
+    : currentLevel;
   return list.filter(m =>
     m && m.id &&
     m.trigger?.type === "arrival" &&
     m.trigger.screen === screenId &&
-    (!m.level || m.level === "any" || m.level === currentLevel));
+    (!m.level || m.level === "any" || m.level === level));
 }
 
 /* Called from the END of showScreen(). Narrowest audience first, so that if
