@@ -2570,7 +2570,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.5 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.6 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -9562,8 +9562,27 @@ function lbRender(levelType, records) {
     /* 260828.5: tickets and the average share one muted column rather than
        taking a fourth, which would crowd the row at a laptop width and push
        the time — the number people actually compare — off its right edge. */
+    /* 260828.6 (dev session 33, owner request): the COOK COUNT leads the line.
+       Team sizes vary between teams in the same room, so a time means little
+       without it — four cooks and seven cooks are not doing the same job.
+
+       Read from the record's roles map rather than recomputed, and the map is
+       why this needed no new stored field: recordRoundResult() has always
+       written {cooks, observer}, counted at the moment the round ended.
+
+       DELIBERATELY NOT "team size minus one". Today Level 2 always has exactly
+       one Observer and Level 3 has none, so subtracting would give the same
+       answer — but the owner has already flagged that whether a level has an
+       Observer may become a per-session choice, and a record written under a
+       different rule would then be misread by this line. The stored count is
+       true whatever the rule was on the day.
+
+       Omitted entirely for records written before 260828.2, which carry no
+       roles map. A missing count prints nothing rather than "0 cooks". */
     const avg = lbAvgPerTicket(r);
-    tix.textContent = `${r.tickets || 0} tickets`
+    const cooks = Number(r.roles && r.roles.cooks) || 0;
+    tix.textContent = (cooks ? `${cooks} cook${cooks === 1 ? "" : "s"} · ` : "")
+                    + `${r.tickets || 0} tickets`
                     + (avg === null ? "" : ` · ${lbMMSS(avg)} each`);
     const time = document.createElement("span"); time.className = "lb-time";
     time.textContent = lbMMSS(r.totalSec);
@@ -9582,8 +9601,10 @@ function lbRender(levelType, records) {
        on this line that is fairly comparable with the ranked rows above it —
        the total time is not, because they were not given the same time. */
     const myAvg = lbAvgPerTicket(mine);
+    const myCooks = Number(mine.roles && mine.roles.cooks) || 0;
     p.textContent = (typeof mine.totalSec === "number")
       ? `You ended this level at ${lbMMSS(mine.totalSec)}`
+        + (myCooks ? ` · ${myCooks} cook${myCooks === 1 ? "" : "s"}` : "")
         + (myAvg === null ? "" : ` · ${mine.tickets} tickets · ${lbMMSS(myAvg)} each`)
         + ". Rounds that end early aren’t ranked."
       : "This round ended early, so it isn’t ranked.";
