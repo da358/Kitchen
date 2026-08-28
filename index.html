@@ -2444,8 +2444,8 @@
   </div>
   <div class="landing-cards">
     <div class="landing-card">
-      <h2>Create a game</h2>
-      <p class="landing-card-intro">Create a new game for a team.</p>
+      <h2>Create a team</h2>
+      <p class="landing-card-intro">Create a new team and get a code.</p>
       <div class="input-group">
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
         <!-- 260827.8 (dev session 32, Block 2 item 5): the team name. REQUIRED,
@@ -2489,14 +2489,14 @@
       </div>
     </div>
     <div class="landing-card">
-      <h2>Join a game</h2>
-      <p class="landing-card-intro">Join a game someone has created.</p>
+      <h2>Join a team</h2>
+      <p class="landing-card-intro">Join a team someone has created.</p>
       <div class="input-group">
         <!-- 260814.1: field order flipped to mirror the Create panel (name
              first), placeholder revised to parallel "SESSION CODE (OPTIONAL)". -->
         <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
         <input id="join-code" type="text" placeholder="TEAM CODE (REQUIRED)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
-        <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join game →</button>
+        <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join team →</button>
         <div class="error-msg" id="join-error"></div>
         <!-- 260826.5 (dev session 27): the rejoin offer. Hidden unless this
              browser holds a recent identity — see refreshRejoinOffer(). It
@@ -2515,7 +2515,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.8 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.9 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -9643,7 +9643,7 @@ async function init() {
 }
 
 /* ─── EVENT LISTENERS ───────────────────────────────────────── */
-/* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join game (Session 11) ──
+/* ─── LANDING PAGE: ARM GROUP — Level 1/2/3 + Join team (Session 11) ──
    Exactly one member of this group is "armed" (red/white) at a time —
    originally just the three level cards, later extended to include
    the Join game button too, since the whole landing page is really one
