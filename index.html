@@ -243,6 +243,27 @@
     color: var(--text-3);
     margin-bottom: 6px;
   }
+  /* 260827.8 (dev session 32): the team's own name, in the same card as the
+     code. Deliberately smaller than the code — the code is the thing people
+     read aloud to each other, the name is just who they are. The block hides
+     itself entirely when a team has no name, which is what a team created by
+     an older build looks like. */
+  .game-code-display .team-name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    /* Upright, deliberately. The event name a few lines above is italic
+       display type in the same colour, and two italic red lines that close
+       together read as one thing. The event is fiction; the team is real. */
+    color: var(--accent);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  #lobby-team-name-block {
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
   .game-code-display .code {
     font-size: 36px;
     font-weight: 700;
@@ -2427,12 +2448,29 @@
       <p class="landing-card-intro">Create a new game for a team.</p>
       <div class="input-group">
         <input id="create-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <!-- Session 11: visual-only for now, not read by createGame() or written
-             anywhere — the field exists so the design is in place ahead of the
-             functionality described for a future session. Forced-uppercase
-             input handling is wired below alongside join-code, so it's
-             already consistent whenever it does get used. -->
-        <input id="create-session-code" type="text" placeholder="SESSION CODE (OPTIONAL)" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
+        <!-- 260827.8 (dev session 32, Block 2 item 5): the team name. REQUIRED,
+             by owner decision, looking ahead to the leaderboard — a result has
+             to be listed against something. Deliberately NOT uppercased: this
+             is a name the host invents, unlike the two codes beside it, which
+             are typed from dictation and read aloud. Longer than the name
+             fields (32) because "The Flying Spatulas of Dunwoody" is exactly
+             the kind of thing a team will type. -->
+        <input id="create-team-name" type="text" placeholder="Team name" maxlength="32" autocomplete="off">
+        <!-- Session 11, made real 260827.8: the session code. It is now READ
+             and STORED on the team record. It is still read by nothing else,
+             because the session system that would look settings up by it does
+             not exist yet — this is groundwork, so that when it does, teams
+             created today already carry the field.
+
+             OPTIONAL, by owner decision: refusing to start a round over a code
+             that nothing reads would be a hard stop for no working reason.
+             "(OPTIONAL)" came off the placeholder anyway, because message 1
+             instructs the host to enter it and a field marked optional
+             contradicts the instruction on screen beside it.
+
+             Forced-uppercase input handling is wired below alongside
+             join-code. -->
+        <input id="create-session-code" type="text" placeholder="SESSION CODE" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
         <div class="hcard-stack" style="margin-top:2px;">
           <button type="button" class="hcard hc-active" id="level-card-1">
             <span class="hc-title">Level 1</span>
@@ -2457,7 +2495,7 @@
         <!-- 260814.1: field order flipped to mirror the Create panel (name
              first), placeholder revised to parallel "SESSION CODE (OPTIONAL)". -->
         <input id="join-name" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
-        <input id="join-code" type="text" placeholder="GAME CODE (REQUIRED)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
+        <input id="join-code" type="text" placeholder="TEAM CODE (REQUIRED)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
         <button type="button" class="btn btn-secondary" id="btn-join" style="font-size:15px; font-weight:700;">Join game →</button>
         <div class="error-msg" id="join-error"></div>
         <!-- 260826.5 (dev session 27): the rejoin offer. Hidden unless this
@@ -2477,7 +2515,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.7 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260827.8 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -2510,7 +2548,13 @@
     </div>
   </div>
   <div class="game-code-display">
-    <div class="label">Game code</div>
+    <!-- 260827.8 (dev session 32): the team's own name, above the code it
+         shares. Hidden until there is one — see the lobby listener. -->
+    <div id="lobby-team-name-block" style="display:none;">
+      <div class="label">Team</div>
+      <div class="team-name" id="lobby-team-name"></div>
+    </div>
+    <div class="label">Team code</div>
     <div class="code" id="lobby-code">———</div>
   </div>
   <div class="players-list">
@@ -7780,6 +7824,26 @@ async function createGame(levelType) {
     document.getElementById("create-error").textContent = "Please enter your name.";
     return;
   }
+  /* 260827.8 (dev session 32, Block 2 item 5): the team name, REQUIRED.
+     Validated HERE rather than on the level cards because there is no Create
+     button — clicking a level card IS the create action, so this function is
+     the only place where all three fields can be checked together, and the
+     only place a check cannot be routed around. Same shape as the name check
+     above it.
+
+     The order of these checks matches the order message 1 gives the host:
+     your name, then name your team, then the session code. Somebody working
+     down the message hits the errors in the order they are reading. */
+  const myTeamName = document.getElementById("create-team-name").value.trim();
+  if (!myTeamName) {
+    document.getElementById("create-error").textContent = "Please name your team.";
+    return;
+  }
+  /* Captured and stored, read by nothing yet — see the field's own comment.
+     Uppercased on the way in as well as by CSS, because the CSS transform is
+     display only and the stored value has to be the one that will eventually
+     be matched against a session record. */
+  const mySessionCode = document.getElementById("create-session-code").value.trim().toUpperCase();
   /* 260826.4 (dev session 27): game-code collision check. Verified defect —
      createGame() previously generated a code and set() it straight to
      games/{code}, overwriting whatever was already there. The code space is
@@ -7822,6 +7886,14 @@ async function createGame(levelType) {
 
   const gameData = {
     code:          gameCode,
+    /* 260827.8: both fields are ADDITIVE, which is what keeps this build off
+       the wire. A client on an older build never reads them and behaves
+       exactly as it does today; a team created by an older build has neither,
+       and every reader here treats missing as "none" rather than erroring. */
+    teamName:      myTeamName,
+    /* null rather than "" when the host leaves it blank, so a later reader
+       can test the field itself instead of testing for an empty string. */
+    sessionCode:   mySessionCode || null,
     status:        "lobby",
     created:       Date.now(),
     levelType:     levelType,
@@ -7843,7 +7915,7 @@ async function joinGame() {
   myPlayerName = document.getElementById("join-name").value.trim();
 
   if (!code) {
-    document.getElementById("join-error").textContent = "Please enter a game code.";
+    document.getElementById("join-error").textContent = "Please enter a team code.";
     return;
   }
   if (!myPlayerName) {
@@ -7853,7 +7925,7 @@ async function joinGame() {
 
   const snap = await get(ref(db, `games/${code}`));
   if (!snap.exists()) {
-    document.getElementById("join-error").textContent = "Game not found. Check the code.";
+    document.getElementById("join-error").textContent = "Team not found. Check the code.";
     return;
   }
   const data = snap.val();
@@ -8070,6 +8142,23 @@ function enterLobby() {
 
     if (gameState.eventName) {
       document.getElementById("lobby-event-name").textContent = gameState.eventName;
+    }
+
+    /* 260827.8 (dev session 32, Block 2 item 5): the team's own name, beside
+       the code. Read straight from gameState rather than mirrored into a local
+       the way eventName is, because there is nothing to keep in step: the team
+       record persists across rounds and so does the name, so unlike eventName
+       — which is regenerated for every round — this can never go stale.
+
+       A team created by an older build has no teamName. The block hides
+       rather than rendering an empty line, which is also what makes this build
+       safe to sit in a team alongside 260827.7. */
+    const lobbyTeamNameEl    = document.getElementById("lobby-team-name");
+    const lobbyTeamNameBlock = document.getElementById("lobby-team-name-block");
+    if (lobbyTeamNameEl && lobbyTeamNameBlock) {
+      const tn = (gameState.teamName || "").trim();
+      lobbyTeamNameEl.textContent      = tn;
+      lobbyTeamNameBlock.style.display = tn ? "block" : "none";
     }
 
     // Show Level 3 orientation message
