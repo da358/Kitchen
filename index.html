@@ -2016,6 +2016,11 @@
   }
   .obs-step-t { flex: 1 1 auto; font-size: 14px; line-height: 1.47; color: var(--text); }
   .obs-para { font-size: 14.5px; line-height: 1.5; color: var(--text-2); margin: 0 0 13px; }
+  /* 260828.2: emphasis inside message copy — see obsAppendText(). Weight AND
+     a step up to the panel's full text colour, because body copy here is
+     --text-2 and weight alone at 14.5px is a weak signal across a room. One
+     rule for the whole body, so bold reads the same in every block type. */
+  #obs-panel-body strong { font-weight: 700; color: var(--text); }
   /* The say-this-out-loud block. Copper, not scarlet, and the reason is
      specific: Session 21 made --danger the Observer's attention colour
      for an unfilled NEED, and that meaning is live on the same screen.
@@ -2470,7 +2475,16 @@
 
              Forced-uppercase input handling is wired below alongside
              join-code. -->
-        <input id="create-session-code" type="text" placeholder="SESSION CODE" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
+        <input id="create-session-code" type="text" placeholder="SESSION CODE (REQUIRED)" maxlength="24" autocomplete="off" style="text-transform:uppercase;">
+        <!-- 260828.2 (dev session 33): the error line moved UP, from below the
+             level cards to here, directly under the last input. Found in a
+             screenshot, not by a check: message 1 rests low on this screen and
+             covered the old position almost completely, so a host who typed a
+             bad session code saw three characters of an explanation. It also
+             belongs beside the fields it is complaining about. Empty markup
+             collapses to nothing, so this costs no space until it says
+             something. -->
+        <div class="error-msg" id="create-error"></div>
         <div class="hcard-stack" style="margin-top:2px;">
           <button type="button" class="hcard hc-active" id="level-card-1">
             <span class="hc-title">Level 1</span>
@@ -2485,7 +2499,6 @@
             <span class="hc-desc">Ticket trading — deeper coordination, uneven workloads.</span>
           </button>
         </div>
-        <div class="error-msg" id="create-error"></div>
       </div>
     </div>
     <div class="landing-card">
@@ -2515,7 +2528,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.1 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.3 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3353,6 +3366,32 @@ import { getDatabase, ref, set, get, update, push, onValue, off, remove, runTran
    OWNER-EDITED CONTENT. Timings and copy are the facilitator's, not the
    code's — change them here.                                          */
 const LOCAL_SESSION_SETTINGS = {
+  /* 260828.2 (dev session 33): the session codes a team may be created
+     against. THE FIRST THING IN THE GAME THAT EVER READS THE SESSION CODE
+     BACK — until now it was stored and read by nothing.
+
+     Owner decisions, dev session 33: the field is now REQUIRED (it was
+     optional in 260827.8), a code that is not on this list is refused, and
+     two codes are live — the class code and a standing code for ad-hoc play
+     and testing. ADHOC does not follow the digits-then-word shape the owner
+     set for session codes; that is deliberate and temporary, so it is
+     obvious at a glance which teams were not part of a real session.
+
+     What this buys, precisely: somebody who finds the URL and does not know
+     a code cannot create a team. It is NOT security — the codes travel in
+     the file, the way the Firebase config does, and anybody who opens the
+     source can read them. It is a gate against wandering in, and it is the
+     hook the session admin tool will replace with a real lookup.
+
+     WANTED LATER, owner idea recorded dev session 33: deactivating a code
+     after its session ends, so last week's code stops working. That needs
+     the codes to live in a session record rather than in this file, which is
+     admin-tool work — see the register in the briefing.
+
+     COUPLED TO MESSAGE 1, which tells the host to type 337CHARLIE. Change one
+     without the other and the game rejects the code it just asked for. */
+  validSessionCodes: ["337CHARLIE", "ADHOC"],
+
 
   /* ── levelRules ──────────────────────────────────────────────────────
      Per-level rules about how a round may start. Read through
@@ -3434,10 +3473,19 @@ const LOCAL_SESSION_SETTINGS = {
       trigger: { type: "arrival", screen: "landing" },
       title: "Welcome",
       blocks: [
-        { type: "para", text: "Welcome to the game. If you’re a Host, enter your name in the "
+        /* 260828.2: "Welcome to the game." removed from the top of this
+           paragraph — the panel heading already says Welcome and the owner
+           did not want it said twice (live test of 260828.1). The bold is
+           deliberate and specific: the two ROLE words, so somebody scanning
+           finds their own instruction in one glance, and the session code,
+           which is the one thing on this screen they have to type exactly.
+           "When your Host gives you a team code" is NOT bold — it is the
+           same word in a different job, and bolding it would read as a
+           third instruction. Owner direction. */
+        { type: "para", text: "If you’re a **Host**, enter your name in the "
                             + "CREATE A TEAM panel on the left. Name your team (your choice!). "
-                            + "Enter Session Code 337CHARLIE. Select Level 1." },
-        { type: "para", text: "If you’re a Player, enter your name in the JOIN A TEAM panel on "
+                            + "Enter Session Code **337CHARLIE**. Select Level 1." },
+        { type: "para", text: "If you’re a **Player**, enter your name in the JOIN A TEAM panel on "
                             + "the right. Sit tight for a moment. When your Host gives you a team "
                             + "code, enter that and click Join team." }
       ]
@@ -3762,7 +3810,13 @@ const LOCAL_SESSION_SETTINGS = {
                    timesUpText: "Time’s up. Return to the main room." },
       title: "Final discussion",
       blocks: [
-        { type: "para", text: "Congratulations on finishing all three levels!" },
+        /* 260828.2: was "Congratulations on finishing all three levels!".
+           Changed on the owner's live test of 260828.1 — read aloud, the old
+           line landed as a Level 3 wrap-up, and both reflection questions are
+           about the whole hour. The new line points the discussion backwards
+           on purpose. */
+        { type: "para", text: "Congratulations! Think back now to your experience across all "
+                            + "three levels." },
         { type: "para", text: "We’re starting a 7 minute timer. For the first minute, everyone "
                             + "should reflect SILENTLY on their own (you’re encouraged to take "
                             + "notes):" },
@@ -7024,7 +7078,23 @@ const OBS_PANEL_DEFAULT_TOP = 296;
    it did in the testbed. If that matters, the testbed is the place to
    re-measure rather than this table the place to guess. */
 const OBS_PANEL_TOP_BY_SCREEN = {
-  "landing":              500,
+  /* 260828.2 (dev session 33): landing raised... lowered, rather, from 500 to
+     560. Not a taste change — a measured collision. 260828.2 moved the create
+     panel's error line up to sit under the session code field (it was below
+     the level cards, where message 1 covered all but three characters of it),
+     which pushed the level cards down about 45px. At 500 the panel then cut
+     the Level 1 card in half: its centre landed under the panel, so the main
+     action of the screen could not be clicked without minimizing the message
+     that tells you to click it. At 560 the error line and the WHOLE Level 1
+     card are clear. Levels 2 and 3 are still covered, and MEASURED, NOT
+     GUESSED: they cannot be uncovered at all on a 900px-tall window — the
+     panel is 313px tall and Level 2's card ends at 641, so clearing it would
+     put the panel's bottom at 958 and the clamp would pull it straight back.
+     A host who wants to start at Level 2 or 3 minimizes the message first.
+     Acceptable because message 1 tells the host to select Level 1, and every
+     team in the run of show starts there. Owner approved 500 on the 260828.1
+     test, before the error line moved, so this wants confirming again. */
+  "landing":              560,
   "summary-level1":        23,   // message 2, host
   "lobby:level2":         258,   // message 3, host
   "lobby:level3":         180,   // message 8, host
@@ -7499,6 +7569,49 @@ function obsShowOrQueuePrompt(p) {
    session's message content can ever be interpreted as markup. Steps
    are numbered here, and letters lettered here, from their order in the
    list — never by the author. */
+
+/* 260828.2 (dev session 33): BOLD inside message copy. Owner asked for
+   "Host", "Player" and the session code emphasised in message 1.
+
+   Why it needs its own function rather than innerHTML. The whole panel
+   renderer deliberately never assigns innerHTML, so a session's copy can
+   never be interpreted as markup — that guarantee has to survive this, or a
+   future admin tool becomes a way to inject HTML into every player's screen.
+   So: split the string on **...** and append real text nodes and real
+   <strong> elements. No parsing, no markup, same guarantee, one extra shape.
+
+   The syntax is two asterisks either side, the same convention the owner's
+   own notes use. Rules that keep it from ever producing junk:
+   · An unclosed ** is left alone and shows as literal asterisks — visible,
+     never a crash, and obvious enough to catch in a screenshot.
+   · Empty emphasis (****) renders nothing rather than an empty bold node.
+   · It applies to EVERY block type, through this one function, so bold means
+     the same thing in a step, a quote, a lettered question and an aside.
+
+   REGISTER NOTE: this is a copy-authoring feature, so it belongs on the list
+   of things the eventual session admin tool has to expose — see the briefing's
+   register. The tool needs a bold control, not a field where somebody has to
+   remember asterisks. */
+function obsAppendText(el, text) {
+  const s = String(text == null ? "" : text);
+  const parts = s.split("**");
+  /* An even number of parts means an unmatched ** — treat the whole string as
+     plain text rather than guessing where the author meant to stop. */
+  if (parts.length < 3 || parts.length % 2 === 0) {
+    el.appendChild(document.createTextNode(s));
+    return;
+  }
+  parts.forEach((chunk, i) => {
+    if (!chunk) return;                       // skips **** and edge empties
+    if (i % 2 === 1) {
+      const b = document.createElement("strong");
+      b.textContent = chunk;
+      el.appendChild(b);
+    } else {
+      el.appendChild(document.createTextNode(chunk));
+    }
+  });
+}
 function obsRenderBlocks(prompt) {
   const body = document.getElementById("obs-panel-body");
   body.textContent = "";
@@ -7518,10 +7631,10 @@ function obsRenderBlocks(prompt) {
       n += 1;
       const row = document.createElement("div"); row.className = "obs-step";
       const num = document.createElement("span"); num.className = "obs-step-n"; num.textContent = String(n);
-      const txt = document.createElement("div");  txt.className = "obs-step-t";  txt.textContent = b.text;
+      const txt = document.createElement("div");  txt.className = "obs-step-t";  obsAppendText(txt, b.text);
       row.appendChild(num); row.appendChild(txt); body.appendChild(row);
     } else if (b.type === "quote") {
-      const q = document.createElement("p"); q.className = "obs-quote"; q.textContent = b.text;
+      const q = document.createElement("p"); q.className = "obs-quote"; obsAppendText(q, b.text);
       body.appendChild(q);
     } else if (b.type === "letters") {
       /* 260827.1: the fourth block type. Auto-lettered A, B, C by the
@@ -7539,7 +7652,7 @@ function obsRenderBlocks(prompt) {
         const lab = document.createElement("span"); lab.className = "obs-letter-l";
         lab.textContent = String.fromCharCode(65 + (i % 26)) + ".";
         const txt = document.createElement("div"); txt.className = "obs-letter-t";
-        txt.textContent = t;
+        obsAppendText(txt, t);
         row.appendChild(lab); row.appendChild(txt); wrap.appendChild(row);
       });
       if (items.length) body.appendChild(wrap);
@@ -7551,10 +7664,10 @@ function obsRenderBlocks(prompt) {
          opposite of that. Like the letters block it does not touch `n`, so
          step numbering continues around it. */
       const a = document.createElement("p"); a.className = "obs-aside";
-      a.textContent = b.text;
+      obsAppendText(a, b.text);
       body.appendChild(a);
     } else {
-      const p = document.createElement("p"); p.className = "obs-para"; p.textContent = b.text;
+      const p = document.createElement("p"); p.className = "obs-para"; obsAppendText(p, b.text);
       body.appendChild(p);
     }
   }
@@ -8035,7 +8148,32 @@ async function createGame(levelType) {
      Uppercased on the way in as well as by CSS, because the CSS transform is
      display only and the stored value has to be the one that will eventually
      be matched against a session record. */
-  const mySessionCode = document.getElementById("create-session-code").value.trim().toUpperCase();
+  /* 260828.2 (dev session 33): REQUIRED, and checked against the list.
+     Same shape and the same place as the two checks above it, for the same
+     reason — clicking a level card IS the create action, so this function is
+     the only place a check cannot be routed around. Spaces are stripped as
+     well as trimmed, because "337 CHARLIE" is how somebody reads it aloud and
+     there is no reason to punish typing it that way.
+
+     Two different errors on purpose: an empty field is a different mistake
+     from a wrong code, and telling somebody their blank field is invalid
+     reads as a bug. The wording of the second is the owner's. */
+  const mySessionCode = document.getElementById("create-session-code")
+                          .value.replace(/\s+/g, "").toUpperCase();
+  if (!mySessionCode) {
+    document.getElementById("create-error").textContent = "Please enter a session code.";
+    return;
+  }
+  const validCodes = getSessionSettings()?.validSessionCodes;
+  /* Fails OPEN if the list is missing or empty, the same posture as
+     requireObserver: a settings block that fails to load must never be the
+     thing that stops a room starting. A wrong code is refused; an absent
+     RULE is not enforced. */
+  if (Array.isArray(validCodes) && validCodes.length
+      && !validCodes.includes(mySessionCode)) {
+    document.getElementById("create-error").textContent = "Invalid session code. Try again.";
+    return;
+  }
   /* 260826.4 (dev session 27): game-code collision check. Verified defect —
      createGame() previously generated a code and set() it straight to
      games/{code}, overwriting whatever was already there. The code space is
@@ -8083,9 +8221,11 @@ async function createGame(levelType) {
        exactly as it does today; a team created by an older build has neither,
        and every reader here treats missing as "none" rather than erroring. */
     teamName:      myTeamName,
-    /* null rather than "" when the host leaves it blank, so a later reader
-       can test the field itself instead of testing for an empty string. */
-    sessionCode:   mySessionCode || null,
+    /* 260828.2: always a real code now — the field is required and validated
+       above, so the old `|| null` fallback for a blank entry is gone. Teams
+       created by 260827.8 or 260828.1 may still carry null, and every reader
+       must go on treating missing as "no session". */
+    sessionCode:   mySessionCode,
     status:        "lobby",
     created:       Date.now(),
     levelType:     levelType,
@@ -8896,7 +9036,14 @@ function enterGame() {
 
     const totalTasks = Object.values(gameState.players).reduce((s,p) => s + (p.tasksCompleted||0), 0);
     if (taskTarget > 0 && totalTasks >= taskTarget && gameState.status === "playing") {
-      if (amHost) update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now() });
+      /* 260828.2: "completed" — the team reached its target. This is the only
+         one of the two endings that a leaderboard may rank. Guarded by
+         status === "playing" above, so it runs once even though this listener
+         can fire repeatedly. */
+      if (amHost) {
+        update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now(), endReason: "completed" });
+        recordRoundResult("completed");
+      }
     }
 
     // Shared challenges (Session 9) — natural clock trigger, re-checked
@@ -9021,10 +9168,149 @@ function renderTeammates() {
   requestAnimationFrame(syncTeammateCardHeights);
 }
 
+/* ── RECORDING A ROUND RESULT (260828.2, dev session 33, Block 3 groundwork)
+   ───────────────────────────────────────────────────────────────────────
+   THE FIRST THING THIS GAME HAS EVER WRITTEN OUTSIDE games/{code}. Read the
+   briefing's "The leaderboard data shape" before changing anything here; the
+   shape below is the one settled in dev session 27, and the Firebase rules
+   for results/$bucket were published in the same breath as the Phase 0 rules,
+   so this needs no rules change.
+
+   Why it ships before any leaderboard is visible: recording is cheap and
+   invisible, and the data banks up from today. Build the display first and
+   run out of time, and there is nothing to display.
+
+   WHY THE ROUND ENDED is the whole point of the marking. A round ends two
+   ways — the team hits its target, or the host presses End game — and both
+   produce a time. The debrief has always known the difference and computed it
+   on screen ("Event completed in X:YZ" versus "Event ended at X:YZ") without
+   ever storing it. Rank completions only; a manual end is a team's own line,
+   never a rank. Nothing here does that ranking — the display does, later.
+
+   WRITTEN BY THE HOST, ONCE. Both call sites are host-side already.
+
+   THE ID IS DETERMINISTIC, not a push key: team code, level, and the round's
+   own instance id. Two things make that matter. showSummary() runs twice on
+   the host (standing flag), and the auto-end branch sits inside a listener
+   that can fire more than once. With a deterministic id a second write is the
+   same record with the same contents, which is harmless; with a push key it
+   would be a duplicate team on the leaderboard.
+
+   PAUSES ARE ALREADY EXCLUDED from the time, because resumeGame() shifts
+   startTime forward. A team that took the huddle is not penalised for it.
+
+   NOT STORED, on purpose: average time per ticket, and rank. Both are derived
+   at display, so they can never disagree with the numbers printed beside
+   them. Also not stored: anything that would let a past debrief be replayed —
+   see the rejected "team page" in the briefing.
+
+   FAILS SILENTLY BY DESIGN. A leaderboard write that throws must never stop a
+   team reaching its own debrief. The catch logs and moves on. */
+/* 260828.3 (dev session 33, owner request): a readable Eastern-time stamp to
+   sit beside the machine one.
+
+   BOTH are stored, and that is deliberate. finishedAt is milliseconds since
+   1970 — the right thing to SORT by, and unambiguous everywhere on earth, but
+   unreadable by a person looking at the database. finishedAtET is the same
+   moment written out for a human, in the timezone the sessions actually run
+   in. Neither is derived from the other at display; storing the readable one
+   costs a few bytes and saves the owner doing timezone arithmetic in the
+   Firebase console.
+
+   DAYLIGHT SAVING IS HANDLED, and not by us. Intl with timeZone
+   "America/New_York" asks the browser's own timezone database, so a June
+   round records EDT and a December round records EST without this code
+   knowing anything about the switch. Writing "UTC-5" by hand would have been
+   wrong for two thirds of the year.
+
+   hourCycle "h23" rather than hour12:false, which is the correct spelling —
+   some engines render midnight as "24:00" with the older option.
+
+   Written from the HOST's browser, so it is the host's clock. A host whose
+   machine is set wrong writes a wrong stamp; that is true of finishedAt too,
+   and the fix for both is server time, which is a bigger change than this
+   warrants today. Returns null rather than throwing on any engine that lacks
+   the timezone data — a missing stamp must never cost a team its record. */
+function etStamp(ms) {
+  try {
+    const p = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hourCycle: "h23", timeZoneName: "short"
+    }).formatToParts(new Date(ms)).reduce((o, x) => (o[x.type] = x.value, o), {});
+    if (!p.year || !p.hour) return null;
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName || "ET"}`;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function recordRoundResult(reason) {
+  try {
+    if (!amHost || !gameCode || !gameState) return;
+    const level = gameState.levelType || currentLevel || null;
+    const roundId = gameState.roundInstanceId || currentRoundInstanceId;
+    if (!level || !roundId) return;
+
+    const players  = gameState.players || {};
+    const observerId = gameState.observerPlayerId || null;
+    const tickets  = Object.values(players).reduce((s, p) => s + (p.tasksCompleted || 0), 0);
+    const target   = gameState.taskTarget || 0;
+    const endedAt  = Date.now();
+    /* Level 1 runs with no clock at all (startTime is null), so its record
+       carries a null time rather than a nonsense one. It is still recorded:
+       the round happened, and a level with no ranked time is the display's
+       problem, not this function's. */
+    const totalSec = (gameState.startTime && endedAt > gameState.startTime)
+      ? Math.round((endedAt - gameState.startTime) / 1000)
+      : null;
+
+    /* A small roles/head-count map rather than fixed fields — owner
+       direction, dev session 27 — so Leader and Expediter can slot in later
+       without invalidating records already banked. */
+    const roles = {
+      cooks: Object.keys(players).filter(pid => pid !== observerId).length,
+      observer: observerId ? 1 : 0
+    };
+
+    /* The bucket is the session code. A team created before 260828.2 may have
+       none, and those go to a separate bucket rather than being dropped —
+       missing is "no session", never an error. Firebase keys cannot contain
+       . $ # [ ] or /, and a session code is letters and digits, so it needs
+       no escaping. */
+    const bucket = gameState.sessionCode || "no-session";
+    const resultId = `${gameCode}-${level}-${roundId}`;
+
+    await set(ref(db, `results/${bucket}/${resultId}`), {
+      sessionCode: gameState.sessionCode || null,
+      teamName:    gameState.teamName || null,
+      gameCode:    gameCode,
+      level:       level,
+      roles:       roles,
+      totalSec:    totalSec,
+      tickets:     tickets,
+      target:      target,
+      endReason:   reason,          // "completed" | "ended"
+      eventName:   gameState.eventName || null,
+      finishedAt:  endedAt,
+      /* 260828.3: the same moment, readable, in Eastern time. See etStamp(). */
+      finishedAtET: etStamp(endedAt)
+    });
+  } catch (e) {
+    /* Deliberate: a failed leaderboard write is not a reason a team cannot
+       see its own debrief. */
+    console.warn("round result not recorded:", e);
+  }
+}
+
 function endGame() {
   clearInterval(timerInterval);
   timerInterval = null;
-  update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now() });
+  /* 260828.2: "ended" — the host stopped this round, so its time is NOT a
+     completion and must never be ranked as one. */
+  update(ref(db, `games/${gameCode}`), { status: "ended", endedAt: Date.now(), endReason: "ended" });
+  recordRoundResult("ended");
   showSummary();
 }
 
