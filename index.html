@@ -1199,6 +1199,48 @@
     font-size: 14px;
   }
   .stat-row:last-child { border-bottom: none; }
+  /* ── LEADERBOARD (260828.4, dev session 33) ────────────────────────────
+     Deliberately built from .summary-card and .stat-row rather than a new
+     visual language: it is one more card on a debrief page that already has
+     two or three, and a leaderboard that looked like a different product
+     would pull attention away from the discussion the page is for. */
+  .lb-row {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank {
+    flex: 0 0 auto; min-width: 22px;
+    font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .lb-name { flex: 1 1 auto; overflow-wrap: anywhere; }
+  .lb-tickets { flex: 0 0 auto; font-size: 12px; color: var(--text-3); }
+  .lb-time {
+    flex: 0 0 auto; font-weight: 600; font-variant-numeric: tabular-nums;
+    min-width: 48px; text-align: right;
+  }
+  /* The team's own row. A tint rather than a border, so the row does not
+     change height and the columns stay lined up down the card. */
+  /* 260828.4: an explicit tint rather than an --accent-wash token, because no
+     such token exists in this palette — the fallback was doing all the work
+     and a later reader would have gone looking for a variable that was never
+     there. Copper at low opacity, so the row reads as ours without competing
+     with the rank number. */
+  .lb-row.lb-me { background: rgba(178, 58, 46, 0.08); }
+  .lb-row.lb-me .lb-name { font-weight: 600; }
+  /* The unranked line for a round the host stopped early — see lbRender().
+     260828.4: the first version used --surface-2 for the background, which is
+     a mid-brown divider colour in this palette; against the card it read as a
+     muddy block and pulled MORE attention than the ranked rows above it, which
+     is backwards. A quiet left rule and no fill instead — the same "this is an
+     aside" language the message panel already uses. Caught in a screenshot,
+     not by a check. */
+  .lb-unranked {
+    margin-top: 12px; padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--border);
+    font-size: 13px; color: var(--text-2); line-height: 1.45;
+  }
+  .lb-note { margin-top: 12px; font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
   .stat-value { font-weight: 700; font-size: 18px; color: var(--accent); }
 
   /* Network diagram */
@@ -2528,7 +2570,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.3 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.5 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3064,6 +3106,15 @@
     </div>
   </div>
 
+  <!-- 260828.4 (dev session 33, Block 3): the session leaderboard. Sits
+       BELOW the team's own numbers on purpose — the debrief is about this
+       team first, and the comparison second. Hidden until there is something
+       to show; see lbRender(). -->
+  <div class="summary-card" id="leaderboard-level2" style="max-width:900px; width:100%; display:none; margin-top:20px;">
+    <h3 id="leaderboard-level2-heading">Session leaderboard</h3>
+    <div id="leaderboard-level2-body"></div>
+  </div>
+
   <!-- Level 2 summary — host actions -->
   <div id="summary-level2-host-actions" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:480px; margin-bottom:40px;">
     <div class="hcard-stack" style="width:100%;">
@@ -3112,6 +3163,12 @@
   <div class="summary-card" style="max-width:900px; width:100%;">
     <h3>Tickets completed</h3>
     <div id="summary-level3-tasks"></div>
+  </div>
+
+  <!-- 260828.4 (dev session 33, Block 3): the session leaderboard. -->
+  <div class="summary-card" id="leaderboard-level3" style="max-width:900px; width:100%; display:none; margin-top:20px;">
+    <h3 id="leaderboard-level3-heading">Session leaderboard</h3>
+    <div id="leaderboard-level3-body"></div>
   </div>
 
   <!-- Level 3 summary — host actions -->
@@ -4355,6 +4412,12 @@ function toast(msg, type="") {
 }
 
 function showScreen(id) {
+  /* 260828.4: the leaderboard's live listener belongs to the screen that
+     opened it. Torn down here rather than in each caller, the same reasoning
+     as obsPromptsDismissQuietly() below — one place that cannot be forgotten
+     by whoever adds the next screen. showSummary() re-attaches immediately
+     after it calls this, so a debrief still gets its board. */
+  if (typeof lbDetach === "function") lbDetach();
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-"+id).classList.add("active");
   // 260826.5: the rejoin offer is re-evaluated on every arrival at the
@@ -6967,7 +7030,7 @@ function applyObsPin() {
   const verb = obsPinned.side === "has" ? (many ? "need it" : "needs it")
                                         : (many ? "have it spare" : "has it spare");
   const frozen = obsFrozenCount > 0
-    ? ` \u00b7 updates held \u2014 ${obsFrozenCount} change${obsFrozenCount > 1 ? "s" : ""} queued` : "";
+    ? ` · updates held \u2014 ${obsFrozenCount} change${obsFrozenCount > 1 ? "s" : ""} queued` : "";
   cap.textContent = (litPlayers.size
     ? `${obsPinned.resource}: ${litPlayers.size} player${many ? "s" : ""} ${verb}.`
     : `${obsPinned.resource}: no one ${obsPinned.side === "has" ? "needs it" : "has it spare"} right now.`) + frozen;
@@ -9370,6 +9433,196 @@ function formatElapsedMMSS(ms) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/* ═══ THE SESSION LEADERBOARD (260828.4, dev session 33, Block 3) ═══════
+   Reads what recordRoundResult() writes. Read "The leaderboard data shape"
+   in the briefing before changing any of it.
+
+   THIS IS THE FIRST TIME ONE TEAM READS ANOTHER TEAM'S DATA. Everything
+   before it lived under games/{code} and was private to one team by
+   construction. That is why results/ is a second top-level path with its own
+   Firebase rule, and why the bucket is the SESSION CODE: to see a session's
+   leaderboard you must know its code, and nobody can ask for the list of
+   sessions. Confirmed against the live rules, dev session 33.
+
+   LIVE, not a snapshot. This is the answer to the real problem: the first
+   team to finish would otherwise stare at a leaderboard containing only
+   itself for the rest of the debrief. onValue keeps the card watching, so
+   rows appear as other teams finish while this team is still looking at it.
+
+   RANK AND AVERAGES ARE COMPUTED HERE AND NEVER STORED, so they can never
+   disagree with the numbers printed beside them.
+
+   ONLY COMPLETIONS ARE RANKED. A round the host stopped early still produced
+   a time, and ranking it would put a team that played for two minutes at the
+   top of the board. Those appear as the team's own line, unranked. Owner
+   direction, confirmed dev session 33.
+
+   LEVELS 2 AND 3 ONLY. Level 1 runs with no clock at all, so it has no time
+   to rank — its records are still written, and adding a Level 1 board later
+   needs no new data. Owner direction, dev session 33. */
+let lbUnsub = null;        // the live listener, or null
+let lbUnsubPath = null;    // the path it is attached to, so it can be detached
+
+/* Detaching is its own function because it is called from three places: when
+   attaching (so showSummary() running twice on the host cannot leave two
+   listeners on the same card), on every screen change, and when a team is
+   disbanded. A leaderboard listener that outlives its screen would go on
+   firing into a card nobody can see. */
+function lbDetach() {
+  if (lbUnsub && lbUnsubPath) {
+    try { off(ref(db, lbUnsubPath), "value", lbUnsub); } catch (e) { /* already gone */ }
+  }
+  lbUnsub = null;
+  lbUnsubPath = null;
+}
+
+function lbBucketFor(data) {
+  /* Missing is "no session", never an error — teams created before 260828.2
+     carry no session code, and the game must still show them a board among
+     themselves rather than throwing. */
+  return (data && data.sessionCode) || "no-session";
+}
+
+/* M:SS from seconds. formatElapsedMMSS() takes milliseconds and is used all
+   over the debrief; this is the seconds-shaped sibling, because the stored
+   record holds seconds. Kept separate rather than multiplying by 1000 at
+   every call site, which is the kind of thing that eventually gets forgotten
+   once. */
+function lbMMSS(sec) {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/* 260828.5 (dev session 33, owner request): average time per ticket.
+
+   DERIVED HERE, NEVER STORED — the briefing is explicit about this and the
+   reason is worth keeping in front of whoever reads it next: storing it lets
+   it disagree with the two numbers printed beside it on the same row. A
+   record whose time was later corrected would carry an average computed from
+   the old one, and the row would contradict itself in front of a room.
+
+   Returns null rather than zero when there are no tickets, so the caller can
+   leave the words out entirely instead of printing "0:00 each", which would
+   read as a team that finished instantly. */
+function lbAvgPerTicket(rec) {
+  const t = Number(rec && rec.tickets) || 0;
+  const s = Number(rec && rec.totalSec);
+  if (!t || !isFinite(s) || s <= 0) return null;
+  return s / t;
+}
+
+function lbRender(levelType, records) {
+  const card = document.getElementById(`leaderboard-${levelType}`);
+  const body = document.getElementById(`leaderboard-${levelType}-body`);
+  if (!card || !body) return;
+  body.textContent = "";
+
+  const all = Object.values(records || {}).filter(r => r && r.level === levelType);
+
+  /* One row per TEAM, not per record. A team that repeats a level writes a
+     second record, and both are real — but a board listing "Devils" twice
+     reads as a bug to everybody looking at it. Keep each team's BEST
+     completion, which is also the fairest reading of a repeated level. */
+  const bestByTeam = {};
+  for (const r of all) {
+    const isRanked = r.endReason === "completed" && typeof r.totalSec === "number";
+    if (!isRanked) continue;
+    const key = r.gameCode || r.teamName || Math.random().toString(36);
+    if (!bestByTeam[key] || r.totalSec < bestByTeam[key].totalSec) bestByTeam[key] = r;
+  }
+  const ranked = Object.values(bestByTeam).sort((a, b) =>
+    (a.totalSec - b.totalSec) || ((a.finishedAt || 0) - (b.finishedAt || 0)));
+
+  /* This team's own most recent record for this level, ranked or not. Matched
+     on the TEAM CODE rather than the name, because two teams in a session may
+     pick the same name — which is exactly why the record stores both. */
+  const mine = all
+    .filter(r => r.gameCode === gameCode)
+    .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0))[0] || null;
+
+  /* Counted from the records themselves, never configured in advance — the
+     owner often will not know the team count until the room is grouped. */
+  const teamsFinished = new Set(all.map(r => r.gameCode || r.teamName)).size;
+
+  if (!all.length) {
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "";
+
+  ranked.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "lb-row" + (r.gameCode === gameCode ? " lb-me" : "");
+    const rank = document.createElement("span"); rank.className = "lb-rank";
+    rank.textContent = String(i + 1);
+    const name = document.createElement("span"); name.className = "lb-name";
+    name.textContent = (r.teamName || r.gameCode || "A team")
+                     + (r.gameCode === gameCode ? " (you)" : "");
+    const tix = document.createElement("span"); tix.className = "lb-tickets";
+    /* 260828.5: tickets and the average share one muted column rather than
+       taking a fourth, which would crowd the row at a laptop width and push
+       the time — the number people actually compare — off its right edge. */
+    const avg = lbAvgPerTicket(r);
+    tix.textContent = `${r.tickets || 0} tickets`
+                    + (avg === null ? "" : ` · ${lbMMSS(avg)} each`);
+    const time = document.createElement("span"); time.className = "lb-time";
+    time.textContent = lbMMSS(r.totalSec);
+    row.appendChild(rank); row.appendChild(name); row.appendChild(tix); row.appendChild(time);
+    body.appendChild(row);
+  });
+
+  /* The unranked own-team line. Deliberately worded as a statement of fact
+     rather than as a near-miss: the host chose to stop the round, and a team
+     told it "did not qualify" would hear a judgement that was not theirs. */
+  if (mine && mine.endReason !== "completed") {
+    const p = document.createElement("div");
+    p.className = "lb-unranked";
+    /* The average appears here too when there is one. A team that was stopped
+       early still did real work, and the per-ticket figure is the one number
+       on this line that is fairly comparable with the ranked rows above it —
+       the total time is not, because they were not given the same time. */
+    const myAvg = lbAvgPerTicket(mine);
+    p.textContent = (typeof mine.totalSec === "number")
+      ? `You ended this level at ${lbMMSS(mine.totalSec)}`
+        + (myAvg === null ? "" : ` · ${mine.tickets} tickets · ${lbMMSS(myAvg)} each`)
+        + ". Rounds that end early aren’t ranked."
+      : "This round ended early, so it isn’t ranked.";
+    body.appendChild(p);
+  }
+
+  const note = document.createElement("p");
+  note.className = "lb-note";
+  if (!ranked.length) {
+    note.textContent = "No team has completed this level yet. This updates as teams finish.";
+  } else if (ranked.length === 1 && ranked[0].gameCode === gameCode) {
+    /* The honest empty state the whole live-updating design exists for. */
+    note.textContent = "You’re first to finish. This updates as other teams finish.";
+  } else {
+    note.textContent = `${teamsFinished} team${teamsFinished === 1 ? " has" : "s have"} `
+                     + "finished this level so far. This updates as other teams finish.";
+  }
+  body.appendChild(note);
+}
+
+/* Attaches the live listener for one debrief. Safe to call twice — see
+   lbDetach() and the showSummary() standing flag. */
+function lbAttach(levelType, data) {
+  lbDetach();
+  const card = document.getElementById(`leaderboard-${levelType}`);
+  if (card) card.style.display = "none";      // nothing shown until data arrives
+  if (levelType !== "level2" && levelType !== "level3") return;
+  const path = `results/${lbBucketFor(data)}`;
+  lbUnsubPath = path;
+  lbUnsub = onValue(ref(db, path), snap => {
+    try {
+      lbRender(levelType, snap.exists() ? snap.val() : {});
+    } catch (e) {
+      /* A leaderboard that throws must never take the debrief down with it. */
+      console.warn("leaderboard render failed:", e);
+    }
+  });
+}
+
 async function showSummary() {
   const snap = await get(ref(db, `games/${gameCode}`));
   const data = snap.val() || {};
@@ -9411,6 +9664,7 @@ async function showSummary() {
         : "Event complete";
     document.getElementById("summary-level3-subtitle").textContent =
       tgt > 0 ? `Goal: complete ${tgt} tickets` : "Here's how your team did";
+    lbAttach("level3", data);   // 260828.4
 
     // Tasks completed table
     const taskEl = document.getElementById("summary-level3-tasks");
@@ -9485,6 +9739,7 @@ async function showSummary() {
 
     drawNetwork(cookingPlayers, transferArr);
 
+    lbAttach("level2", data);   // 260828.4
     document.getElementById("summary-level2-host-actions").style.display  = isHost ? "flex" : "none";
     document.getElementById("summary-level2-guest-actions").style.display = isHost ? "none" : "flex";
   }
@@ -12994,7 +13249,7 @@ function diagNoteScreen(id) {
     diagPendingTransition = null;
     let note = "Screen \"" + id + "\" shown " + diagDur(total) + " after the host sent the change"
              + "  (waiting to receive it: " + diagDur(p.latency)
-             + " \u00b7 drawing it: " + diagDur(gap) + ")";
+             + " · drawing it: " + diagDur(gap) + ")";
     if (total > 2000) {
       note += p.latency > gap
         ? "  \u2190 SLOW, and the delay was in RECEIVING it"
