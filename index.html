@@ -2263,10 +2263,12 @@
   @media (prefers-reduced-motion: reduce) {
     .tip-card, .tip-highlight { transition: none; }
   }
-  /* Help "?" — bare icon, the sound/pause treatment (260815.3) */
-  #btn-help { background: none; border: none; padding: 4px 6px;
+  /* Help "?" — bare icon, the sound/pause treatment (260815.3).
+     260828.7: the Observer's header carries the same control, so both ids
+     share one rule rather than the look being defined twice and drifting. */
+  #btn-help, #btn-help-observer { background: none; border: none; padding: 4px 6px;
     cursor: pointer; display: inline-flex; align-items: center; }
-  #btn-help svg { height: 20px; width: auto; display: block; }
+  #btn-help svg, #btn-help-observer svg { height: 20px; width: auto; display: block; }
 </style>
 </head>
 <body>
@@ -2570,7 +2572,7 @@
        new filename AND this line updated to match, in the same change.
        The triple-tap diagnostics read the build stamp from this element
        (#version-line), so a stale value here mislabels bug reports too. -->
-  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.6 &nbsp;·&nbsp; © Set Forth LLC</p>
+  <p id="version-line" style="font-size:11px; color:var(--text-3); letter-spacing:0.06em; margin-top:8px;">Version 260828.7 &nbsp;·&nbsp; © Set Forth LLC</p>
 </div>
 
 <!-- ══ SCREEN: LOBBY ════════════════════════════════════════════ -->
@@ -3038,6 +3040,17 @@
       </div>
       <div class="dash-head-row2">
         <span class="observer-status" id="observer-round-status">Round in progress</span>
+        <!-- 260828.7 (dev session 35): the Observer's own "?" — re-summons
+             their Level 2 tour, the same affordance every cook has in the
+             game header. Deliberately NOT a .btn: the global
+             `.btn { flex: 1 }` rule in the modal-actions CSS would stretch
+             it across the row (the Session 21 hazard). Shares #btn-help's
+             styling rule. -->
+        <button id="btn-help-observer" title="Show tips" type="button">
+          <svg aria-hidden="true" width="72" height="118" viewBox="0 0 72 118" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M25.92 82.72V76.64C25.92 74.08 26.08 71.7867 26.4 69.76C26.8267 67.7333 27.4133 65.8133 28.16 64C29.0133 62.1867 30.08 60.4267 31.36 58.72C32.7467 57.0133 34.4533 55.2 36.48 53.28L43.68 46.4C45.7067 44.5867 47.4133 42.56 48.8 40.32C50.2933 38.08 51.04 35.36 51.04 32.16C51.04 28 49.7067 24.5333 47.04 21.76C44.48 18.88 40.8 17.44 36 17.44C33.5467 17.44 31.3067 17.92 29.28 18.88C27.36 19.7333 25.6533 20.96 24.16 22.56C22.7733 24.0533 21.7067 25.8133 20.96 27.84C20.2133 29.8667 19.7867 31.9467 19.68 34.08L0 32.32C0.64 27.2 1.97333 22.6667 4 18.72C6.13333 14.6667 8.85333 11.2533 12.16 8.48C15.4667 5.70666 19.2533 3.62666 23.52 2.24C27.7867 0.746668 32.3733 0 37.28 0C41.8667 0 46.1867 0.693333 50.24 2.07999C54.4 3.36 58.0267 5.33333 61.12 7.99999C64.32 10.56 66.8267 13.76 68.64 17.6C70.4533 21.44 71.36 25.8667 71.36 30.88C71.36 34.2933 70.9867 37.28 70.24 39.84C69.4933 42.4 68.4267 44.7467 67.04 46.88C65.6533 49.0133 63.9467 51.0933 61.92 53.12C60 55.04 57.8133 57.0667 55.36 59.2C53.2267 61.0133 51.4667 62.6133 50.08 64C48.8 65.3867 47.7333 66.7733 46.88 68.16C46.1333 69.5467 45.6 71.04 45.28 72.64C44.96 74.24 44.8 76.2133 44.8 78.56V82.72H25.92ZM22.72 104.96C22.72 101.547 23.9467 98.6133 26.4 96.16C28.96 93.7067 32 92.48 35.52 92.48C38.9333 92.48 41.92 93.6533 44.48 96C47.04 98.3467 48.32 101.227 48.32 104.64C48.32 108.053 47.04 110.987 44.48 113.44C42.0267 115.893 39.04 117.12 35.52 117.12C33.8133 117.12 32.16 116.8 30.56 116.16C29.0667 115.52 27.7333 114.667 26.56 113.6C25.3867 112.533 24.4267 111.253 23.68 109.76C23.04 108.267 22.72 106.667 22.72 104.96Z" fill="black"/>
+</svg>
+        </button>
         <button class="btn btn-primary" id="btn-observer-pause">Pause</button>
         <button class="btn btn-danger" id="btn-observer-end" style="display:none;">End game</button>
       </div>
@@ -6297,6 +6310,48 @@ const TIP_CONTENT = {
       body: "Drag a resource to a teammate\u2019s name to send it to them. Listen for what they need. Good luck!",
       highlight: { sel: ".teammate-card", all: true, pad: 8 } },
   ],
+  /* 260828.7 (dev session 35): the OBSERVER's Level 2 tour. Owner copy,
+     supplied whole. This is the first tip sequence for a screen other than
+     the game board, and it exists because the Observer was the one person
+     in Level 2 who was never taught anything: the role card's single line
+     in the lobby vanishes at round start, and the next thing they hear is
+     message 4 at 4:30 asking them to run a huddle.
+
+     Keyed on its own name rather than on a levelType, because "level2" for
+     a cook still means the Level 1 sequence (the Session 18 owner
+     decision) and these two must not collide.
+
+     ANCHORS AND HIGHLIGHTS ARE DELIBERATELY DIFFERENT on tip 2: the tail
+     points at ONE team member box while ALL of them are lit, which is the
+     owner's spec and which rectFor() already supports.
+
+     Tips 2 and 3 point at the SAME box on purpose — the first card in the
+     board's DOM, which obsRowPlan puts alone in the top row — so the tour
+     does not jump around the fan. If a player leaves and rejoins mid-round
+     the DOM order can drift from the layout order and the tail may land on
+     a lower card; it is still a real card, so this is cosmetic. */
+  level2observer: [
+    { key: "l2ot1",
+      title: "The Observer role",
+      body: "You\u2019ll be silently observing as the team works. Don\u2019t say anything or share your screen. Partway through this round, you\u2019ll lead a team huddle on how the team is doing. You have a special dashboard. Let\u2019s tour it.",
+      highlight: { full: true } },
+    { key: "l2ot2",
+      title: "Team members",
+      body: "Each box shows a team member. On the left, you can see red icons showing what their ticket needs. On the right, you can see black icons showing what resources they have.",
+      highlight: { sel: ".dash-card", all: true, pad: 8 } },
+    { key: "l2ot3",
+      title: "Tapping icons",
+      body: "Tap a red \u201cNEEDS\u201d icon to see who else on the team has it. Tap a black \u201cHAS\u201d icon to see who else on the team needs it.",
+      highlight: { sel: ".dash-card .dash-zones", pad: 6 } },
+    { key: "l2ot4",
+      title: "The icon legend",
+      body: "Click here to see a legend of all the icons.",
+      highlight: { sel: "#obs-handle", pad: 8 } },
+    { key: "l2ot5",
+      title: "Observe closely",
+      body: "Listen carefully to how the team is coordinating. What\u2019s working well? What could be better? You\u2019ll get another message partway through this round to pause play and start a short team huddle.",
+      highlight: { full: true } },
+  ],
   level3: [
     { key: "l3t1",
       title: "The rail shows your tickets.",
@@ -6320,6 +6375,15 @@ const TIP_PLACEMENTS = {
   l1t2: { anchor: { sel: ".ticket-col" }, side: "right" },
   l1t3: { anchor: { sel: ".station-panel" }, side: "top" },
   l1t4: { anchor: { sel: ".teammate-card", all: true }, side: "bottom" },
+  /* 260828.7: the Observer tour. Tips 1 and 5 are general remarks with no
+     tail (anchor null = centred card), matching the owner's spec. Tip 4
+     sits BELOW the legend tab, which hangs off the bottom edge of the
+     header, so "bottom" points the tail upward at it. */
+  l2ot1: { anchor: null, side: null },
+  l2ot2: { anchor: { sel: ".dash-card" }, side: "bottom" },
+  l2ot3: { anchor: { sel: ".dash-card .dash-zones" }, side: "bottom" },
+  l2ot4: { anchor: { sel: "#obs-handle" }, side: "bottom" },
+  l2ot5: { anchor: null, side: null },
   l3t1: { anchor: { sel: "#rail-row .stub-wrap.is-now" }, side: "bottom" },
   l3t2: { anchor: { sel: ".teammate-card", all: true }, side: "left" },
 };
@@ -6567,21 +6631,37 @@ function repositionTipsIfActive() {
    bounded retries, then starts anyway (the centered fallback recovers
    via the re-measure hooks once stubs exist). */
 function maybeStartOnboardingTips() {
-  if (currentLevel !== "level1" && currentLevel !== "level3") return;
+  /* 260828.7 (dev session 35): the OBSERVER's Level 2 tour rides this same
+     trigger. enterGame() already calls this function on every client
+     including the Observer's — it simply returned here, because the level
+     is "level2". So the Observer's tour needed no new start hook and no new
+     timer, only permission to pass this line.
+
+     A cook in Level 2 is deliberately still excluded: their tips are the
+     Level 1 sequence, re-summoned by the "?" button, and auto-starting
+     those again in Level 2 was decided against in Session 18. */
+  const observerTour = (currentLevel === "level2" && amObserver);
+  if (!observerTour && currentLevel !== "level1" && currentLevel !== "level3") return;
   // 260826.6: suppressed for the round a player rejoined into — see the
   // rejoin branch in joinGame() for why, and why this is keyed to a round
   // id rather than a flag that would need clearing.
   if (suppressTipsForRoundId && suppressTipsForRoundId === currentRoundInstanceId) return;
   const overlay = document.getElementById("room-modal-overlay");
   if (overlay && overlay.style.display === "flex") { tipsPendingRoomModal = true; return; }
-  if (currentLevel === "level3" && !document.querySelector("#rail-row .stub-wrap")
-      && tipStartRetries < 8) {
+  /* Bounded wait for an anchor to exist, then start anyway — the same
+     shape Level 3 uses for the rail. The Observer's board is drawn from
+     gameUnsub snapshots rather than from enterGame's own read, so at 600ms
+     the team member boxes may not be there yet, and a tour whose first
+     anchor is missing would open its cards centred with no cutout. */
+  const waitingFor = observerTour ? ".dash-card"
+                   : (currentLevel === "level3" ? "#rail-row .stub-wrap" : null);
+  if (waitingFor && !document.querySelector(waitingFor) && tipStartRetries < 8) {
     tipStartRetries++;
     setTimeout(maybeStartOnboardingTips, 300);
     return;
   }
   tipStartRetries = 0;
-  startTips(currentLevel);
+  startTips(observerTour ? "level2observer" : currentLevel);
 }
 
 function releaseTipsHeldForRoomModal() {
@@ -7768,6 +7848,20 @@ function msgEyebrowFor(m) {
 }
 
 function obsOpenPanel(prompt) {
+  /* 260828.7 (dev session 35): a message arriving CLOSES any onboarding
+     tips first. Owner direction, raised for the Observer's new Level 2
+     tour: a tour still on screen at 4:30 would sit under the huddle
+     message, and the tip layer (z-index 9500) is below the panel (9660),
+     so it would be a dimmed screen nobody could explain.
+
+     Placed here rather than in the Observer's tour alone, because the same
+     collision already existed for a cook whose Level 1 tips are up when
+     message 5 lands. One line in the one place every message opens
+     through, so it cannot be forgotten by whoever adds message ten.
+
+     Quietly: this is not the person skipping their tips, so nothing about
+     it should look like a dismissal. */
+  dismissTipsQuietly();
   obsPromptOpen = prompt;
   const panel = obsPanelEl(), chip = obsChipEl();
   const eyebrowEl = document.getElementById("obs-panel-eyebrow");
@@ -10540,6 +10634,14 @@ document.getElementById("btn-pause").addEventListener("click", () => pauseGame()
 // same and the welcome tip's goal statement applies).
 document.getElementById("btn-help").addEventListener("click", () => {
   startTips(currentLevel === "level3" ? "level3" : "level1");
+});
+/* 260828.7 (dev session 35): the Observer's "?" in the dashboard header.
+   A separate id rather than a second listener on the same one, because the
+   two buttons live on different screens and must run different sequences —
+   the cook's "?" in Level 2 runs the Level 1 tour by owner decision, and
+   the Observer must never get that one. */
+document.getElementById("btn-help-observer").addEventListener("click", () => {
+  startTips("level2observer");
 });
 document.getElementById("btn-resume").addEventListener("click", resumeGame);
 document.getElementById("activity-modal-close-btn").addEventListener("click", () => closeActivityModal(false));
